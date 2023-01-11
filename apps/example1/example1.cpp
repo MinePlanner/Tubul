@@ -4,6 +4,8 @@
 
 #include <iostream>
 
+#include "tubul.h"
+
 int main(){
-    std::cout << "Hello Tubul!\n";
+    std::cout << "Hello Tubul version: " << TU::getVersion() << ".\n";
 }
