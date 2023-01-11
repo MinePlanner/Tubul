@@ -1,0 +1,8 @@
+bin/
+build/
+lib/
+
+cmake-build-*
+*.swp
+build.conf
+

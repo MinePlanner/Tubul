@@ -1,0 +1,56 @@
+# CMP code style
+
+# Notes (https://releases.llvm.org/8.0.0/tools/clang/docs/ClangFormat.html )
+# - VIM Integration: https://releases.llvm.org/8.0.0/tools/clang/docs/ClangFormat.html#vim-integration
+
+# - Clang format optios documentation:
+# - Online configurator tool: https://zed0.co.uk/clang-format-configurator/
+
+Language: Cpp
+Standard: c++20
+TabWidth: 4
+ColumnLimit: 0
+UseTab: ForContinuationAndIndentation
+
+IndentWidth: 4
+IndentCaseLabels: true
+ContinuationIndentWidth: 4
+NamespaceIndentation: Inner
+
+# Align options
+AlignAfterOpenBracket: Align
+AlignConsecutiveAssignments: Consecutive
+AlignConsecutiveDeclarations: Consecutive
+AlignTrailingComments: true
+AlignOperands: true
+
+# Space options
+SpaceBeforeAssignmentOperators: true
+SpaceBeforeParens: ControlStatements
+SpaceInEmptyParentheses: false
+SpacesInAngles: false
+SpacesInParentheses: false
+SpacesInSquareBrackets: false
+
+# Always break before braces
+BreakBeforeBraces: Allman
+BreakConstructorInitializers: 'AfterColon'
+
+# Other
+AllowAllParametersOfDeclarationOnNextLine: true
+AllowShortBlocksOnASingleLine: Empty
+AllowShortCaseLabelsOnASingleLine: false
+AllowShortFunctionsOnASingleLine: None
+AllowShortIfStatementsOnASingleLine: false
+AllowShortLoopsOnASingleLine: false
+AlwaysBreakAfterReturnType: None
+AlwaysBreakBeforeMultilineStrings: false
+BinPackArguments: false
+BinPackParameters: false
+BreakStringLiterals: true
+KeepEmptyLinesAtTheStartOfBlocks: false
+MaxEmptyLinesToKeep: 1
+SortIncludes: CaseInsensitive
+
+# Do not indent public/private keywords
+AccessModifierOffset: -4
