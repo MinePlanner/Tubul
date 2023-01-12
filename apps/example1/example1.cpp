@@ -6,6 +6,10 @@
 
 #include "tubul.h"
 
+int error_function(){
+    throw TU::logError("Hay algo mal aqui");
+}
+
 int main(){
     std::cout << "Hello Tubul version: " << TU::getVersion() << ".\n";
 	std::string hello("Hello world 1 2 3");
