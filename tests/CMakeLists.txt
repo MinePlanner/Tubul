@@ -15,7 +15,9 @@ FetchContent_MakeAvailable(googletest)
 enable_testing()
 include(GoogleTest)
 
-add_executable(testtubul test_setup.cpp)
+file(GLOB tubul_tests_src "*.cpp")
+
+add_executable(testtubul ${tubul_tests_src})
 target_link_libraries(testtubul GTest::gtest_main)
 target_link_libraries(testtubul libtubul)
 target_include_directories(testtubul PRIVATE libtubul)
