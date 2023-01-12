@@ -3,6 +3,7 @@
 //
 
 #pragma once
+
 #include <vector>
 #include <string>
 #include <string_view>
@@ -13,6 +14,11 @@
 #include <source_location>
 
 namespace TU{
+
+	using std::string;
+	using std::vector;
+
+	// setup
     void init();
     int getVersion();
 
@@ -39,15 +45,18 @@ namespace TU{
 	std::vector< std::string_view > split(std::string const& input);
 	std::vector< std::string_view > split(std::string const& input, std::string const& delims);
 
-	std::vector< std::string_view > split(std::string_view const& input);
-	std::vector< std::string_view > split(std::string_view const& input, std::string const& delims);
+    std::vector<std::string_view> split(std::string_view const &input);
 
-	template <typename ContainerType>
-	std::string join(ContainerType const& container, std::string const& joiner);
+    std::vector<std::string_view> split(std::string_view const &input, std::string const &delims);
 
-	template <typename IteratorType>
-	std::string join(IteratorType begin, IteratorType end, std::string const& joiner);
+    template<typename ContainerType>
+    std::string join(ContainerType const &container, std::string const &joiner);
 
-	// logger
-	std::runtime_error logError(const string&);
+    template<typename IteratorType>
+    std::string join(IteratorType begin, IteratorType end, std::string const &joiner);
+
+    // logger
+    [[nodiscard]] std::runtime_error logError(const std::string &msg, int line = __builtin_LINE(),
+                                              const char *file = __builtin_FILE(),
+                                              const char *function = __builtin_FUNCTION());
 }
