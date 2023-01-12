@@ -24,7 +24,7 @@ std::vector< std::string_view > split(std::string const& input, std::string cons
 		return results;
 	//Getting the pointer to the first character of the string (note
 	//it may be a delimiter).
-	const char* ptr = input.c_str();
+	const char* ptr = input.data();
 	//we already know there's at least one character that is not a delimiter
 	//but may be the only one.
 	end = input.find_last_not_of(delims) + 1;

@@ -11,4 +11,8 @@ int main(){
 	std::string hello("Hello world");
 	auto tokens = TU::split(hello," " ) ;
 	std::cout << "Splitting a string: " << hello << " -> ['" << tokens[0] << "','" << tokens[1] << "']" << std::endl;
+
+	std::vector<std::string> tokensToJoin = {"pepito", "paga", "doble"};
+	auto res = TU::join(tokensToJoin, "->");
+	std::cout << "Joining " << res << std::endl;
 }
