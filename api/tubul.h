@@ -8,10 +8,15 @@
 #include <string_view>
 #include <tubul_defs.h>
 
+#include <string>
+#include <vector>
+#include <source_location>
+
 namespace TU{
     void init();
     int getVersion();
 
+	// strings
 	/** Simple range iterators.
 	 * The idea is that you can use the irange functions to iterate over a range
 	 * containing (0, N-1) just the same way you would write a for loop. For example
@@ -43,7 +48,6 @@ namespace TU{
 	template <typename IteratorType>
 	std::string join(IteratorType begin, IteratorType end, std::string const& joiner);
 
-
-
-
+	// logger
+	std::runtime_error logError(const string&);
 }
