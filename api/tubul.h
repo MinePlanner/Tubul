@@ -6,6 +6,7 @@
 #include <vector>
 #include <string>
 #include <string_view>
+#include "tubul_string.h"
 
 namespace TU{
     void init();
@@ -13,4 +14,9 @@ namespace TU{
 
 
 	std::vector< std::string_view > split(std::string const& input, std::string const& delims);
+	template <typename ContainerType>
+	std::string join(ContainerType const& container, std::string const& joiner);
+
+	template <typename IteratorType>
+	std::string join(IteratorType begin, IteratorType end, std::string const& joiner);
 }

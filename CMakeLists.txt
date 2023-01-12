@@ -6,6 +6,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 include_directories(${PROJECT_SOURCE_DIR}/api)
+include_directories(${PROJECT_SOURCE_DIR}/tubul)
 
 add_subdirectory(tubul)
 add_subdirectory(tests)
