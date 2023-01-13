@@ -12,6 +12,7 @@
 #include <string>
 #include <string_view>
 
+#include <optional>
 #include <tubul_defs.h>
 
 namespace TU {
@@ -21,7 +22,6 @@ namespace TU {
 
     int getVersion();
 
-	// utils
 	/** Simple range iterators.
 	 * The idea is that you can use the irange functions to iterate over a range
 	 * containing (0, N-1) just the same way you would write a for loop. For example
@@ -64,4 +64,14 @@ namespace TU {
               std::source_location::current());
 #endif
 
+	struct Argument;
+
+	void parseArgsOrDie(int argc, char** argv);
+	Argument addArgument(std::string const& short_form, std::string const& long_form);
+
+	template<typename T>
+	T getArg(std::string const& param);
+
+	template <typename T>
+	std::optional<T> isArgPresent( std::string const& param);
 }

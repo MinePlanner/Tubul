@@ -3,6 +3,7 @@
 //
 
 #include <iostream>
+#include <vector>
 
 #include "tubul.h"
 
@@ -10,8 +11,27 @@ int error_function(){
     throw TU::throwError("Hay algo mal aqui");
 }
 
-int main(){
+int main(int argc, char** argv){
     std::cout << "Hello Tubul version: " << TU::getVersion() << ".\n";
+
+	std::cout << "I can check some arguments! explicit and default values! (use -h for help, or -c for a flag and -p for a name)" << std::endl;
+	TU::addArgument("-c", "--chanchito")
+				.help("Testing a flag argument")
+				.flag();
+	TU::addArgument( "-p", "--perrito")
+				.help("su nombre de perro favorito")
+				.defaultValue(std::string("cachupin"));
+
+	TU::parseArgsOrDie(argc, argv);
+	bool askedFor = TU::getArg<bool>("-c");
+	if (askedFor)
+		std::cout << " > I was asked for a piggy" << std::endl;
+	else
+		std::cout << " > No piggy??" << std::endl;
+
+	std::string cachupin = TU::getArg<std::string>("-p");
+	std::cout <<" > The doggy i was asked is " << cachupin << std::endl;
+
 	std::string hello("Hello world 1 2 3");
 	auto tokens = TU::split(hello ) ;
 	std::cout << "I can split and join strings: " << hello << " -> '" << TU::join(tokens,"->") << "'" << std::endl;

@@ -18,6 +18,7 @@ endif()
 
 include_directories(${PROJECT_SOURCE_DIR}/api)
 include_directories(${PROJECT_SOURCE_DIR}/tubul)
+include_directories(${PROJECT_SOURCE_DIR}/../argparse/include/argparse)
 
 add_subdirectory(tubul)
 add_subdirectory(tests)
