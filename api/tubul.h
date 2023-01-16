@@ -6,11 +6,15 @@
 #include <vector>
 #include <string>
 #include <string_view>
+#include <tubul_defs.h>
 
 namespace TU{
     void init();
     int getVersion();
 
+	tubul_range irange(size_t end);
+	tubul_range irange(size_t begin, size_t end);
+	tubul_skip_range irange(size_t begin, size_t end, size_t step);
 
 	std::vector< std::string_view > split(std::string const& input);
 	std::vector< std::string_view > split(std::string const& input, std::string const& delims);
@@ -23,4 +27,8 @@ namespace TU{
 
 	template <typename IteratorType>
 	std::string join(IteratorType begin, IteratorType end, std::string const& joiner);
+
+
+
+
 }
