@@ -8,11 +8,8 @@
 
 int main(){
     std::cout << "Hello Tubul version: " << TU::getVersion() << ".\n";
-	std::string hello("Hello world");
-	auto tokens = TU::split(hello," " ) ;
-	std::cout << "Splitting a string: " << hello << " -> ['" << tokens[0] << "','" << tokens[1] << "']" << std::endl;
+	std::string hello("Hello world 1 2 3");
+	auto tokens = TU::split(hello ) ;
+	std::cout << "I can split and join strings: " << hello << " -> '" << TU::join(tokens,"->") << "'" << std::endl;
 
-	std::vector<std::string> tokensToJoin = {"pepito", "paga", "doble"};
-	auto res = TU::join(tokensToJoin, "->");
-	std::cout << "Joining " << res << std::endl;
 }
