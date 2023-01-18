@@ -12,7 +12,9 @@ namespace TU{
     int getVersion();
 
 
+	std::vector< std::string_view > split(std::string const& input);
 	std::vector< std::string_view > split(std::string const& input, std::string const& delims);
+
 	template <typename ContainerType>
 	std::string join(ContainerType const& container, std::string const& joiner);
 
