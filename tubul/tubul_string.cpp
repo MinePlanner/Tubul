@@ -9,11 +9,14 @@
 #include <string>
 #include <string_view>
 #include <algorithm>
+#include <type_traits>
 
 namespace TU
 {
 namespace detail {
 
+	template <typename T>
+	concept StringLikeType =  std::is_same<std::string,T>::value || std::is_same<std::string_view,T>::value;
 /***
  * Split function for merging delimiters. This version is useful for separating
  * words in phrases where there could be multiple spaces by mistake or any reason.
@@ -21,7 +24,8 @@ namespace detail {
  * @param delims string containing characters to use as delimiters
  * @return vector with string views of the different found tokens.
  */
-std::vector< std::string_view > split_merge(std::string const& input, std::string const& delims)
+template < StringLikeType StringType>
+std::vector< std::string_view > split_merge(StringType const& input, std::string const& delims)
 {
 	//The vector to contain the results
 	std::vector< std::string_view > results;
@@ -80,7 +84,8 @@ std::vector< std::string_view > split_merge(std::string const& input, std::strin
  * @param delims string containing characters to use as delimiters
  * @return vector with string views of the different found tokens.
  */
-std::vector< std::string_view > split_strict(std::string const& input, std::string const& delims)
+template < StringLikeType StringType>
+std::vector< std::string_view > split_strict(StringType const& input, std::string const& delims)
 {
 	//The vector to contain the results
 	std::vector< std::string_view > results;
@@ -134,7 +139,17 @@ std::vector< std::string_view > split(std::string const& input)
 	return detail::split_merge(input, " ");
 }
 
+std::vector< std::string_view > split(std::string_view const& input)
+{
+	return detail::split_merge(input, " ");
+}
+
 std::vector< std::string_view > split(std::string const& input, std::string const& delims)
+{
+	return detail::split_strict(input, delims);
+}
+
+std::vector< std::string_view > split(std::string_view const& input, std::string const& delims)
 {
 	return detail::split_strict(input, delims);
 }
