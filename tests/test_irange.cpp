@@ -73,7 +73,6 @@ TEST(TUBULIrange, testSkipNumbers)
 	iter_count = 0;
 	for (auto i: TU::irange(0,11,3))
 	{
-		std::cout << "it(" << iter_count << ") = " << i << std::endl;
 		EXPECT_EQ(i, iter_count*3);
 		iter_count++;
 	}
