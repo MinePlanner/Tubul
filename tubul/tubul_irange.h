@@ -43,7 +43,7 @@ namespace details{
 				at_(at),
 				step_(step)
 			{}
-			bool operator!=(iter const& other) const { return at_ != other.at_; }
+			bool operator!=(iter const& other) const { return at_ <= other.at_; }
 			T const& operator*() const { return at_; }
 			iter& operator++() { at_+=step_; return *this; }
 		private:
@@ -56,7 +56,7 @@ namespace details{
 			begin_val_(begin),
 			end_val_(end),
 			step_val_(step)
-		{  assert( (end-begin)%step == 0);}
+		{ }
 		iter begin() { return iter(begin_val_, step_val_); }
 		iter end() { return iter(end_val_, step_val_); }
 

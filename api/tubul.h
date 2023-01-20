@@ -12,6 +12,21 @@ namespace TU{
     void init();
     int getVersion();
 
+	/** Simple range iterators.
+	 * The idea is that you can use the irange functions to iterate over a range
+	 * containing (0, N-1) just the same way you would write a for loop. For example
+	 * a vector V with N elements can be iterated by
+	 * 					for (auto i: TU::irange(V.size())
+	 * The irange with just 1 param, assumes you start from 0, it's the same as using
+	 * TU::irange(0, V.size(), but there are too many cases for when you want to iterate
+	 * a slice of things in a container.
+	 * The irange option with the "step" parameter is equivalent to iterate doing it+=step
+	 * on each iteration, which can be useful for example to go over the odd/even numbers
+	 * in a range, looping over multiples or what not. Be careful that the begin-end range
+	 * does NOT need to be an exact multiple of step for ease of use (like iterate multiples
+	 * of 3 between 0 and 10 would be TU::irange(0,11,3)), but that could prove a bit confusing
+	 * for some particular use cases.
+	 */
 	tubul_range irange(size_t end);
 	tubul_range irange(size_t begin, size_t end);
 	tubul_skip_range irange(size_t begin, size_t end, size_t step);
