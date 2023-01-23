@@ -41,7 +41,17 @@ namespace TU {
 	tubul_range irange(size_t begin, size_t end);
 	tubul_skip_range irange(size_t begin, size_t end, size_t step);
 
-	// strings
+	/** String handling functions.
+	 * Split will return a vector of string_views with the tokens detected. Do note
+	 * there are 2 versions. If you don't pass the argument, the delimiter is assumed to be
+	 * a space and also consecutive spaces are considered one. When the delimiter is given
+	 * the consecutive delimiters are considered as if they are surrounding an empty string. This
+	 * can be very important when working with csv files.
+	 *
+	 * Join is the opposite to split, where you can pass the delimiters and a set of strings
+	 * to be merged, and returns the new resulting string. Do note you can pass iterators if
+	 * you don't want to merge a whole container.
+	 */
 	std::vector< std::string_view > split(std::string const& input);
 	std::vector< std::string_view > split(std::string const& input, std::string const& delims);
     std::vector<std::string_view> split(std::string_view const &input);
@@ -53,16 +63,33 @@ namespace TU {
     template<typename IteratorType>
     std::string join(IteratorType begin, IteratorType end, std::string const &joiner);
 
-    // logger
+	// logger
 #ifdef TUBUL_MACOS
-    [[nodiscard]] std::runtime_error throwError(const std::string &msg, int line = __builtin_LINE(),
-                                              const char *file = __builtin_FILE(),
-                                              const char *function = __builtin_FUNCTION());
+	[[nodiscard]] std::runtime_error throwError(const std::string &msg, int line = __builtin_LINE(),
+												const char *file = __builtin_FILE(),
+												const char *function = __builtin_FUNCTION());
 #else
-    [[nodiscard]] std::runtime_error throwError(const std::string &message,
-              const std::source_location location =
-              std::source_location::current());
+	[[nodiscard]] std::runtime_error throwError(const std::string &message,
+												const std::source_location location =
+													std::source_location::current());
 #endif
+
+	/** Argument parsing facilities.
+	 * You can parse arguments command line arguments with the functions on this section.
+	 * For adding arguments, you can use addArgument to set up a given argument
+	 * Example:
+	 * 		TU::addArgument("-f", "--fruit")
+	 * 				.defaultValue("apple");
+	 * 		TU::addArgument("-c", "--color")
+	 * 				.required();
+	 * 		TU::addArgument("-v", "--verbose)
+	 * 				.flag();
+	 *
+	 * 	With parseArgsOrDie you call the argument handler to do its magic.
+	 * 	Then you can use getArg to retrieve the value of a given argument (be consistent with
+	 * 	expected values and default types!) or query the existence of a given argument.
+	 */
+
 
 	struct Argument;
 

@@ -8,19 +8,17 @@
 #include "tubul.h"
 
 int error_function(){
-    throw TU::throwError("Hay algo mal aqui");
+	throw TU::throwError("Hay algo mal aqui");
 }
 
-int main(int argc, char** argv){
-    std::cout << "Hello Tubul version: " << TU::getVersion() << ".\n";
-
-	std::cout << "I can check some arguments! explicit and default values! (use -h for help, or -c for a flag and -p for a name)" << std::endl;
+void parseArguments(int argc, char** argv)
+{
 	TU::addArgument("-c", "--chanchito")
-				.help("Testing a flag argument")
-				.flag();
+		.help("Testing a flag argument")
+		.flag();
 	TU::addArgument( "-p", "--perrito")
-				.help("su nombre de perro favorito")
-				.defaultValue(std::string("cachupin"));
+		.help("su nombre de perro favorito")
+		.defaultValue(std::string("cachupin"));
 
 	TU::parseArgsOrDie(argc, argv);
 	bool askedFor = TU::getArg<bool>("-c");
@@ -31,6 +29,15 @@ int main(int argc, char** argv){
 
 	std::string cachupin = TU::getArg<std::string>("-p");
 	std::cout <<" > The doggy i was asked is " << cachupin << std::endl;
+
+}
+
+int main(int argc, char** argv){
+	std::cout << "Hello Tubul version: " << TU::getVersion() << ".\n";
+
+	parseArguments(argc, argv);
+
+	std::cout << "I can check some arguments! explicit and default values! (use -h for help, or -c for a flag and -p for a name)" << std::endl;
 
 	std::string hello("Hello world 1 2 3");
 	auto tokens = TU::split(hello ) ;
@@ -43,7 +50,8 @@ int main(int argc, char** argv){
 	std::vector<std::string> numbers;
 	for (auto i: TU::irange(1,7))
 		numbers.push_back(std::to_string(i));
-	std::cout << TU::join(numbers, "->");
+	std::cout << TU::join(numbers, "->") << std::endl;
+
 
 	// uncomment to test error location funcionality
 	// error_function();

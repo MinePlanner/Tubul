@@ -34,7 +34,17 @@ Argument addArgument(std::string const& short_form, std::string const& long_form
 
 void parseArgsOrDie(int argc, char** argv)
 {
-	getArgumentsParser().parse_args(argc, argv);
+	try
+	{
+		getArgumentsParser().parse_args(argc, argv);
+	}
+	catch (std::runtime_error& e)
+	{
+		std::cerr << e.what() << std::endl;
+		std::cerr << getArgumentsParser() << std::endl;
+		std::exit(1);
+
+	}
 }
 
 template<typename T>
