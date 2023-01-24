@@ -2,7 +2,7 @@
 // Created by Carlos Acosta on 20-01-23.
 //
 #pragma once
-#include <argparse.hpp>
+#include <memory>
 
 
 namespace TU
@@ -12,8 +12,11 @@ namespace TU
 class Argument
 {
 public:
-	using ArgImpl = argparse::Argument;
-	explicit Argument(ArgImpl& a);
+	struct ArgImpl;
+	using ArgImplPtr = std::unique_ptr<ArgImpl>;
+
+	explicit Argument(ArgImplPtr&& impl);
+	~Argument();
 
 	Argument& required();
 	Argument& help(std::string const& help_text);
@@ -27,7 +30,7 @@ public:
 	Argument& setAsList();
 
 private:
-	ArgImpl& arg_;
+	ArgImplPtr arg_;
 };
 
 }
