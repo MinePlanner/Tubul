@@ -26,4 +26,5 @@ int main(){
 	std::cout << TU::join(numbers, "->");
 
 
+	// error_function();
 }

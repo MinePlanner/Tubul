@@ -23,11 +23,11 @@ namespace TU {
 
 #else
 
-    std::runtime_error logError(const std::string_view message,
-              const std::source_location location =
-              std::source_location::current())
+    std::runtime_error logError(const std::string &message,
+              const std::source_location location)
+              // std::source_location::current())
      {
-         std::string errormsg = std::string("Error: '") + msg + "' at function " + function + " (" + file + ":" + std::to_string(line) + ")";
+         std::string errormsg = std::string("Error: '") + message + "' at function " + location.function_name() + " (" + location.file_name() + ":" + std::to_string(location.line()) + ")";
          // logger.logReport(errormsg);
          return std::runtime_error(errormsg);
      }
