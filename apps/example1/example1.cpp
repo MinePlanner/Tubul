@@ -20,6 +20,14 @@ void parseArguments(int argc, char** argv)
 		.help("su nombre de perro favorito")
 		.defaultValue(std::string("cachupin"));
 
+	TU::addArgument( "-x", "--xerox")
+		.help("un numerito")
+		.setAsDouble();
+
+	TU::addArgument( "-b", "--barks")
+		.help("ladridos")
+		.setAsList();
+
 	TU::parseArgsOrDie(argc, argv);
 	bool askedFor = TU::getArg<bool>("-c");
 	if (askedFor)
@@ -29,6 +37,15 @@ void parseArguments(int argc, char** argv)
 
 	std::string cachupin = TU::getArg<std::string>("-p");
 	std::cout <<" > The doggy i was asked is " << cachupin << std::endl;
+
+	auto magicNumber = TU::isArgPresent<double>("-x");
+	if (magicNumber)
+	std::cout << " I got a magic number!"  << *magicNumber << std::endl;
+
+	auto barkTypes = TU::isArgPresent<std::vector<std::string>>("-b");
+	if (barkTypes )
+		std::cout << "Barks: " << TU::join( *barkTypes, ",") << std::endl ;
+
 
 }
 

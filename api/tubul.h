@@ -80,14 +80,22 @@ namespace TU {
 	 * Example:
 	 * 		TU::addArgument("-f", "--fruit")
 	 * 				.defaultValue("apple");
-	 * 		TU::addArgument("-c", "--color")
+	 * 		TU::addArgument("-a", "--allowance")
+	 * 				.setAsDouble()
 	 * 				.required();
+	 * 		TU::addArgument("-i", "--invitees")
+	 * 				.setAsList();
 	 * 		TU::addArgument("-v", "--verbose)
 	 * 				.flag();
 	 *
 	 * 	With parseArgsOrDie you call the argument handler to do its magic.
 	 * 	Then you can use getArg to retrieve the value of a given argument (be consistent with
-	 * 	expected values and default types!) or query the existence of a given argument.
+	 * 	expected values and default types!) or query the existence of a given argument with isArgPresent
+	 * 	which returns an optional of the adequate type.
+	 * 	Be mindful that if you expect something as integer or double, you have to set it
+	 * 	explicitly while configuring the argument. You can also set something to expect
+	 * 	a list of strings with SetAsList (it will expect at least one value!), in which case the
+	 * 	expected return is a vector of strings.
 	 */
 
 

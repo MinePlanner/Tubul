@@ -11,7 +11,7 @@ namespace TU{
 
 argparse::ArgumentParser& getArgumentsParser()
 {
-	static argparse::ArgumentParser program("TubulApplication");
+	static argparse::ArgumentParser program("TubulApplication", "1.0", argparse::default_arguments::help);
 	return program;
 }
 
@@ -24,6 +24,9 @@ Argument& Argument::defaultValue( bool val ){ arg_.default_value( val); return *
 Argument& Argument::defaultValue( int val){  arg_.default_value( val).scan<'d',int>(); return *this;}
 Argument& Argument::defaultValue( double val){  arg_.default_value( val).scan<'g',double>(); return *this;}
 Argument& Argument::defaultValue( std::string const& val){  arg_.default_value( val); return *this;}
+Argument& Argument::setAsDouble( ){  arg_.scan<'g',double>(); return *this;}
+Argument& Argument::setAsInteger( ){  arg_.scan<'d',int>(); return *this;}
+Argument& Argument::setAsList( ){  arg_.nargs(argparse::nargs_pattern::at_least_one); return *this;}
 
 
 
@@ -38,12 +41,11 @@ void parseArgsOrDie(int argc, char** argv)
 	{
 		getArgumentsParser().parse_args(argc, argv);
 	}
-	catch (std::runtime_error& e)
+	catch (std::exception& e)
 	{
-		std::cerr << e.what() << std::endl;
+		std::cerr << "\n" << e.what() << "\n" << std::endl;
 		std::cerr << getArgumentsParser() << std::endl;
 		std::exit(1);
-
 	}
 }
 
@@ -58,6 +60,7 @@ template bool getArg<bool>(std::string const& param);
 template int getArg<int>(std::string const& param);
 template double getArg<double>(std::string const& param);
 template std::string getArg<std::string>(std::string const& param);
+template std::vector<std::string> getArg<std::vector<std::string>>( std::string const& param);
 
 
 
@@ -73,4 +76,5 @@ template std::optional<bool> isArgPresent<bool>( std::string const& param);
 template std::optional<int> isArgPresent<int>( std::string const& param);
 template std::optional<double> isArgPresent<double>( std::string const& param);
 template std::optional<std::string> isArgPresent<std::string>( std::string const& param);
+template std::optional<std::vector<std::string>> isArgPresent<std::vector<std::string>>( std::string const& param);
 }

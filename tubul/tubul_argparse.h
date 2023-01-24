@@ -22,6 +22,9 @@ public:
 	Argument& defaultValue( int val );
 	Argument& defaultValue( double val );
 	Argument& defaultValue( std::string const& val );
+	Argument& setAsDouble();
+	Argument& setAsInteger();
+	Argument& setAsList();
 
 private:
 	ArgImpl& arg_;
