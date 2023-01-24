@@ -66,15 +66,15 @@ template std::vector<std::string> getArg<std::vector<std::string>>( std::string 
 
 
 template <typename T>
-std::optional<T> isArgPresent( std::string const& param)
+std::optional<T> getOptionalArg( std::string const& param)
 {
 	auto res = getArgumentsParser().present<T>( param );
 	return res;
 }
 
-template std::optional<bool> isArgPresent<bool>( std::string const& param);
-template std::optional<int> isArgPresent<int>( std::string const& param);
-template std::optional<double> isArgPresent<double>( std::string const& param);
-template std::optional<std::string> isArgPresent<std::string>( std::string const& param);
-template std::optional<std::vector<std::string>> isArgPresent<std::vector<std::string>>( std::string const& param);
+template std::optional<bool> getOptionalArg<bool>( std::string const& param);
+template std::optional<int> getOptionalArg<int>( std::string const& param);
+template std::optional<double> getOptionalArg<double>( std::string const& param);
+template std::optional<std::string> getOptionalArg<std::string>( std::string const& param);
+template std::optional<std::vector<std::string>> getOptionalArg<std::vector<std::string>>( std::string const& param);
 }

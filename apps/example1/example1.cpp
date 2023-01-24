@@ -38,11 +38,11 @@ void parseArguments(int argc, char** argv)
 	std::string cachupin = TU::getArg<std::string>("-p");
 	std::cout <<" > The doggy i was asked is " << cachupin << std::endl;
 
-	auto magicNumber = TU::isArgPresent<double>("-x");
+	auto magicNumber = TU::getOptionalArg<double>("-x");
 	if (magicNumber)
 	std::cout << " I got a magic number!"  << *magicNumber << std::endl;
 
-	auto barkTypes = TU::isArgPresent<std::vector<std::string>>("-b");
+	auto barkTypes = TU::getOptionalArg<std::vector<std::string>>("-b");
 	if (barkTypes )
 		std::cout << "Barks: " << TU::join( *barkTypes, ",") << std::endl ;
 

@@ -108,5 +108,5 @@ namespace TU {
 	T getArg(std::string const& param);
 
 	template <typename T>
-	std::optional<T> isArgPresent( std::string const& param);
+	std::optional<T> getOptionalArg( std::string const& param);
 }
