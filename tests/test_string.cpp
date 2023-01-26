@@ -12,7 +12,7 @@ TEST(TUBULString, testSplitEmpty){
 	{
 		auto result = TU::split(test_string );
 		EXPECT_EQ(result.size(), 0);
-		//Because we just found delimers, there's nothing "real" to cheack
+		//Because we just found delimers, there's nothing "real" to check
 	}
 }
 

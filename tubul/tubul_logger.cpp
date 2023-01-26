@@ -3,6 +3,7 @@
 //
 
 #include "tubul.h"
+#include <iostream>
 #include <stdexcept>
 
 #ifndef TUBUL_MACOS
@@ -18,6 +19,8 @@ namespace TU
 	std::string errormsg =
 		std::string("Error: '") + msg + "' at function " + function + " (" + file + ":" + std::to_string(line) +
 		")";
+	// this should go to logger:
+	// std::cout << errormsg << std::endl;
 	return std::runtime_error(errormsg);
 }
 #else
