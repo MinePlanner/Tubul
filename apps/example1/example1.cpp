@@ -7,7 +7,7 @@
 #include "tubul.h"
 
 int error_function(){
-    throw TU::logError("Hay algo mal aqui");
+    throw TU::throwError("Hay algo mal aqui");
 }
 
 int main(){

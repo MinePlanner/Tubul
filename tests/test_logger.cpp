@@ -11,7 +11,7 @@ TEST(TUBULLogger, testLogError)
 		{
 			try
 			{
-				throw TU::logError("test");
+				throw TU::throwError("test");
 			}
 			catch (const std::runtime_error &e)
 			{

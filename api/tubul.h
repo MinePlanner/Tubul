@@ -55,11 +55,11 @@ namespace TU {
 
     // logger
 #ifdef TUBUL_MACOS
-    [[nodiscard]] std::runtime_error logError(const std::string &msg, int line = __builtin_LINE(),
+    [[nodiscard]] std::runtime_error throwError(const std::string &msg, int line = __builtin_LINE(),
                                               const char *file = __builtin_FILE(),
                                               const char *function = __builtin_FUNCTION());
 #else
-    [[nodiscard]] std::runtime_error logError(const std::string &message,
+    [[nodiscard]] std::runtime_error throwError(const std::string &message,
               const std::source_location location =
               std::source_location::current());
 #endif
