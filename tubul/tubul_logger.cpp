@@ -14,7 +14,7 @@ namespace TU
 {
 
 #ifdef TUBUL_MACOS
-[[nodiscard]] std::runtime_error logError(const std::string &msg, int line, const char *file, const char *function)
+[[nodiscard]] std::runtime_error throwError(const std::string &msg, int line, const char *file, const char *function)
 {
 	std::string errormsg =
 		std::string("Error: '") + msg + "' at function " + function + " (" + file + ":" + std::to_string(line) +
@@ -24,7 +24,7 @@ namespace TU
 	return std::runtime_error(errormsg);
 }
 #else
-[[nodiscard]] std::runtime_error logError(const std::string         &message,
+[[nodiscard]] std::runtime_error throwError(const std::string         &message,
 										  const std::source_location location)
 {
 	std::string errormsg = std::string("Error: '") + message + "' at function " + location.function_name() + " (" + location.file_name() + ":" + std::to_string(location.line()) + ")";
