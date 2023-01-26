@@ -12,6 +12,8 @@
 #include <string>
 #include <string_view>
 
+#include <tubul_defs.h>
+
 namespace TU {
 
     // setup
@@ -19,7 +21,7 @@ namespace TU {
 
     int getVersion();
 
-	// strings
+	// utils
 	/** Simple range iterators.
 	 * The idea is that you can use the irange functions to iterate over a range
 	 * containing (0, N-1) just the same way you would write a for loop. For example
@@ -39,11 +41,10 @@ namespace TU {
 	tubul_range irange(size_t begin, size_t end);
 	tubul_skip_range irange(size_t begin, size_t end, size_t step);
 
+	// strings
 	std::vector< std::string_view > split(std::string const& input);
 	std::vector< std::string_view > split(std::string const& input, std::string const& delims);
-
     std::vector<std::string_view> split(std::string_view const &input);
-
     std::vector<std::string_view> split(std::string_view const &input, std::string const &delims);
 
     template<typename ContainerType>
@@ -54,7 +55,6 @@ namespace TU {
 
     // logger
 #ifdef TUBUL_MACOS
-
     [[nodiscard]] std::runtime_error logError(const std::string &msg, int line = __builtin_LINE(),
                                               const char *file = __builtin_FILE(),
                                               const char *function = __builtin_FUNCTION());
