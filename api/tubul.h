@@ -12,11 +12,7 @@
 #include <string>
 #include <string_view>
 
-
 namespace TU {
-
-    using std::string;
-    using std::vector;
 
     // setup
     void init();
