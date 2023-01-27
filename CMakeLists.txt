@@ -16,6 +16,9 @@ if(APPLE)
     add_compile_definitions(TUBUL_MACOS)
 endif()
 
+#Adding external dependencies.
+add_subdirectory(External)
+
 include_directories(${PROJECT_SOURCE_DIR}/api)
 include_directories(${PROJECT_SOURCE_DIR}/tubul)
 
