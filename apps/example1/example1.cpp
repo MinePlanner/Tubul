@@ -15,7 +15,7 @@ void parseArguments(int argc, char** argv)
 {
 	TU::addArgument("-c", "--chanchito")
 		.help("Testing a flag argument")
-		.flag();
+		.setAsFlag();
 	TU::addArgument( "-p", "--perrito")
 		.help("su nombre de perro favorito")
 		.defaultValue(std::string("cachupin"));

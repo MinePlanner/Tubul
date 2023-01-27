@@ -39,13 +39,13 @@ Argument::~Argument(){ }
 
 Argument& Argument::required() { arg_->get().required(); return *this; }
 Argument& Argument::help(std::string const& help_text) { arg_->get().help(help_text); return *this; }
-Argument& Argument::flag(){ arg_->get().implicit_value(true).default_value(false); return *this;}
-Argument& Argument::defaultValue( bool val ){ arg_->get().default_value( val); return *this;}
 Argument& Argument::defaultValue( int val){  arg_->get().default_value( val).scan<'d',int>(); return *this;}
 Argument& Argument::defaultValue( double val){  arg_->get().default_value( val).scan<'g',double>(); return *this;}
 Argument& Argument::defaultValue( std::string const& val){  arg_->get().default_value( val); return *this;}
+Argument& Argument::defaultValue( const char* val){  arg_->get().default_value( std::string(val)); return *this;}
 Argument& Argument::setAsDouble( ){  arg_->get().scan<'g',double>(); return *this;}
 Argument& Argument::setAsInteger( ){  arg_->get().scan<'d',int>(); return *this;}
+Argument& Argument::setAsFlag(){ arg_->get().implicit_value(true).default_value(false); return *this;}
 Argument& Argument::setAsList( ){  arg_->get().nargs(argparse::nargs_pattern::at_least_one); return *this;}
 
 

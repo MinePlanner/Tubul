@@ -20,11 +20,11 @@ public:
 
 	Argument& required();
 	Argument& help(std::string const& help_text);
-	Argument& flag();
-	Argument& defaultValue( bool val );
 	Argument& defaultValue( int val );
 	Argument& defaultValue( double val );
 	Argument& defaultValue( std::string const& val );
+	Argument& defaultValue( const char* val );
+	Argument& setAsFlag();
 	Argument& setAsDouble();
 	Argument& setAsInteger();
 	Argument& setAsList();
