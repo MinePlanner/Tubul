@@ -109,4 +109,21 @@ namespace TU {
 
 	template <typename T>
 	std::optional<T> getOptionalArg( std::string const& param);
+
+	/** Time measuring facilities.
+	 * This are very simple objects that try to provide direct utility.
+	 * The stopwatches are objects used to measure time in the scope they
+	 * are created. AutoStopwatch is created with a message and when it
+	 * goes out of scope, will print that message along with the time
+	 * elapsed since its creation until the destruction of the object.
+	 * StopWatch works similarly, but instead simply adds the elapsed
+	 * time into a variable for later logging.
+	 * Timer is created with a given duration and can tell you if that
+	 * duration already expired.
+	 */
+	struct AutoStopWatch;
+	struct StopWatch;
+	struct Timer;
+
+
 }
