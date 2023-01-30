@@ -14,6 +14,16 @@ TEST(TUBULString, testSplitEmpty){
 		EXPECT_EQ(result.size(), 0);
 		//Because we just found delimers, there's nothing "real" to check
 	}
+	//Now the same, but with string views.
+	std::vector<std::string_view> test_views;
+	for (auto const& it: tests)
+		test_views.emplace_back(it);
+	for ( auto const& test_string: test_views)
+	{
+		auto result = TU::split(test_string );
+		EXPECT_EQ(result.size(), 0);
+		//Because we just found delimers, there's nothing "real" to check
+	}
 }
 
 TEST(TUBULString, testSplit1){
@@ -21,6 +31,16 @@ TEST(TUBULString, testSplit1){
 	std::vector<std::string> tests = {"P"," P", "P  ","    P    "  } ;
 	std::string expected = "P";
 	for ( auto const& test_string: tests)
+	{
+		auto result = TU::split(test_string );
+		EXPECT_EQ(result.size(), 1);
+		EXPECT_EQ(result.front(), expected);
+	}
+	//Now the same, but with string views.
+	std::vector<std::string_view> test_views;
+	for (auto const& it: tests)
+		test_views.emplace_back(it);
+	for ( auto const& test_string: test_views)
 	{
 		auto result = TU::split(test_string );
 		EXPECT_EQ(result.size(), 1);
@@ -44,6 +64,17 @@ TEST(TUBULString, testSplit2){
 		EXPECT_EQ(result.size(), expected.size());
 		EXPECT_EQ(result, result);
 	}
+
+	//Now the same, but with string views.
+	std::vector<std::string_view> test_views;
+	for (auto const& it: tests)
+		test_views.emplace_back(it);
+	for ( auto const& test_string: test_views)
+	{
+		auto result = TU::split(test_string);
+		EXPECT_EQ(result.size(), expected.size());
+		EXPECT_EQ(result, result);
+	}
 }
 
 TEST(TUBULString, testSplitStrictEmpty){
@@ -52,6 +83,20 @@ TEST(TUBULString, testSplitStrictEmpty){
 	std::vector<std::string> tests = {"", ",", ",,", ",,," } ;
 	size_t expected_size = 1;
 	for ( auto const& test_string: tests)
+	{
+		result = TU::split(test_string,"," );
+		EXPECT_EQ(result.size(), expected_size);
+		for (auto const& it: result)
+			EXPECT_EQ(it,"");
+		expected_size++;
+	}
+
+	//Now the same, but with string views.
+	std::vector<std::string_view> test_views;
+	for (auto const& it: tests)
+		test_views.emplace_back(it);
+	expected_size = 1;
+	for ( auto const& test_string: test_views)
 	{
 		result = TU::split(test_string,"," );
 		EXPECT_EQ(result.size(), expected_size);
@@ -90,6 +135,21 @@ TEST(TUBULString, testSplitStrictReal){
 													};
 	size_t current_test = 0;
 	for ( auto const& test_string: tests)
+	{
+		result = TU::split(test_string,"," );
+		auto const& current_expected = expected[current_test];
+		EXPECT_EQ(result.size(),current_expected.size()) ;
+		bool was_equal = std::equal(result.begin(), result.end(), expected[current_test].begin());
+		EXPECT_EQ(was_equal,true ) ;
+		current_test++;
+	}
+
+	//Now the same, but with string views.
+	std::vector<std::string_view> test_views;
+	for (auto const& it: tests)
+		test_views.emplace_back(it);
+	current_test = 0;
+	for ( auto const& test_string: test_views)
 	{
 		result = TU::split(test_string,"," );
 		auto const& current_expected = expected[current_test];
