@@ -125,5 +125,5 @@ namespace TU {
 	struct StopWatch;
 	struct Timer;
 
-
+	std::string getCurrentBlockLocation();
 }
