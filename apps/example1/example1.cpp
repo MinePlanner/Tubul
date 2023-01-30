@@ -52,13 +52,16 @@ void parseArguments(int argc, char** argv)
 
 int main(int argc, char** argv){
 	std::cout << "Hello Tubul version: " << TU::getVersion() << ".\n";
+	TU::ProcessBlock b("exampleApp");
 	TU::AutoStopWatch exampleTimer("Example app elapsed:");
 	//Cool trick to use "3s" instead of std::chrono::seconds(3)
 	using namespace std::chrono_literals;
 	TU::Timer alarm3s(3s);
 	{
+		TU::ProcessBlock parsing("Parsing");
 		TU::AutoStopWatch t(std::string("Tubul example timer for parse arguments:"));
 		parseArguments(argc, argv);
+		std::cout << TU::getCurrentBlockLocation() << std::endl;
 	}
 
 	std::cout << "I can check some arguments! explicit and default values! (use -h for help, or -c for a flag and -p for a name)" << std::endl;
@@ -79,11 +82,14 @@ int main(int argc, char** argv){
 
 	TU::TimeDuration exampleElapsed;
 	{
+		TU::ProcessBlock ps("sleeping");
 		TU::StopWatch st(exampleElapsed);
 		std::this_thread::sleep_for(std::chrono::seconds(3));
+		std::cout << TU::getCurrentBlockLocation() << std::endl;
 	}
 	std::cout << "I slept for " << exampleElapsed.count() << " seconds" << std::endl;
 	std::cout <<"\tTuner: Is the alarm up?" << ( (alarm3s.alive())?"YES":"NO" ) << "  remaining: " << alarm3s.remaining() << std::endl;
+	std::cout << TU::getCurrentBlockLocation() << std::endl;
 	// uncomment to test error location funcionality
 	// error_function();
 }
