@@ -155,6 +155,17 @@ namespace TU {
 	struct ProcessBlock;
 	std::string getCurrentBlockLocation();
 
+	/** Tubul Exception
+	 * Starting point for error reporting from Tubul. TU::Exception inherits
+	 * from std::runtime_error, and will be catched similarly by a catch (std::runtime_error& e)
+	 * but also supports adding extra information via operator << so eventually
+	 * you can call catch (TU::Exception& e) { std::cout << e.to_string();} to
+	 * get all the information stored through the different catch points during stack
+	 * unwinding.
+	 */
+	struct Exception;
+
+
 	/** CSV Handling
 	 * These objects/functions are meant to be the main way to interact with CSV files.
 	 * To read a csv file, you use TU::readCsv("some_filename.csv") and the file is

@@ -72,12 +72,12 @@ void parseArguments(int argc, char** argv)
 	else
 		std::cout << " > No piggy??" << std::endl;
 
-	std::string cachupin = TU::getArg<std::string>("-p");
+	auto cachupin = TU::getArg<std::string>("-p");
 	std::cout <<" > The doggy i was asked is " << cachupin << std::endl;
 
 	auto magicNumber = TU::getOptionalArg<double>("-x");
 	if (magicNumber)
-	std::cout << " I got a magic number!"  << *magicNumber << std::endl;
+		std::cout << " I got a magic number!"  << *magicNumber << std::endl;
 
 	auto barkTypes = TU::getOptionalArg<std::vector<std::string>>("-b");
 	if (barkTypes )
@@ -111,7 +111,7 @@ int main(int argc, char** argv){
 
 	std::cout << "With Tubul I can easily iterate simple ranges\n";
 	std::vector<std::string> numbers;
-	for (auto i: TU::irange(1,7))
+	for (std::integral auto i: TU::irange(1,7))
 		numbers.push_back(std::to_string(i));
 	std::cout << TU::join(numbers, "->") << std::endl;
 	std::cout <<"\tTimer: Is the alarm up?" << ((alarm3s.alive())?"YES":"NO") << "  remaining: " << alarm3s.remaining() << std::endl;
@@ -122,6 +122,19 @@ int main(int argc, char** argv){
 		TU::StopWatch st(exampleElapsed);
 		std::this_thread::sleep_for(std::chrono::seconds(3));
 		std::cout << TU::getCurrentBlockLocation() << std::endl;
+	}
+	try
+	{
+		std::cout << "I slept for " << exampleElapsed.count() << " seconds" << std::endl;
+		std::cout << "\tTimer: Is the alarm up?" << ((alarm3s.alive()) ? "YES" : "NO") << "  remaining: " << alarm3s.remaining() << std::endl;
+		std::cout << TU::getCurrentBlockLocation() << std::endl;
+		throw TU::Exception("a nefarious error")  << "And it can receive more danger!" << TU::getCurrentBlockLocation();
+	}
+	catch (TU::Exception& r)
+	{
+		std::cout << "catched a new exception" << r.to_string() << std::endl ;
+		std::cout << "And the what also works: '" << r.what() << "'\n" ;
+
 	}
 	std::cout << "I slept for " << exampleElapsed.count() << " seconds" << std::endl;
 	std::cout <<"\tTuner: Is the alarm up?" << ( (alarm3s.alive())?"YES":"NO" ) << "  remaining: " << alarm3s.remaining() << std::endl;
