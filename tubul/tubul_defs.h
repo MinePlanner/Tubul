@@ -18,5 +18,6 @@
 #include "tubul_argparse.h"
 #include "tubul_time.h"
 #include "tubul_blocks.h"
+#include "tubul_exception.h"
 
 #include "tubul_parse_csv.h"
