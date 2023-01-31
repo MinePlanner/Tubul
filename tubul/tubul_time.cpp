@@ -58,6 +58,11 @@ Timer::Timer(const TimeDuration& td):
 	wait_time_(td)
 {}
 
+Timer::Timer(int secs):
+	start_(std::chrono::high_resolution_clock::now()),
+	wait_time_(std::chrono::seconds(secs) )
+{}
+
 double Timer::remaining()
 {
 	auto current = std::chrono::high_resolution_clock::now();

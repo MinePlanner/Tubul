@@ -36,6 +36,7 @@ private:
 struct Timer
 {
 	explicit Timer(const TimeDuration& td);
+	explicit Timer(int seconds);
 
 	double remaining();
 	bool alive();
