@@ -53,6 +53,7 @@ void parseArguments(int argc, char** argv)
 int main(int argc, char** argv){
 	std::cout << "Hello Tubul version: " << TU::getVersion() << ".\n";
 	TU::AutoStopWatch exampleTimer("Example app elapsed:");
+	//Cool trick to use "3s" instead of std::chrono::seconds(3)
 	using namespace std::chrono_literals;
 	TU::Timer alarm3s(3s);
 	{
@@ -74,7 +75,7 @@ int main(int argc, char** argv){
 	for (auto i: TU::irange(1,7))
 		numbers.push_back(std::to_string(i));
 	std::cout << TU::join(numbers, "->") << std::endl;
-	std::cout <<" Is the alarm up?" << ((alarm3s.alive())?"YES":"NO") << "  remaining: " << alarm3s.remaining() << std::endl;
+	std::cout <<"\tTimer: Is the alarm up?" << ((alarm3s.alive())?"YES":"NO") << "  remaining: " << alarm3s.remaining() << std::endl;
 
 	TU::TimeDuration exampleElapsed;
 	{
@@ -82,7 +83,7 @@ int main(int argc, char** argv){
 		std::this_thread::sleep_for(std::chrono::seconds(3));
 	}
 	std::cout << "I slept for " << exampleElapsed.count() << " seconds" << std::endl;
-	std::cout <<" Is the alarm up?" << ( (alarm3s.alive())?"YES":"NO" ) << "  remaining: " << alarm3s.remaining() << std::endl;
+	std::cout <<"\tTuner: Is the alarm up?" << ( (alarm3s.alive())?"YES":"NO" ) << "  remaining: " << alarm3s.remaining() << std::endl;
 	// uncomment to test error location funcionality
 	// error_function();
 }
