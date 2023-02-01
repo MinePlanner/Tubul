@@ -4,15 +4,26 @@
 
 #include <vector>
 #include <string>
-#include <iostream>
+#include <chrono>
 #include "tubul_blocks.h"
 
 
 namespace TU
 {
-std::vector<std::string>& getBlockContainer()
+struct BlockDescription
 {
-	static std::vector<std::string> block_container;
+	using TimePoint = decltype(std::chrono::high_resolution_clock::now());
+	BlockDescription(const std::string& n, TimePoint tp):
+		name(n), start_time(tp)
+	{}
+
+	std::string name;
+	TimePoint start_time;
+};
+
+std::vector<BlockDescription>& getBlockContainer()
+{
+	static std::vector<BlockDescription> block_container;
 	return block_container;
 }
 
@@ -20,15 +31,22 @@ ProcessBlock::ProcessBlock(const std::string &name)
 {
 	auto& blocks = getBlockContainer();
 	index_ = blocks.size();
-	blocks.push_back(name);
-	std::cout << "Adding block " << name << std::endl;
+	blocks.emplace_back( name, std::chrono::high_resolution_clock::now() );
 }
 
 ProcessBlock::~ProcessBlock()
 {
 	auto& blocks = getBlockContainer();
-	std::cout << "deleting block '" << blocks.at(index_) << "'" << std::endl;
+	auto& closingBlock = blocks.back();
+	//To store the amount of seconds as a double.
+	using Duration = std::chrono::duration<double, std::ratio<1>>;
+	Duration block_duration =  std::chrono::high_resolution_clock::now() - closingBlock.start_time ;
+	//We should do something about the duration, like logging it for now just avoid
+	//warnings for variables not used.
+	(void) block_duration;
 	blocks.pop_back();
+	//Just to be safe, let's check we got are popping the context we expect.
+	assert(index_ == blocks.size());
 }
 
 std::string getCurrentBlockLocation()
@@ -36,15 +54,13 @@ std::string getCurrentBlockLocation()
 	//I'd really like to use join here...
 	auto const& blocks = getBlockContainer();
 	if (blocks.empty())
-		return std::string();
-	std::string res = blocks.front();
+		return {};
+	auto res = blocks.front().name;
 	auto it = blocks.begin()+1;
 	auto end = blocks.end();
 	for (;it != end; ++it)
-		res.append( std::string(" > ") + *it);
+		res.append( std::string(" > ") + it->name);
 	return res;
-
-
 }
 
 
