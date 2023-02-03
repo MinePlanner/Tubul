@@ -26,10 +26,6 @@ Navy,#000080,0,0,50
 Fuchsia,#FF00FF,100,0,100
 Purple,#800080,50,0,50)";
 
-int error_function(){
-	throw TU::throwError("Hay algo mal aqui");
-}
-
 std::string getTubulMem()
 {
 	return std::string("Memory (current/max): ") + TU::memCurrentRSS() + " / " + TU::memPeakRSS() ;
@@ -73,10 +69,77 @@ void parseArguments(int argc, char** argv)
 
 }
 
+void exampleLogging()
+{
+	// the following will go to stdout, because no logger has been defined
+	TU::logReport("Starting logger tests");
+
+	try
+	{
+		throw TU::throwError("This is an example of throw error.");
+	}
+	catch (std::runtime_error &e)
+	{
+		TU::logInfo("throwError working ok, with text:");
+		TU::logInfo(e.what());
+	}
+
+	// from now on, logReport and up will go to screen and
+	// logInfo and up will go to a file example1.log
+	TU::addLoggerDefinition(std::cout, TU::LogLevel::REPORT, TU::LogOptions::NOTIMESTAMP);
+	TU::addLoggerDefinition("example1.log", TU::LogLevel::INFO);
+
+	TU::logReport("This message should go to screen and example1.log");
+	TU::logInfo("This message should go only to example1.log");
+
+	// without arguments, log* will behave like a stream
+	// TU::logWarning() << "Everybody should see this warning." << "Everybody!";
+	TU::logWarning("Everybody should see this warning.");
+
+    TU::logReport() << "There are " << 4 << " logger streams";
+
+}
+
+void exampleStrings()
+{
+	std::string hello("Hello world 1 2 3");
+	auto tokens = TU::split(hello );
+	std::cout << "I can split and join strings: " << hello << " -> '" << TU::join(tokens,"->") << "'" << std::endl;
+	std::string_view hello_view  = hello;
+	auto tokens_from_view = TU::split(hello_view);
+	std::cout << "Also works with string_views: " << hello_view << " -> '" << TU::join(tokens_from_view,"->") << "'" << std::endl;
+}
+
+void exampleRangeAndJoin()
+{
+	std::cout << "With Tubul I can easily iterate simple ranges\n";
+	std::vector<std::string> numbers;
+	for (auto i: TU::irange(1,7))
+		numbers.push_back(std::to_string(i));
+	std::cout << TU::join(numbers, "->") << std::endl;
+}
+
+void exampleTimers(TU::Timer &alarm3s)
+{
+	std::cout <<"\tTimer: Is the alarm up?" << ((alarm3s.alive())?"YES":"NO") << "  remaining: " << alarm3s.remaining() << std::endl;
+
+	TU::TimeDuration exampleElapsed;
+	{
+		TU::StopWatch st(exampleElapsed);
+		std::this_thread::sleep_for(std::chrono::seconds(3));
+	}
+	std::cout << "I slept for " << exampleElapsed.count() << " seconds" << std::endl;
+	std::cout <<"\tTuner: Is the alarm up?" << ( (alarm3s.alive())?"YES":"NO" ) << "  remaining: " << alarm3s.remaining() << std::endl;
+}
+
 int main(int argc, char** argv){
+
+	// the main program should create a Tubul.
+	// Sub-libraries are free to use this one!
 	std::cout << "Hello Tubul version: " << TU::getVersion() << ".\n";
 	TU::ProcessBlock b("exampleApp");
 	TU::AutoStopWatch exampleTimer("Example app elapsed:");
+
 	//Cool trick to use "3s" instead of std::chrono::seconds(3)
 	using namespace std::chrono_literals;
 	TU::Timer alarm3s(3s);
@@ -89,12 +152,10 @@ int main(int argc, char** argv){
 
 	std::cout << "I can check some arguments! explicit and default values! (use -h for help, or -c for a flag and -p for a name)" << std::endl;
 
-	std::string hello("Hello world 1 2 3");
-	auto tokens = TU::split(hello ) ;
-	std::cout << "I can split and join strings: " << hello << " -> '" << TU::join(tokens,"->") << "'" << std::endl;
-	std::string_view hello_view  = hello;
-	auto tokens_from_view = TU::split(hello_view);
-	std::cout << "Also works with string_views: " << hello_view << " -> '" << TU::join(tokens_from_view,"->") << "'" << std::endl;
+	exampleStrings();
+	exampleRangeAndJoin();
+	exampleLogging();
+	exampleTimers(alarm3s);
 
 	std::cout << "With Tubul I can easily iterate simple ranges\n";
 	std::vector<std::string> numbers;
@@ -187,6 +248,5 @@ int main(int argc, char** argv){
 
 	std::cout << "Current RSS: " << TU::memCurrentRSS() << std::endl;
 	std::cout << "PeakRSS: " << TU::memPeakRSS() << std::endl;
-	// uncomment to test error location funcionality
-	// error_function();
+
 }

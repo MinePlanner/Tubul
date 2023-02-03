@@ -12,16 +12,30 @@
 #endif
 #include <string>
 #include <string_view>
-
 #include <optional>
 #include <tubul_defs.h>
 
 namespace TU {
 
-    // setup
+    //////////
+    // Setup
+    /////////
+
+	/** Start Tubul engine. Setups data structures, timers, memory control, among others
+	 */
     void init();
 
+	/** Get Tubul version in format major*10000 + minor*100 + patch
+	 * For example, version 1.3.4 will be reported as 10304.
+	 * In this way, it's easy to chech if Tubul version is the minimun required
+	 * For example: if(TU::getVersion() < 10200){ # error: Required tubul 1.2 or higher }
+	 * @return Single int variation of version
+	 */
     int getVersion();
+
+	//////////
+	// Utils
+	/////////
 
 	/** Simple range iterators.
 	 * The idea is that you can use the irange functions to iterate over a range
@@ -41,6 +55,10 @@ namespace TU {
 	tubul_range irange(size_t end);
 	tubul_range irange(size_t begin, size_t end);
 	tubul_skip_range irange(size_t begin, size_t end, size_t step);
+
+	////////////
+	// Strings
+	///////////
 
 	/** String handling functions.
 	 * Split will return a vector of string_views with the tokens detected. Do note
@@ -64,16 +82,69 @@ namespace TU {
     template<typename IteratorType>
     std::string join(IteratorType begin, IteratorType end, std::string const &joiner);
 
-	// logger
+
+	////////////
+	// Logger
+	////////////
+
+    /** \brief throwError is a function that will log the indicated
+     * message, including where (file, line) it was invoked.
+     * \return A TU::Exception with the content of the message,
+     * exception that should not be ignored.
+     */
 #ifdef TUBUL_MACOS
-	[[nodiscard]] std::runtime_error throwError(const std::string &msg, int line = __builtin_LINE(),
+	[[nodiscard]] TU::Exception throwError(const std::string &msg, int line = __builtin_LINE(),
 												const char *file = __builtin_FILE(),
 												const char *function = __builtin_FUNCTION());
 #else
-	[[nodiscard]] std::runtime_error throwError(const std::string &message,
+	[[nodiscard]] TU::Exception throwError(const std::string &message,
 												const std::source_location location =
 													std::source_location::current());
 #endif
+
+    /** \brief Adds a new logger sink/target, which can be either
+     * a std::ostream or the name (string) of a logger file.
+     * Tubul will take care of the opened named files, when it dies.
+     * @param logfile A string with the name of a file where log events
+     *                  will be written.
+     * @param level A level from where this sink should be used.
+     *              See TU::LogLevel.
+     * @param options Optional Options that can be added using "|",
+     *              like adding colors, skipping timestamps, etc.
+     *              See TU::LogOptions
+     */
+	void addLoggerDefinition(std::string const &logfile, LogLevel level, LogOptions options=LogOptions::NONE);
+	void addLoggerDefinition(std::ostream &out, LogLevel level, LogOptions options=LogOptions::NONE);
+
+    /** \brief Clears logger definitions defined previously,
+     * including the default std::cout definition.
+     */
+    void clearLoggerDefinitions();
+
+    /** \brief log* functions, allow to send a message to all loggers that
+     * participate on the corresponding level.
+     * End-of-line is added atomatically.
+     * @param The message to be sent
+     */
+	void logInfo(std::string const &msg);
+	void logReport(std::string const &msg);
+	void logWarning(std::string const &msg);
+    void logError(std::string const &msg);
+
+    /** \brief log streams, which allow to send strings and numbers using
+     * the "<<" operator. Example:
+     * TU::logInfo << "We have " << numCars << " cars ready to ship.";
+     * End-of-line is added automatically.
+     * @return
+     */
+    LogStream logInfo();
+    LogStream logReport();
+    LogStream logWarning();
+    LogStream logError();
+
+	/////////
+	// Args
+	/////////
 
 	/** Argument parsing facilities.
 	 * You can parse arguments command line arguments with the functions on this section.
@@ -99,7 +170,6 @@ namespace TU {
 	 * 	expected return is a vector of strings.
 	 */
 
-
 	struct Argument;
 
 	void parseArgsOrDie(int argc, char** argv);
@@ -110,6 +180,10 @@ namespace TU {
 
 	template <typename T>
 	std::optional<T> getOptionalArg( std::string const& param);
+
+	//////////
+	// Timers
+	/////////
 
 	/** Time measuring facilities.
 	 * This are very simple objects that try to provide direct utility.
@@ -143,7 +217,12 @@ namespace TU {
 	double getDifference(TimePoint tp_begin, TimePoint tp_end);
 
 
-	/** Processing blocks
+    //////////
+    // Blocks
+    //////////
+
+
+    /** Processing blocks
 	 * The idea of the process blocks is that you can have some extra logging
 	 * and/or information regarding what your application is doing at certain
 	 * point because you explicitly define some areas that represent a certain
@@ -172,7 +251,12 @@ namespace TU {
 	struct ProcessBlock;
 	std::string getCurrentBlockLocation();
 
-	/** Tubul Exception
+    /////////////
+    // Exceptions
+    /////////////
+
+
+    /** Tubul Exception
 	 * Starting point for error reporting from Tubul. TU::Exception inherits
 	 * from std::runtime_error, and will be catched similarly by a catch (std::runtime_error& e)
 	 * but also supports adding extra information via operator << so eventually
@@ -182,6 +266,9 @@ namespace TU {
 	 */
 	struct Exception;
 
+    ///////
+    // Data
+    ///////
 
 	/** CSV Handling/Dataframes
 	 * The DataFrames are the main way that we expect to use CSV files. The expectation
@@ -215,6 +302,7 @@ namespace TU {
 	 * To read a csv file and just do basic operations, you use TU::readCsv("some_filename.csv")
 	 * and the file is read and parsed to memory closely to what is written in the file. You
 	 * can query some simple things like number of rows/cols, retrieve a given row or a column.
+
 	 * You can request the columns as vectors of strings, integers or doubles by choosing the
 	 * function:
 	 * std::vector<double> getColumnAsDouble(size_t colIndex) const;
@@ -237,6 +325,10 @@ namespace TU {
 	DataFrame dataFrameFromCSVFile(const std::string& filename, const std::vector<std::string>& requestedColumns, CSVOptions options );
 	DataFrame dataFrameFromCSVFile(const std::string& filename, const ColumnRequest& requestedColumns, CSVOptions options );
 
-	std::string memCurrentRSS();
+    /////////
+    // Memory
+    /////////
+
+    std::string memCurrentRSS();
 	std::string memPeakRSS();
 }
