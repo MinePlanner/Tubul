@@ -37,6 +37,11 @@ ProcessBlock::ProcessBlock(const std::string &name)
 ProcessBlock::~ProcessBlock()
 {
 	auto& blocks = getBlockContainer();
+	//If somehow the blocks are empty and we got here, that means somethign really
+	//weird happened.
+	assert(not blocks.empty());
+	//We always just drop the last block in the stack given the way blocks
+	//are supposed to be created.
 	auto& closingBlock = blocks.back();
 	//To store the amount of seconds as a double.
 	using Duration = std::chrono::duration<double, std::ratio<1>>;
@@ -45,7 +50,7 @@ ProcessBlock::~ProcessBlock()
 	//warnings for variables not used.
 	(void) block_duration;
 	blocks.pop_back();
-	//Just to be safe, let's check we got are popping the context we expect.
+	//Just to be safe, let's check the number of blocks is the.
 	assert(index_ == blocks.size());
 }
 
