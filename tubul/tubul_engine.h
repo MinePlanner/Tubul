@@ -17,7 +17,7 @@ public:
 	~TubulEngine();
 
 	std::ostream &openFile(std::string const &fileName);
-	void          addLoggerDefinition(std::ostream &outLog, LogLevel level, LogOptions options);
+	void          addLoggerDefinition(std::ostream &outLog, LogLevel level, LogOptions options=LogOptions::NONE);
 	void          log(LogLevel level, std::string const &text);
 
 private:
@@ -28,6 +28,8 @@ private:
 			TU::LogLevel,
 			TU::LogOptions>>
 		loggers_;
+
+	bool loggerDefined_;
 };
 
 } // namespace TU

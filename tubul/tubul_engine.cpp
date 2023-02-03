@@ -5,13 +5,19 @@
 #include "tubul_engine.h"
 #include <algorithm>
 #include <fstream>
+#include <iostream>
 
 namespace TU
 {
 
-TubulEngine::TubulEngine()
+TubulEngine::TubulEngine():
+	loggerDefined_(false)
 {
 	// this is the init() of Tubul
+
+	// by default, create a logger to stdout with level logInfo
+	// override after first addLogDefinition!
+	addLoggerDefinition(std::cout, LogLevel::INFO);
 }
 
 TubulEngine::~TubulEngine()
@@ -30,6 +36,13 @@ std::ostream &TubulEngine::openFile(std::string const &fileName)
 
 void TubulEngine::addLoggerDefinition(std::ostream &outLog, LogLevel level, LogOptions options)
 {
+	// first logger definition overrides default behavior
+	if (not loggerDefined_)
+	{
+		loggers_.clear();
+		loggerDefined_ = true;
+	}
+
 	loggers_.emplace_back(outLog, level, options);
 }
 

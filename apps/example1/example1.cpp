@@ -70,7 +70,6 @@ int main(int argc, char** argv){
 	// the main program should create a Tubul.
 	// Sub-libraries are free to use this one!
 	TU::Tubul tubul;
-	TU::addLoggerDefinition(std::cout, TU::LogLevel::INFO);
 
 	std::cout << "Hello Tubul version: " << TU::getVersion() << ".\n";
 	TU::AutoStopWatch exampleTimer("Example app elapsed:");
