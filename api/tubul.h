@@ -11,16 +11,39 @@
 #endif
 #include <string>
 #include <string_view>
-
 #include <optional>
 #include <tubul_defs.h>
 
 namespace TU {
 
-    // setup
+    //////////
+    // Setup
+    /////////
+
+	/** Start Tubul engines. Setups data structures, timers, memory control, among others
+	 */
+
+	class Tubul{
+	public:
+		Tubul();
+		static TubulEngine &getInstance();
+	protected:
+		static std::unique_ptr<TubulEngine> engine_;
+	};
+
     void init();
 
+	/** Get Tubul version in format major*10000 + minor*100 + patch
+	 * For example, version 1.3.4 will be reported as 10304.
+	 * In this way, it's easy to chech if Tubul version is the minimun required
+	 * For example: if(TU::getVersion() < 10200){ # error: Required tubul 1.2 or higher }
+	 * @return Single int variation of version
+	 */
     int getVersion();
+
+	//////////
+	// Utils
+	/////////
 
 	/** Simple range iterators.
 	 * The idea is that you can use the irange functions to iterate over a range
@@ -40,6 +63,10 @@ namespace TU {
 	tubul_range irange(size_t end);
 	tubul_range irange(size_t begin, size_t end);
 	tubul_skip_range irange(size_t begin, size_t end, size_t step);
+
+	////////////
+	// Strings
+	///////////
 
 	/** String handling functions.
 	 * Split will return a vector of string_views with the tokens detected. Do note
@@ -63,7 +90,11 @@ namespace TU {
     template<typename IteratorType>
     std::string join(IteratorType begin, IteratorType end, std::string const &joiner);
 
-	// logger
+
+	////////////
+	// Logger
+	////////////
+
 #ifdef TUBUL_MACOS
 	[[nodiscard]] std::runtime_error throwError(const std::string &msg, int line = __builtin_LINE(),
 												const char *file = __builtin_FILE(),
@@ -73,6 +104,16 @@ namespace TU {
 												const std::source_location location =
 													std::source_location::current());
 #endif
+
+
+
+
+	void addLoggerDefinition(std::string &logfile, LogLevel level, LogOptions options);
+	void addLoggerDefinition(std::ostream &out, LogLevel level, LogOptions options);
+
+	/////////
+	// Args
+	/////////
 
 	/** Argument parsing facilities.
 	 * You can parse arguments command line arguments with the functions on this section.
@@ -98,7 +139,6 @@ namespace TU {
 	 * 	expected return is a vector of strings.
 	 */
 
-
 	struct Argument;
 
 	void parseArgsOrDie(int argc, char** argv);
@@ -109,6 +149,10 @@ namespace TU {
 
 	template <typename T>
 	std::optional<T> getOptionalArg( std::string const& param);
+
+	//////////
+	// Timers
+	/////////
 
 	/** Time measuring facilities.
 	 * This are very simple objects that try to provide direct utility.

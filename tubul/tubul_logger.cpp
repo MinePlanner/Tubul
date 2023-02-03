@@ -3,6 +3,8 @@
 //
 
 #include "tubul.h"
+#include "tubul_engine.h"
+#include <fstream>
 #include <iostream>
 #include <stdexcept>
 
@@ -31,5 +33,17 @@ namespace TU
 	return std::runtime_error(errormsg);
 }
 #endif
+
+void addLoggerDefinition(std::string const &logfile, TU::LogLevel level, TU::LogOptions options)
+{
+	std::ostream &outStream = Tubul::getInstance().openFile(logfile);
+	addLoggerDefinition(outStream, level, options);
+}
+
+void addLoggerDefinition(std::ostream &out, TU::LogLevel level, TU::LogOptions options)
+{
+	Tubul::getInstance().addLoggerDefinition(out, level, options);
+}
+
 
 } // namespace TU
