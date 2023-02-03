@@ -21,6 +21,8 @@ public:
 	void          log(LogLevel level, std::string const &text);
 
 private:
+	static void streamTimestamp(std::ostream &logStream) ;
+
 	std::vector<std::ofstream> managedFiles_;
 	std::vector<
 		std::tuple<

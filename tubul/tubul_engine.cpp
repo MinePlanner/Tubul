@@ -10,14 +10,16 @@
 namespace TU
 {
 
-TubulEngine::TubulEngine():
-	loggerDefined_(false)
+TubulEngine::TubulEngine() :
+	loggerDefined_(true)
 {
 	// this is the init() of Tubul
 
 	// by default, create a logger to stdout with level logInfo
 	// override after first addLogDefinition!
 	addLoggerDefinition(std::cout, LogLevel::INFO);
+	loggerDefined_ = false;
+
 }
 
 TubulEngine::~TubulEngine()
@@ -50,16 +52,21 @@ void TubulEngine::log(LogLevel level, std::string const &text)
 {
 	for (auto &logDefinition : loggers_)
 	{
-		if (level > std::get<1>(logDefinition))
+		std::ostream &logStream   = std::get<0>(logDefinition);
+		LogLevel      loggerLevel = std::get<1>(logDefinition);
+		LogOptions    options     = std::get<2>(logDefinition);
+
+//		std::cout << "Printing with level "
+//				  << std::to_string(static_cast<uint8_t>(level))
+//				  << " on a stream with level "
+//				  << std::to_string(static_cast<uint8_t>(loggerLevel))
+//				  << "\n";
+
+		if (level > loggerLevel)
 			continue;
 
-		std::ostream &logStream = std::get<0>(logDefinition);
-		LogOptions    options   = std::get<2>(logDefinition);
-
 		if (options ^ LogOptions::NOTIMESTAMP)
-		{
-			logStream << "YYYY-MM-DD HH:MM:SS - ";
-		}
+			streamTimestamp(logStream);
 
 		logStream << text;
 		if (text.empty() or (text.back() != '\n'))
@@ -67,6 +74,24 @@ void TubulEngine::log(LogLevel level, std::string const &text)
 		else
 			logStream << std::flush;
 	}
+}
+void TubulEngine::streamTimestamp(std::ostream &logStream)
+{
+	auto   now  = std::chrono::system_clock::now();
+	time_t tnow = std::chrono::system_clock::to_time_t(now);
+	tm    *utc  = localtime(&tnow);
+
+	logStream << std::setfill('0');
+	logStream << std::setw(4) << utc->tm_year + 1900; // Year
+	logStream << '-';
+	logStream << std::setw(2) << utc->tm_mon + 1; // Month
+	logStream << '-';
+	logStream << std::setw(2) << utc->tm_mday; // Day
+	logStream << ' ';
+	logStream << std::setw(2) << utc->tm_hour << ':'; // Hours
+	logStream << std::setw(2) << utc->tm_min << ':';  // Minutes
+	logStream << std::setw(2) << utc->tm_sec;         // Seconds
+	logStream << " - ";
 }
 
 } // namespace TU
