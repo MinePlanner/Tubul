@@ -90,6 +90,16 @@ int main(int argc, char** argv){
 	std::cout << "I slept for " << exampleElapsed.count() << " seconds" << std::endl;
 	std::cout <<"\tTuner: Is the alarm up?" << ( (alarm3s.alive())?"YES":"NO" ) << "  remaining: " << alarm3s.remaining() << std::endl;
 	std::cout << TU::getCurrentBlockLocation() << std::endl;
+
+
+	{
+		TU::AutoStopWatch st("Reading CSV file: ");
+		std::string filename = "salvador.csv";
+		auto csv = TU::read_csv(filename);
+		if (!csv)
+			std::cout << "Couldn't read file " << filename << std::endl;
+
+	};
 	// uncomment to test error location funcionality
 	// error_function();
 }

@@ -5,6 +5,7 @@
 #pragma once
 
 #include <vector>
+#include <optional>
 #include <stdexcept>
 #ifndef TUBUL_MACOS
 #include <source_location>
@@ -153,4 +154,12 @@ namespace TU {
 	 */
 	struct ProcessBlock;
 	std::string getCurrentBlockLocation();
+
+	/** CSV Handling
+	 *
+	 */
+
+	struct CSVContents;
+
+	std::optional<CSVContents> read_csv(std::string const& filename);
 }
