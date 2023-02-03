@@ -56,12 +56,6 @@ void TubulEngine::log(LogLevel level, std::string const &text)
 		LogLevel      loggerLevel = std::get<1>(logDefinition);
 		LogOptions    options     = std::get<2>(logDefinition);
 
-//		std::cout << "Printing with level "
-//				  << std::to_string(static_cast<uint8_t>(level))
-//				  << " on a stream with level "
-//				  << std::to_string(static_cast<uint8_t>(loggerLevel))
-//				  << "\n";
-
 		if (level > loggerLevel)
 			continue;
 

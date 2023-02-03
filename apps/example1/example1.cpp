@@ -69,6 +69,9 @@ void exampleLogging()
 	TU::logReport("This message should go to screen and example1.log");
 	TU::logInfo("This message should go only to example1.log");
 
+	// without arguments, log* will behave like a stream
+	// TU::logWarning() << "Everybody should see this warning." << "Everybody!";
+
 }
 
 void exampleStrings()
