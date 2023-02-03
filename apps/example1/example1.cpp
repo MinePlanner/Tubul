@@ -8,10 +8,6 @@
 
 #include "tubul.h"
 
-int error_function(){
-	throw TU::throwError("Hay algo mal aqui");
-}
-
 void parseArguments(int argc, char** argv)
 {
 	TU::addArgument("-c", "--chanchito")
@@ -84,6 +80,7 @@ void exampleStrings()
 	auto tokens_from_view = TU::split(hello_view);
 	std::cout << "Also works with string_views: " << hello_view << " -> '" << TU::join(tokens_from_view,"->") << "'" << std::endl;
 }
+
 void exampleRangeAndJoin()
 {
 	std::cout << "With Tubul I can easily iterate simple ranges\n";
@@ -92,6 +89,7 @@ void exampleRangeAndJoin()
 		numbers.push_back(std::to_string(i));
 	std::cout << TU::join(numbers, "->") << std::endl;
 }
+
 void exampleTimers(TU::Timer &alarm3s)
 {
 	std::cout <<"\tTimer: Is the alarm up?" << ((alarm3s.alive())?"YES":"NO") << "  remaining: " << alarm3s.remaining() << std::endl;
@@ -104,17 +102,14 @@ void exampleTimers(TU::Timer &alarm3s)
 	std::cout << "I slept for " << exampleElapsed.count() << " seconds" << std::endl;
 	std::cout <<"\tTuner: Is the alarm up?" << ( (alarm3s.alive())?"YES":"NO" ) << "  remaining: " << alarm3s.remaining() << std::endl;
 }
+
 int main(int argc, char** argv){
 
 	// the main program should create a Tubul.
 	// Sub-libraries are free to use this one!
 	TU::Tubul tubul;
-
 	std::cout << "Hello Tubul version: " << TU::getVersion() << ".\n";
-
-
 	TU::AutoStopWatch exampleTimer("Example app elapsed:");
-
 
 	//Cool trick to use "3s" instead of std::chrono::seconds(3)
 	using namespace std::chrono_literals;
