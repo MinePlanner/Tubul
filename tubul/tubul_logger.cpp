@@ -45,5 +45,20 @@ void addLoggerDefinition(std::ostream &out, TU::LogLevel level, TU::LogOptions o
 	Tubul::getInstance().addLoggerDefinition(out, level, options);
 }
 
+void logInfo(std::string const &msg)
+{
+	Tubul::getInstance().log(LogLevel::INFO, msg);
+}
+
+void logReport(std::string const &msg)
+{
+	Tubul::getInstance().log(LogLevel::REPORT, msg);
+}
+
+void logWarning(std::string const &msg)
+{
+	Tubul::getInstance().log(LogLevel::WARNING, msg);
+}
+
 
 } // namespace TU

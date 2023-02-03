@@ -21,6 +21,7 @@ enum class LogLevel : uint8_t
 
 enum class LogOptions : uint8_t
 {
+	NONE		= 0,
 	COLOR       = 1,
 	EXCLUSIVE   = 2,
 	NOTIMESTAMP = 4

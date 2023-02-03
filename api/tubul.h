@@ -108,8 +108,12 @@ namespace TU {
 
 
 
-	void addLoggerDefinition(std::string &logfile, LogLevel level, LogOptions options);
-	void addLoggerDefinition(std::ostream &out, LogLevel level, LogOptions options);
+	void addLoggerDefinition(std::string const &logfile, LogLevel level, LogOptions options=LogOptions::NONE);
+	void addLoggerDefinition(std::ostream &out, LogLevel level, LogOptions options=LogOptions::NONE);
+
+	void logInfo(std::string const &msg);
+	void logReport(std::string const &msg);
+	void logWarning(std::string const &msg);
 
 	/////////
 	// Args

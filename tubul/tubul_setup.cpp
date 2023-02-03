@@ -14,11 +14,12 @@ Tubul::Tubul(){
 }
 
 TubulEngine &Tubul::getInstance(){
-	return *engine_;
+
+	if(engine_)
+		return *engine_;
+
+	throw std::runtime_error("Tubul not created.");
 }
-
-
-    void init(){}
 
     int getVersion() { return 0; }
 }

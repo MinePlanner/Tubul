@@ -33,7 +33,7 @@ void TubulEngine::addLoggerDefinition(std::ostream &outLog, LogLevel level, LogO
 	loggers_.emplace_back(outLog, level, options);
 }
 
-void TubulEngine::log(LogLevel level, std::string &text)
+void TubulEngine::log(LogLevel level, std::string const &text)
 {
 	for (auto &logDefinition : loggers_)
 	{

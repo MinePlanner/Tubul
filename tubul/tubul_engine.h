@@ -18,7 +18,7 @@ public:
 
 	std::ostream &openFile(std::string const &fileName);
 	void          addLoggerDefinition(std::ostream &outLog, LogLevel level, LogOptions options);
-	void          log(LogLevel level, std::string &text);
+	void          log(LogLevel level, std::string const &text);
 
 private:
 	std::vector<std::ofstream> managedFiles_;
