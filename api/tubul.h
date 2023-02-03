@@ -125,5 +125,32 @@ namespace TU {
 	struct StopWatch;
 	struct Timer;
 
+	/** Processing blocks
+	 * The idea of the process blocks is that you can have some extra logging
+	 * and/or information regarding what your application is doing at certain
+	 * point because you explicitly define some areas that represent a certain
+	 * process.
+	 * For this, you can use the object "ProcessBlock" passing a name of the block
+	 * and it will mark the beginning of a block that will live until that
+	 * process block goes out of scope. Then you can retrieve the current location
+	 * using getCurrentBlockLocation to get a kind-of breadcrumbs description
+	 *
+	 * Example
+	 * void bar(){
+	 * 		TU::ProcessBlock p("bar");
+	 * 		//This line should write something like "main() > inside foo > bar"
+	 * 		std::cout << getCurrentBlockLocation() << std::endl;
+	 * 	}
+	 * void foo() {
+	 * 		TU::ProcessBlock p("Inside foo");
+	 * 		bar();
+	 * }
+	 * int main(){
+	 * 		TU::ProcessBlock ("main()");
+	 * 		foo();
+	 * }
+	 *
+	 */
+	struct ProcessBlock;
 	std::string getCurrentBlockLocation();
 }
