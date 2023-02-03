@@ -50,7 +50,27 @@ void parseArguments(int argc, char** argv)
 
 }
 
+void example_logging()
+{
+	TU::logReport("Starting test");
+
+	try
+	{
+		throw TU::throwError("This is an example of throw error.");
+	}
+	catch (std::runtime_error &e)
+	{
+		TU::logReport("throwError working ok, with text:");
+		TU::logReport(e.what());
+	}
+}
+
 int main(int argc, char** argv){
+
+	// the main program should create a Tubul.
+	// Sub-libraries are free to use this one!
+	TU::Tubul tubul;
+
 	std::cout << "Hello Tubul version: " << TU::getVersion() << ".\n";
 	TU::AutoStopWatch exampleTimer("Example app elapsed:");
 	//Cool trick to use "3s" instead of std::chrono::seconds(3)
@@ -84,6 +104,7 @@ int main(int argc, char** argv){
 	}
 	std::cout << "I slept for " << exampleElapsed.count() << " seconds" << std::endl;
 	std::cout <<"\tTuner: Is the alarm up?" << ( (alarm3s.alive())?"YES":"NO" ) << "  remaining: " << alarm3s.remaining() << std::endl;
-	// uncomment to test error location funcionality
-	// error_function();
+
+	// run logging examples
+	example_logging();
 }

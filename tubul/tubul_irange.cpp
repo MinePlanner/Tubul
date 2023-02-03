@@ -3,6 +3,7 @@
 //
 
 #include "tubul_irange.h"
+#include "tubul.h"
 
 namespace TU{
 
