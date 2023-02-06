@@ -60,24 +60,6 @@ void logWarning(std::string const &msg)
 	Tubul::getInstance().log(LogLevel::WARNING, "WARNING: " + msg);
 }
 
-// ostream handler objects
-
-class LogWarning{
-public:
-	LogWarning() = default;;
-	~LogWarning() {
-		TU::logWarning(TU::join(parts_, ""));
-	};
-	LogWarning *operator<<(std::string const &msg)
-	{
-		parts_.push_back(msg);
-		return this;
-	}
-
-private:
-	std::vector<std::string> parts_;
-};
-
 LogWarning logWarning()
 {
 	return LogWarning();

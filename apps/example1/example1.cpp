@@ -71,6 +71,7 @@ void exampleLogging()
 
 	// without arguments, log* will behave like a stream
 	// TU::logWarning() << "Everybody should see this warning." << "Everybody!";
+	TU::logWarning("Everybody should see this warning.");
 
 }
 

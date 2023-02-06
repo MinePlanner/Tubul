@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "tubul.h"
 #include <cstdint>
 
 namespace TU
@@ -36,5 +37,23 @@ inline uint8_t operator^(LogOptions a, LogOptions b)
 {
 	return static_cast<uint8_t>(static_cast<uint8_t>(a) ^ static_cast<uint8_t>(b));
 }
+
+// ostream handler objects
+
+class LogWarning{
+public:
+	LogWarning() = default;;
+	~LogWarning() {
+		logWarning(join(parts_, ""));
+	};
+	LogWarning *operator<<(std::string const &msg)
+	{
+		parts_.push_back(msg);
+		return this;
+	}
+
+private:
+	std::vector<std::string> parts_;
+};
 
 }
