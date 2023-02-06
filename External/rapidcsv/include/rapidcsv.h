@@ -165,32 +165,32 @@ namespace rapidcsv
     {
       try
       {
-        if (typeid(T) == typeid(int))
+        if constexpr ( std::is_same_v<T, int> )
         {
           pVal = static_cast<T>(std::stoi(pStr));
           return;
         }
-        else if (typeid(T) == typeid(long))
+        else if constexpr ( std::is_same_v<T,long> )
         {
           pVal = static_cast<T>(std::stol(pStr));
           return;
         }
-        else if (typeid(T) == typeid(long long))
+        else if constexpr ( std::is_same_v<T,long long> )
         {
           pVal = static_cast<T>(std::stoll(pStr));
           return;
         }
-        else if (typeid(T) == typeid(unsigned))
+        else if constexpr ( std::is_same_v<T, unsigned> )
         {
           pVal = static_cast<T>(std::stoul(pStr));
           return;
         }
-        else if (typeid(T) == typeid(unsigned long))
+        else if constexpr ( std::is_same_v<T,unsigned long> )
         {
           pVal = static_cast<T>(std::stoul(pStr));
           return;
         }
-        else if (typeid(T) == typeid(unsigned long long))
+        else if constexpr ( std::is_same_v<T, unsigned long long> )
         {
           pVal = static_cast<T>(std::stoull(pStr));
           return;
@@ -213,17 +213,17 @@ namespace rapidcsv
       {
         if (mConverterParams.mNumericLocale)
         {
-          if (typeid(T) == typeid(float))
+          if constexpr ( std::is_same_v<T,float>)
           {
             pVal = static_cast<T>(std::stof(pStr));
             return;
           }
-          else if (typeid(T) == typeid(double))
+          else if ( std::is_same_v<T,double> )
           {
             pVal = static_cast<T>(std::stod(pStr));
             return;
           }
-          else if (typeid(T) == typeid(long double))
+          else if ( std::is_same_v<T,long double> )
           {
             pVal = static_cast<T>(std::stold(pStr));
             return;
@@ -231,9 +231,9 @@ namespace rapidcsv
         }
         else
         {
-          if ((typeid(T) == typeid(float)) ||
-              (typeid(T) == typeid(double)) ||
-              (typeid(T) == typeid(long double)))
+          if constexpr ( std::is_same_v<T,float>  ||
+               std::is_same_v<T,double>  ||
+              std::is_same_v<T,long double> )
           {
             std::istringstream iss(pStr);
             iss >> pVal;
@@ -618,6 +618,7 @@ namespace rapidcsv
     {
       const size_t dataColumnIdx = GetDataColumnIndex(pColumnIdx);
       std::vector<T> column;
+	  column.reserve(GetRowCount());
       Converter<T> converter(mConverterParams);
       for (auto itRow = mData.begin(); itRow != mData.end(); ++itRow)
       {
@@ -655,6 +656,7 @@ namespace rapidcsv
     {
       const size_t dataColumnIdx = GetDataColumnIndex(pColumnIdx);
       std::vector<T> column;
+	  column.reserve(GetRowCount());
       for (auto itRow = mData.begin(); itRow != mData.end(); ++itRow)
       {
         if (std::distance(mData.begin(), itRow) > mLabelParams.mColumnNameIdx)
