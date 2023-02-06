@@ -24,9 +24,9 @@ struct CSVContents
 	size_t rowCount() const;
 	size_t colCount() const;
 	std::vector<std::string> getColNames() const;
-	std::vector<double> getColumnAsDouble() const;
-	std::vector<long> getColumnAsInteger() const;
-	std::vector<std::string> getColumnAsString() const;
+	std::vector<double> getColumnAsDouble(size_t colIndex) const;
+	std::vector<long> getColumnAsInteger(size_t colIndex) const;
+	std::vector<std::string> getColumnAsString(size_t colIndex) const;
 
 	std::unique_ptr<CSVImpl> impl_;
 };

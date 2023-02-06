@@ -16,6 +16,10 @@
 
 namespace TU
 {
+
+//Structure to hold a Memory map of a file. For some cases,
+//it's very useful to have access to a file a memory map instead
+//of the normal c++ stream view.
 struct MappedFile
 {
 	explicit MappedFile(const char* filename)
@@ -79,23 +83,24 @@ CSVContents::CSVContents(CSVContents &&other):
 
 CSVContents::~CSVContents() {}
 
+//Implementation of these methods is a simple passthrough to
+//the internal rapidcsv implementation.
 size_t CSVContents::rowCount() const {return impl_->doc.GetRowCount();}
 size_t CSVContents::colCount() const {return impl_->doc.GetColumnCount();}
 std::vector<std::string> CSVContents::getColNames() const { return impl_->doc.GetColumnNames();}
-std::vector<double> CSVContents::getColumnAsDouble() const
-{
-	return impl_->doc.GetColumn<double>(1);
+std::vector<double> CSVContents::getColumnAsDouble(size_t colIndex) const {
+	return impl_->doc.GetColumn<double>(colIndex);
 }
-std::vector<long> CSVContents::getColumnAsInteger() const
-{
-	return impl_->doc.GetColumn<long>(1);
+std::vector<long> CSVContents::getColumnAsInteger(size_t colIndex) const {
+	return impl_->doc.GetColumn<long>(colIndex);
 }
-std::vector<std::string> CSVContents::getColumnAsString() const
-{
-	return impl_->doc.GetColumn<std::string>(1);
+std::vector<std::string> CSVContents::getColumnAsString(size_t colIndex) const {
+	return impl_->doc.GetColumn<std::string>(colIndex);
 }
 
-
+//This is a more "real method", but still the rapidcsv lib is the one
+//doing all the heavy lifting. We try to read the file using mmap
+//and then parse the csv using rapidcsv.
 std::optional<CSVContents> read_csv(const std::string& filename)
 {
 	try{
