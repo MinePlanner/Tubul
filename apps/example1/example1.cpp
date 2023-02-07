@@ -92,14 +92,39 @@ int main(int argc, char** argv){
 	std::cout << TU::getCurrentBlockLocation() << std::endl;
 
 
+	std::optional<TU::CSVContents> csv_reading_result;
 	{
 		TU::AutoStopWatch st("Reading CSV file: ");
 		std::string filename = "salvador.csv";
-		auto csv = TU::read_csv(filename);
-		if (!csv)
+		auto res = TU::read_csv(filename) ;
+		if (!res)
 			std::cout << "Couldn't read file " << filename << std::endl;
+		else
+			csv_reading_result.swap(res);
 
-	};
+	}
+
+	{
+		TU::AutoStopWatch st("Converting some csv data to columns : ");
+		auto &csv_file = *csv_reading_result;
+		std::cout << "Rows detected: " << csv_file.rowCount() << std::endl;
+		std::cout << "Columns detected: " << csv_file.colCount() << std::endl;
+
+		std::vector<std::string> colsToConvert = {"ALTE","CAN","CUT","CAN", "ALTE", "REC","SURVEYUG_FACTOR1_1"};
+		csv_file.convertToColumnFormat(colsToConvert);
+	}
+	//Clearing the cached column data (at this point it should exist!!)
+	csv_reading_result.value().clearCurrentColums();
+	{
+		TU::AutoStopWatch st("Converting all data of csv to columns: ");
+		auto &csv_file = *csv_reading_result;
+		std::cout << "Rows detected: " << csv_file.rowCount() << std::endl;
+		std::cout << "Columns detected: " << csv_file.colCount() << std::endl;
+
+		//Request all data columns to be prepared.
+		csv_file.convertAllToColumnFormat();
+	}
+
 	// uncomment to test error location funcionality
 	// error_function();
 }

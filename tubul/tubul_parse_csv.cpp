@@ -6,10 +6,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
-#include <string>
 #include <iostream>
-#include <sstream>
-#include <strstream>
 #include <streambuf>
 #include <fast_float/fast_float.h>
 #include <rapidcsv.h>
@@ -80,7 +77,7 @@ struct CSVContents::CSVColumns
 	using DoubleColumn = std::vector<double>;
 	using IntegerColumn = std::vector<long>;
 	using StringColumn = std::vector<std::string>;
-	using DataColumn = std::variant<DoubleColumn, IntegerColumn, StringColumn>;
+	using DataColumn = std::variant<std::monostate, DoubleColumn, IntegerColumn, StringColumn>;
 
 
 	std::vector<DataType> type;
@@ -100,10 +97,17 @@ CSVContents::CSVContents(std::istream& input_stream):
 	cols_(std::make_unique<CSVColumns>())
 {}
 
-CSVContents::CSVContents(CSVContents &&other):
+CSVContents::CSVContents(CSVContents &&other) noexcept:
 	impl_(std::move(other.impl_)),
 	cols_(std::move(other.cols_))
 {}
+
+CSVContents& CSVContents::operator=(CSVContents &&other) noexcept
+{
+	impl_ = std::move(other.impl_);
+	cols_ = std::move(other.cols_);
+	return *this;
+}
 
 CSVContents::~CSVContents() = default;
 
@@ -125,6 +129,9 @@ std::vector<std::string> CSVContents::getRow(size_t rowIndex) const {
 	return impl_->doc.GetRow<std::string>(rowIndex);
 }
 
+void CSVContents::clearCurrentColums() {
+	cols_ =  std::make_unique<CSVContents::CSVColumns>() ;
+}
 
 
 void guess_column_types(CSVContents& csv)
@@ -202,63 +209,88 @@ void guess_column_types(CSVContents& csv)
 void CSVContents::convertAllToColumnFormat()
 {
 	guess_column_types(*this);
-	auto& col_type = cols_->type;
 
-	auto names =  impl_->doc.GetColumnNames();
-	for (int i = 0; i < colCount(); ++i)
+	auto const names =  getColNames();
+
+	auto const& doc = impl_->doc;
+	std::vector<size_t> column_indices;
+	for (auto const& name: names)
+		column_indices.push_back(doc.GetColumnIdx(name));
+	convertToColumnFormat(column_indices);
+}
+
+void CSVContents::convertToColumnFormat(std::vector<std::string> const& columns)
+{
+	std::vector<size_t> column_indices;
+	column_indices.reserve(columns.size());
+	for (auto const& column_name: columns) {
+		column_indices.push_back(impl_->doc.GetColumnIdx(column_name));
+	}
+	convertToColumnFormat(column_indices);
+}
+
+void CSVContents::convertToColumnFormat(std::vector<size_t> const& columns)
+{
+	if (cols_->type.empty())
+		guess_column_types(*this);
+
+	//We should have as many columns as guessed datatypes
+	if ( cols_->col.size() != cols_->type.size() )
+		cols_->col.resize( cols_->type.size());
+
+	auto const& names = impl_->doc.GetColumnNames();
+	auto const& col_type = cols_->type;
+	for (auto column_idx: columns)
 	{
-		if (col_type[i] == DataType::INTEGER)
+		//Just in case, check we didn't already got this one if a column was repeated
+		//or got called twice.
+		if ( not holds_alternative<std::monostate>(cols_->col[column_idx]))
+			continue;
+		//Retrieve the column according to the discovered type.
+		if (col_type[column_idx] == DataType::INTEGER)
 		{
-			std::cout << "Getting integer column " << names[i] << std::endl;
-			auto col = getColumnAsInteger(i);
-			cols_->col.emplace_back(std::move(col));
+			auto col = getColumnAsInteger(column_idx);
+			cols_->col[column_idx] = std::move(col);
 
 		}
-		else if (col_type[i] == DataType::DOUBLE)
+		else if (col_type[column_idx] == DataType::DOUBLE)
 		{
-			std::cout << "Getting double column " << names[i] << std::endl;
-			auto col = getColumnAsDouble(i);
-			cols_->col.emplace_back(std::move(col));
+			auto col = getColumnAsDouble(column_idx);
+			cols_->col[column_idx] = std::move(col);
 		}
 		else
 		{
-			std::cout << "Ignoring string column " << names[i] << std::endl;
-			//auto col = getColumnAsString(i);
-			cols_->col.emplace_back();
+			std::cout << "Ignoring string column " << names[column_idx] << std::endl;
 		}
+
 	}
+
+
 }
+
+
 //This is a more "real method", but still the rapidcsv lib is the one
 //doing all the heavy lifting. We try to read the file using mmap
 //and then parse the csv using rapidcsv.
 std::optional<CSVContents> read_csv(const std::string& filename)
 {
 	try{
+#if 0
 		//Calling the file mapping stuff. With this, we have the file
 		//open in a c-style, with the contents mmaped and ready to be read.
 		TU::MappedFile da_file(filename.c_str());
-		//std::stringbuf buf(std::ios_base::in);
-		//buf.pubsetbuf(da_file.data(), da_file.size());
 		//buffer is an strstreambuf which is exactly what we need (treats an
 		//array of chars as a source for the buffer).
 		std::strstreambuf buf(da_file.data(), da_file.size());
-
-		std::cout << std::endl;
 		//-> Using an istream that uses a custom buffer.
 		std::istream file_stream(&buf );
+#endif
+
+		std::cout << std::endl;
 		//-> Direct approach using an ifstream.
-// 		std::ifstream file_stream(filename);
+ 		std::ifstream file_stream(filename);
 		//Try to construct the CSV document directly in the optional.
 		std::optional<CSVContents> res(std::in_place, file_stream);
-		auto& csv_file = *res;
-		std::cout << "Rows detected: " <<  csv_file.rowCount() << std::endl;
-		std::cout << "Columns detected: " <<  csv_file.colCount() << std::endl;
-
-		//fill the column type hint for this file columns.
-		csv_file.convertAllToColumnFormat();
-
-
-
 
 		return std::move(res);
 	}
