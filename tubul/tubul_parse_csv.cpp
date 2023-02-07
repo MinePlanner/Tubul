@@ -15,6 +15,7 @@
 #include <regex>
 #include <variant>
 #include <algorithm>
+#include "tubul_types.h"
 #include "tubul_parse_csv.h"
 
 namespace TU
@@ -65,10 +66,10 @@ struct MappedFile
 struct CSVContents::CSVImpl
 {
 	explicit CSVImpl(std::string const& filename):
-		doc(filename){}
+		doc(filename,rapidcsv::LabelParams(0,0) ){}
 
 	explicit CSVImpl(std::istream& file_stream):
-		doc(file_stream){}
+		doc(file_stream,rapidcsv::LabelParams(0,0)){}
 
 	rapidcsv::Document doc;
 };
@@ -81,7 +82,7 @@ struct CSVContents::CSVColumns
 	using DataColumn = std::variant<DoubleColumn, IntegerColumn, StringColumn>;
 
 
-	std::vector<ColumnType> type;
+	std::vector<DataType> type;
 	std::vector<DataColumn> col;
 };
 
@@ -123,10 +124,10 @@ std::vector<std::string> CSVContents::getRow(size_t rowIndex) const {
 	return impl_->doc.GetRow<std::string>(rowIndex);
 }
 
+
+
 void guess_column_types(CSVContents& csv)
 {
-	using ColumnType = CSVContents::ColumnType;
-
 	const auto num_cols = csv.colCount();
 
 	//the regex to recognize integer and doubles.
@@ -144,7 +145,7 @@ void guess_column_types(CSVContents& csv)
 	//trying to guess the type of the columns by detecting types using regexes. This
 	//will have one vector of detected types PER COLUMN, and each vector should have as
 	//guesses as the number of rows investigated.
-	std::vector<std::vector<CSVContents::ColumnType> > detected_types(num_cols );
+	std::vector<std::vector<TU::DataType> > detected_types(num_cols );
 	for (auto const& n: rows_to_check)
 	{
 		auto this_row = csv.getRow(n);
@@ -153,13 +154,13 @@ void guess_column_types(CSVContents& csv)
 			auto& col_types = detected_types[col_count];
 			std::smatch cm;
 			if ( std::regex_match( item, cm, int_nums) ) {
-				col_types.push_back(ColumnType::INTEGER);
+				col_types.push_back(DataType::INTEGER);
 			}
 			else if ( std::regex_match(item, cm, sci_nums) ) {
-				col_types.push_back(ColumnType::DOUBLE);
+				col_types.push_back(DataType::DOUBLE);
 			}
 			else {
-				col_types.push_back(ColumnType::STRING);
+				col_types.push_back(DataType::STRING);
 			}
 			col_count++;
 		}
@@ -197,6 +198,35 @@ void guess_column_types(CSVContents& csv)
 
 }
 
+void CSVContents::convertAllToColumnFormat()
+{
+	guess_column_types(*this);
+	auto& col_type = cols_->type;
+
+	auto names =  impl_->doc.GetColumnNames();
+	for (int i = 0; i < colCount(); ++i)
+	{
+		if (col_type[i] == DataType::INTEGER)
+		{
+			std::cout << "Getting integer column " << names[i] << std::endl;
+			auto col = getColumnAsInteger(i);
+			cols_->col.emplace_back(std::move(col));
+
+		}
+		else if (col_type[i] == DataType::DOUBLE)
+		{
+			std::cout << "Getting double column " << names[i] << std::endl;
+			auto col = getColumnAsDouble(i);
+			cols_->col.emplace_back(std::move(col));
+		}
+		else
+		{
+			std::cout << "Getting string column " << names[i] << std::endl;
+			auto col = getColumnAsString(i);
+			cols_->col.emplace_back(col);
+		}
+	}
+}
 //This is a more "real method", but still the rapidcsv lib is the one
 //doing all the heavy lifting. We try to read the file using mmap
 //and then parse the csv using rapidcsv.
@@ -222,33 +252,11 @@ std::optional<CSVContents> read_csv(const std::string& filename)
 		auto& csv_file = *res;
 		std::cout << "Rows detected: " <<  csv_file.rowCount() << std::endl;
 		std::cout << "Columns detected: " <<  csv_file.colCount() << std::endl;
-		auto names =  csv_file.impl_->doc.GetColumnNames();
+
 		//fill the column type hint for this file columns.
-		guess_column_types(csv_file );
+		csv_file.convertAllToColumnFormat();
 
-		auto& col_type = csv_file.cols_->type;
-		for (int i = 0; i < csv_file.colCount(); ++i)
-		{
-			if (col_type[i] == CSVContents::ColumnType::INTEGER)
-			{
-				std::cout << "Getting integer column " << names[i] << std::endl;
-				auto col = csv_file.getColumnAsInteger(i);
-				csv_file.cols_->col.emplace_back(std::move(col));
 
-			}
-			else if (col_type[i] == CSVContents::ColumnType::DOUBLE)
-			{
-				std::cout << "Getting double column " << names[i] << std::endl;
-				auto col = csv_file.getColumnAsDouble(i);
-				csv_file.cols_->col.emplace_back(std::move(col));
-			}
-			else
-			{
-				std::cout << "Getting string column " << names[i] << std::endl;
-				auto col = csv_file.getColumnAsString(i);
-				csv_file.cols_->col.emplace_back(col);
-			}
-		}
 
 
 		return std::move(res);

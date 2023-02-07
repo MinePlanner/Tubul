@@ -17,11 +17,6 @@ struct CSVContents
 	struct CSVImpl;
 	struct CSVColumns;
 
-	enum class ColumnType{
-		INTEGER,
-		DOUBLE,
-		STRING
-	};
 
 	CSVContents(std::string const& filename);
 	CSVContents(std::istream& input_stream);
@@ -35,6 +30,7 @@ struct CSVContents
 	std::vector<double> getColumnAsDouble(size_t colIndex) const;
 	std::vector<long> getColumnAsInteger(size_t colIndex) const;
 	std::vector<std::string> getColumnAsString(size_t colIndex) const;
+	void convertAllToColumnFormat();
 
 	std::unique_ptr<CSVImpl> impl_;
 	std::unique_ptr<CSVColumns> cols_;
