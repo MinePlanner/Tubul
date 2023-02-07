@@ -11,6 +11,7 @@
 #include <sstream>
 #include <strstream>
 #include <streambuf>
+#include <fast_float/fast_float.h>
 #include <rapidcsv.h>
 #include <regex>
 #include <variant>
@@ -221,9 +222,9 @@ void CSVContents::convertAllToColumnFormat()
 		}
 		else
 		{
-			std::cout << "Getting string column " << names[i] << std::endl;
-			auto col = getColumnAsString(i);
-			cols_->col.emplace_back(col);
+			std::cout << "Ignoring string column " << names[i] << std::endl;
+			//auto col = getColumnAsString(i);
+			cols_->col.emplace_back();
 		}
 	}
 }

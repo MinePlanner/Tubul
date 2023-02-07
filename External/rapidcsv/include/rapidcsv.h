@@ -213,19 +213,15 @@ namespace rapidcsv
       {
         if (mConverterParams.mNumericLocale)
         {
-          if constexpr ( std::is_same_v<T,float>)
+          if constexpr ( std::is_same_v<T,float> ||
+              		  std::is_same_v<T,double>  ||
+              		  std::is_same_v<T,long double> )
           {
-            pVal = static_cast<T>(std::stof(pStr));
-            return;
-          }
-          else if ( std::is_same_v<T,double> )
-          {
-            pVal = static_cast<T>(std::stod(pStr));
-            return;
-          }
-          else if ( std::is_same_v<T,long double> )
-          {
-            pVal = static_cast<T>(std::stold(pStr));
+			  auto res = fast_float::from_chars(pStr.data(), pStr.data()+ pStr.size(), pVal);
+			  if (res.ec != std::errc())
+			  {
+				  throw std::invalid_argument("from_chars: no conversion");
+			  }
             return;
           }
         }
@@ -235,11 +231,10 @@ namespace rapidcsv
                std::is_same_v<T,double>  ||
               std::is_same_v<T,long double> )
           {
-            std::istringstream iss(pStr);
-            iss >> pVal;
-            if (iss.fail() || iss.bad() || !iss.eof())
+			auto res = fast_float::from_chars(pStr.data(), pStr.data()+ pStr.size(), pVal);
+			if (res.ec != std::errc())
             {
-              throw std::invalid_argument("istringstream: no conversion");
+              throw std::invalid_argument("from_chars: no conversion");
             }
             return;
           }
