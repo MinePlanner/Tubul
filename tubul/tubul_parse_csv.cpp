@@ -6,12 +6,12 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
-#include <iostream>
-#include <streambuf>
 #include <fast_float/fast_float.h>
 #include <rapidcsv.h>
+
+#include <iostream>
+#include <streambuf>
 #include <regex>
-#include <variant>
 #include <algorithm>
 #include "tubul_types.h"
 #include "tubul_parse_csv.h"
@@ -72,40 +72,35 @@ struct CSVContents::CSVRawData
 	rapidcsv::Document doc;
 };
 
-struct CSVContents::CSVColumns
+//Easy retrieval of columns from the set of clumns that we have.
+const DataColumn& CSVColumns::operator[](size_t idx) const
 {
-	using DoubleColumn = std::vector<double>;
-	using IntegerColumn = std::vector<long>;
-	using StringColumn = std::vector<std::string>;
-	using DataColumn = std::variant<std::monostate, DoubleColumn, IntegerColumn, StringColumn>;
-
-
-	std::vector<DataType> type;
-	std::vector<DataColumn> col;
-};
+	return columns_.at(idx);
+}
+const DataColumn& CSVColumns::operator[](const std::string& name) const
+{
+	auto idx = names_.at(name);
+	return columns_.at(idx);
+}
 
 
 //Constructors for the CSVContents object that will handle the
 //data read from a CSV file.
 CSVContents::CSVContents(const std::string &filename):
-	impl_(std::make_unique<CSVContents::CSVRawData>(filename)),
-	cols_(std::make_unique<CSVColumns>())
+	impl_(std::make_unique<CSVContents::CSVRawData>(filename))
 {}
 
 CSVContents::CSVContents(std::istream& input_stream):
-	impl_(std::make_unique<CSVContents::CSVRawData>(input_stream)),
-	cols_(std::make_unique<CSVColumns>())
+	impl_(std::make_unique<CSVContents::CSVRawData>(input_stream))
 {}
 
 CSVContents::CSVContents(CSVContents &&other) noexcept:
-	impl_(std::move(other.impl_)),
-	cols_(std::move(other.cols_))
+	impl_(std::move(other.impl_))
 {}
 
 CSVContents& CSVContents::operator=(CSVContents &&other) noexcept
 {
 	impl_ = std::move(other.impl_);
-	cols_ = std::move(other.cols_);
 	return *this;
 }
 
@@ -129,12 +124,9 @@ std::vector<std::string> CSVContents::getRow(size_t rowIndex) const {
 	return impl_->doc.GetRow<std::string>(rowIndex);
 }
 
-void CSVContents::clearCurrentColums() {
-	cols_ =  std::make_unique<CSVContents::CSVColumns>() ;
-}
 
 
-void guess_column_types(CSVContents& csv)
+std::vector<DataType> guess_column_types(CSVContents& csv)
 {
 	const auto num_cols = csv.colCount();
 
@@ -148,7 +140,7 @@ void guess_column_types(CSVContents& csv)
 	//We will check these rows (and we should check a number bigger than 0!)
 	auto rows_to_check = get_sample_rows(csv);
 	assert( rows_to_check.size() > 0);
-	auto& types = csv.cols_->type;
+	std::vector<DataType> types ;
 
 	//trying to guess the type of the columns by detecting types using regexes. This
 	//will have one vector of detected types PER COLUMN, and each vector should have as
@@ -200,13 +192,12 @@ void guess_column_types(CSVContents& csv)
 			else
 				std::cout << "there was a disagreement for type of column: " << col_idx << std::endl;
 		}
-
-
 	}
+	return types;
 
 }
 
-void CSVContents::convertAllToColumnFormat()
+CSVColumns CSVContents::convertAllToColumnFormat()
 {
 	guess_column_types(*this);
 
@@ -216,47 +207,60 @@ void CSVContents::convertAllToColumnFormat()
 	std::vector<size_t> column_indices;
 	for (auto const& name: names)
 		column_indices.push_back(doc.GetColumnIdx(name));
-	convertToColumnFormat(column_indices);
+
+	return convertToColumnFormat(column_indices);
 }
 
-void CSVContents::convertToColumnFormat(std::vector<std::string> const& columns)
+CSVColumns CSVContents::convertToColumnFormat(std::vector<std::string> const& columns)
 {
 	std::vector<size_t> column_indices;
 	column_indices.reserve(columns.size());
 	for (auto const& column_name: columns) {
 		column_indices.push_back(impl_->doc.GetColumnIdx(column_name));
 	}
-	convertToColumnFormat(column_indices);
+	return convertToColumnFormat(column_indices);
 }
 
-void CSVContents::convertToColumnFormat(std::vector<size_t> const& columns)
+CSVColumns CSVContents::convertToColumnFormat(std::vector<size_t> const& columns)
 {
-	if (cols_->type.empty())
-		guess_column_types(*this);
+	//The result we are building.
+	CSVColumns cols;
+	//But if we are asked for nothing.... that's it :D
+	if ( columns.empty() )
+		return cols;
 
+	if (cols.type_.empty())
+		cols.type_ = guess_column_types(*this);
+
+	auto& col_container = cols.columns_;
 	//We should have as many columns as guessed datatypes
-	if ( cols_->col.size() != cols_->type.size() )
-		cols_->col.resize( cols_->type.size());
+	if (col_container.size() != cols.type_.size() )
+		col_container.resize(cols.type_.size());
 
 	auto const& names = impl_->doc.GetColumnNames();
-	auto const& col_type = cols_->type;
+	size_t idx = 0;
+	for (auto const& name: names)
+		cols.names_.emplace(name, impl_->doc.GetColumnIdx(name));
+
+	auto const& col_type = cols.type_;
 	for (auto column_idx: columns)
 	{
 		//Just in case, check we didn't already get this one if a column was repeated
 		//or got called twice.
-		if ( not holds_alternative<std::monostate>(cols_->col[column_idx]))
+		if ( not holds_alternative<std::monostate>(col_container[column_idx]))
 			continue;
+
 		//Retrieve the column according to the discovered type.
 		if (col_type[column_idx] == DataType::INTEGER)
 		{
 			auto col = getColumnAsInteger(column_idx);
-			cols_->col[column_idx] = std::move(col);
+			col_container[column_idx] = std::move(col);
 
 		}
 		else if (col_type[column_idx] == DataType::DOUBLE)
 		{
 			auto col = getColumnAsDouble(column_idx);
-			cols_->col[column_idx] = std::move(col);
+			col_container[column_idx] = std::move(col);
 		}
 		else
 		{
@@ -264,8 +268,7 @@ void CSVContents::convertToColumnFormat(std::vector<size_t> const& columns)
 		}
 
 	}
-
-
+	return cols;
 }
 
 

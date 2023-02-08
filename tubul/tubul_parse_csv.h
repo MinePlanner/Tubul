@@ -6,16 +6,30 @@
 #include <memory>
 #include <vector>
 #include <string>
-#include <iosfwd>
+#include <unordered_map>
+#include <variant>
 
 namespace TU
 {
 
+using DoubleColumn = std::vector<double>;
+using IntegerColumn = std::vector<long>;
+using StringColumn = std::vector<std::string>;
+using DataColumn = std::variant<std::monostate, DoubleColumn, IntegerColumn, StringColumn>;
+
+struct CSVColumns
+{
+	const DataColumn& operator[](size_t idx) const;
+	const DataColumn& operator[](const std::string& name) const;
+
+	std::unordered_map<std::string, size_t> names_;
+	std::vector<DataType> type_;
+	std::vector<DataColumn> columns_;
+};
 
 struct CSVContents
 {
 	struct CSVRawData;
-	struct CSVColumns;
 
 
 	explicit CSVContents(std::string const& filename);
@@ -32,14 +46,12 @@ struct CSVContents
 	std::vector<double> getColumnAsDouble(size_t colIndex) const;
 	std::vector<long> getColumnAsInteger(size_t colIndex) const;
 	std::vector<std::string> getColumnAsString(size_t colIndex) const;
-	void convertAllToColumnFormat();
-	void convertToColumnFormat(std::vector<std::string> const& columns);
-	void convertToColumnFormat(std::vector<size_t> const& columns);
 
-	void clearCurrentColums();
+	CSVColumns convertAllToColumnFormat();
+	CSVColumns convertToColumnFormat(std::vector<std::string> const& columns);
+	CSVColumns convertToColumnFormat(std::vector<size_t> const& columns);
 
 	std::unique_ptr<CSVRawData> impl_;
-	std::unique_ptr<CSVColumns> cols_;
 };
 
 }

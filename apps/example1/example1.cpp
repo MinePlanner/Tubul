@@ -113,7 +113,7 @@ int main(int argc, char** argv){
 	std::cout << "Mem before reading csv:" << getMemUsage() << std::endl;
 	std::optional<TU::CSVContents> csv_reading_result;
 	{
-		TU::AutoStopWatch st("Reading CSV file: ");
+		TU::AutoStopWatch st("Time reading CSV file: ");
 		std::string filename = "salvador.csv";
 		auto res = TU::read_csv(filename) ;
 		if (!res)
@@ -130,13 +130,21 @@ int main(int argc, char** argv){
 		std::cout << "Rows detected: " << csv_file.rowCount() << std::endl;
 		std::cout << "Columns detected: " << csv_file.colCount() << std::endl;
 
+		//I can ask for specific columns, even if some are repeated, no extra work is done if possible.
 		std::vector<std::string> colsToConvert = {"ALTE","CAN","CUT","CAN", "ALTE", "REC","SURVEYUG_FACTOR1_1"};
-		csv_file.convertToColumnFormat(colsToConvert);
+		auto cols = csv_file.convertToColumnFormat(colsToConvert);
+
+		auto alte_col_int = std::get<TU::IntegerColumn>(cols["ALTE"]);
+
+		double mean = 0;
+		for (auto x: alte_col_int)
+			mean += x;
+		std::cout << "The mean of the ALTE col is: " << (mean/alte_col_int.size()) << std::endl;
+
+		std::cout << "Mem after requesting some data columns:" << getMemUsage() << std::endl;
 	}
-	std::cout << "Mem after requesting some data columns:" << getMemUsage() << std::endl;
 
 	//Clearing the cached column data (at this point it should exist!!)
-	csv_reading_result.value().clearCurrentColums();
 	{
 		TU::AutoStopWatch st("Time converting all data of csv to columns: ");
 		auto &csv_file = *csv_reading_result;
@@ -144,8 +152,9 @@ int main(int argc, char** argv){
 		std::cout << "Columns detected: " << csv_file.colCount() << std::endl;
 
 		//Request all data columns to be prepared.
-		csv_file.convertAllToColumnFormat();
+		auto cols = csv_file.convertAllToColumnFormat();
 		std::cout << "Mem after requesting ALL data columns:" << getMemUsage() << std::endl;
+		(void) cols;
 	}
 
 	// uncomment to test error location funcionality
