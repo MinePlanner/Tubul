@@ -110,11 +110,13 @@ int main(int argc, char** argv){
 	std::cout << TU::getCurrentBlockLocation() << std::endl;
 
 
-	std::cout << "Mem before reading csv:" << getMemUsage() << std::endl;
+	std::cout << "With Tubul I can easily read CSV files (Mem before reading csv:" << getMemUsage() << ")" << std::endl;
 	std::optional<TU::CSVContents> csv_reading_result;
 	{
 		TU::AutoStopWatch st("Time reading CSV file: ");
 		std::string filename = "salvador.csv";
+		//Here I request tubul to read it. I will get an optional if something
+		//fails (file not found or parsing failure).
 		auto res = TU::read_csv(filename) ;
 		if (!res)
 			std::cout << "Couldn't read file " << filename << std::endl;
@@ -127,6 +129,7 @@ int main(int argc, char** argv){
 	{
 		TU::AutoStopWatch st("Time converting some csv data to columns : ");
 		auto &csv_file = *csv_reading_result;
+		//With the csv file already read, I can do quick peeking at things.
 		std::cout << "Rows detected: " << csv_file.rowCount() << std::endl;
 		std::cout << "Columns detected: " << csv_file.colCount() << std::endl;
 
@@ -134,8 +137,10 @@ int main(int argc, char** argv){
 		std::vector<std::string> colsToConvert = {"ALTE","CAN","CUT","CAN", "ALTE", "REC","SURVEYUG_FACTOR1_1"};
 		auto cols = csv_file.convertToColumnFormat(colsToConvert);
 
+		//I know this is an integer column.
 		auto alte_col_int = std::get<TU::IntegerColumn>(cols["ALTE"]);
 
+		//And calculate the mean of this column.
 		double mean = 0;
 		for (auto x: alte_col_int)
 			mean += x;
