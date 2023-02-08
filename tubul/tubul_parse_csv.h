@@ -14,7 +14,7 @@ namespace TU
 
 struct CSVContents
 {
-	struct CSVImpl;
+	struct CSVRawData;
 	struct CSVColumns;
 
 
@@ -38,7 +38,7 @@ struct CSVContents
 
 	void clearCurrentColums();
 
-	std::unique_ptr<CSVImpl> impl_;
+	std::unique_ptr<CSVRawData> impl_;
 	std::unique_ptr<CSVColumns> cols_;
 };
 

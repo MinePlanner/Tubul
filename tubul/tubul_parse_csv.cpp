@@ -61,12 +61,12 @@ struct MappedFile
 };
 
 //Simple structure to hide the rapidcsv document from the headers.
-struct CSVContents::CSVImpl
+struct CSVContents::CSVRawData
 {
-	explicit CSVImpl(std::string const& filename):
+	explicit CSVRawData(std::string const& filename):
 		doc(filename,rapidcsv::LabelParams(0,0) ){}
 
-	explicit CSVImpl(std::istream& file_stream):
+	explicit CSVRawData(std::istream& file_stream):
 		doc(file_stream,rapidcsv::LabelParams(0,0)){}
 
 	rapidcsv::Document doc;
@@ -88,12 +88,12 @@ struct CSVContents::CSVColumns
 //Constructors for the CSVContents object that will handle the
 //data read from a CSV file.
 CSVContents::CSVContents(const std::string &filename):
-	impl_(std::make_unique<CSVContents::CSVImpl>(filename)),
+	impl_(std::make_unique<CSVContents::CSVRawData>(filename)),
 	cols_(std::make_unique<CSVColumns>())
 {}
 
 CSVContents::CSVContents(std::istream& input_stream):
-	impl_(std::make_unique<CSVContents::CSVImpl>(input_stream)),
+	impl_(std::make_unique<CSVContents::CSVRawData>(input_stream)),
 	cols_(std::make_unique<CSVColumns>())
 {}
 
@@ -242,7 +242,7 @@ void CSVContents::convertToColumnFormat(std::vector<size_t> const& columns)
 	auto const& col_type = cols_->type;
 	for (auto column_idx: columns)
 	{
-		//Just in case, check we didn't already got this one if a column was repeated
+		//Just in case, check we didn't already get this one if a column was repeated
 		//or got called twice.
 		if ( not holds_alternative<std::monostate>(cols_->col[column_idx]))
 			continue;

@@ -5,11 +5,29 @@
 #include <iostream>
 #include <vector>
 #include <thread>
+#include <sys/resource.h>
 
 #include "tubul.h"
 
 int error_function(){
 	throw TU::throwError("Hay algo mal aqui");
+}
+
+std::string getMemUsage()
+{
+	struct rusage myUsage;
+	getrusage(RUSAGE_SELF, &myUsage);
+	std::vector<std::string> units ={"b", "kb", "mb", "gb"};
+	//This starts in bytes;
+	double value = myUsage.ru_maxrss;
+	for (auto const& unit: units)
+	{
+		if (value < 1024)
+			return std::to_string(value) + unit;
+		value /= 1024;
+	}
+	return std::to_string(value) + "gb";
+
 }
 
 void parseArguments(int argc, char** argv)
@@ -92,6 +110,7 @@ int main(int argc, char** argv){
 	std::cout << TU::getCurrentBlockLocation() << std::endl;
 
 
+	std::cout << "Mem before reading csv:" << getMemUsage() << std::endl;
 	std::optional<TU::CSVContents> csv_reading_result;
 	{
 		TU::AutoStopWatch st("Reading CSV file: ");
@@ -104,8 +123,9 @@ int main(int argc, char** argv){
 
 	}
 
+	std::cout << "Mem after reading csv:" << getMemUsage() << std::endl;
 	{
-		TU::AutoStopWatch st("Converting some csv data to columns : ");
+		TU::AutoStopWatch st("Time converting some csv data to columns : ");
 		auto &csv_file = *csv_reading_result;
 		std::cout << "Rows detected: " << csv_file.rowCount() << std::endl;
 		std::cout << "Columns detected: " << csv_file.colCount() << std::endl;
@@ -113,16 +133,19 @@ int main(int argc, char** argv){
 		std::vector<std::string> colsToConvert = {"ALTE","CAN","CUT","CAN", "ALTE", "REC","SURVEYUG_FACTOR1_1"};
 		csv_file.convertToColumnFormat(colsToConvert);
 	}
+	std::cout << "Mem after requesting some data columns:" << getMemUsage() << std::endl;
+
 	//Clearing the cached column data (at this point it should exist!!)
 	csv_reading_result.value().clearCurrentColums();
 	{
-		TU::AutoStopWatch st("Converting all data of csv to columns: ");
+		TU::AutoStopWatch st("Time converting all data of csv to columns: ");
 		auto &csv_file = *csv_reading_result;
 		std::cout << "Rows detected: " << csv_file.rowCount() << std::endl;
 		std::cout << "Columns detected: " << csv_file.colCount() << std::endl;
 
 		//Request all data columns to be prepared.
 		csv_file.convertAllToColumnFormat();
+		std::cout << "Mem after requesting ALL data columns:" << getMemUsage() << std::endl;
 	}
 
 	// uncomment to test error location funcionality

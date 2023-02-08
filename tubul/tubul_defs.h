@@ -13,6 +13,7 @@
 
 #pragma once
 
+#include "tubul_types.h"
 #include "tubul_irange.h"
 #include "tubul_argparse.h"
 #include "tubul_time.h"
