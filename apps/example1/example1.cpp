@@ -117,7 +117,7 @@ int main(int argc, char** argv){
 		std::string filename = "salvador.csv";
 		//Here I request tubul to read it. I will get an optional if something
 		//fails (file not found or parsing failure).
-		auto res = TU::read_csv(filename) ;
+		auto res = TU::readCsv(filename) ;
 		if (!res)
 			std::cout << "Couldn't read file " << filename << std::endl;
 		else

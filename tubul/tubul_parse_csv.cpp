@@ -75,12 +75,15 @@ struct CSVContents::CSVRawData
 //Easy retrieval of columns from the set of clumns that we have.
 const DataColumn& CSVColumns::operator[](size_t idx) const
 {
+	if ( idx > columns_.size() ||
+		std::holds_alternative<std::monostate>(columns_[idx]) )
+		throw std::runtime_error("Requesting invalid column");
 	return columns_.at(idx);
 }
 const DataColumn& CSVColumns::operator[](const std::string& name) const
 {
 	auto idx = names_.at(name);
-	return columns_.at(idx);
+	return operator[](idx);
 }
 
 
@@ -125,14 +128,18 @@ std::vector<std::string> CSVContents::getRow(size_t rowIndex) const {
 }
 
 
-
+//Function with the logic to "auto-detect" types of columns. Basically
+//This tries to get a couple of rows from the CSV and tries to match
+//different tokens as intenger or doubles (either normal or scientific).
+//If they fail, the column is just parsed as strings.
+//To review later: a clever way to find rows to use as sample.
 std::vector<DataType> guess_column_types(CSVContents& csv)
 {
 	const auto num_cols = csv.colCount();
 
 	//the regex to recognize integer and doubles.
-	std::regex int_nums("[\\-]?[0-9]+");
-	std::regex sci_nums("[+\\-]?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+\\-]?\\d+)?");
+	std::regex int_nums(R"([\-]?[0-9]+)");
+	std::regex sci_nums(R"([+\-]?(?:0|[1-9]\d*)(?:\.\d+)?(?:[eE][+\-]?\d+)?)");
 
 	//This should be improved to sample rows farther away. Maybe things like
 	//some from begining, middle and end of list plus some other random locations.
@@ -197,10 +204,10 @@ std::vector<DataType> guess_column_types(CSVContents& csv)
 
 }
 
+//Helper function to request conversion to column format for _all_ the columns of a
+//given file.
 CSVColumns CSVContents::convertAllToColumnFormat()
 {
-	guess_column_types(*this);
-
 	auto const names =  getColNames();
 
 	auto const& doc = impl_->doc;
@@ -211,6 +218,8 @@ CSVColumns CSVContents::convertAllToColumnFormat()
 	return convertToColumnFormat(column_indices);
 }
 
+//Helper function to request conversion to column format for specific columns from a
+//given file.
 CSVColumns CSVContents::convertToColumnFormat(std::vector<std::string> const& columns)
 {
 	std::vector<size_t> column_indices;
@@ -221,6 +230,12 @@ CSVColumns CSVContents::convertToColumnFormat(std::vector<std::string> const& co
 	return convertToColumnFormat(column_indices);
 }
 
+//Main function to get the data of the CSV as columns for the requested
+//values. The other functions should eventually call this one. This
+//function will create a CSVColumns object that stores the data as vector
+//for easier/faster handling. Do note that the CSVColumns object is
+//independent of the original Contents it was created from, although it will
+//retain the column names and indices.
 CSVColumns CSVContents::convertToColumnFormat(std::vector<size_t> const& columns)
 {
 	//The result we are building.
@@ -238,7 +253,6 @@ CSVColumns CSVContents::convertToColumnFormat(std::vector<size_t> const& columns
 		col_container.resize(cols.type_.size());
 
 	auto const& names = impl_->doc.GetColumnNames();
-	size_t idx = 0;
 	for (auto const& name: names)
 		cols.names_.emplace(name, impl_->doc.GetColumnIdx(name));
 
@@ -264,7 +278,7 @@ CSVColumns CSVContents::convertToColumnFormat(std::vector<size_t> const& columns
 		}
 		else
 		{
-			std::cout << "Ignoring string column " << names[column_idx] << std::endl;
+			//Ignoring string column
 		}
 
 	}
@@ -272,10 +286,10 @@ CSVColumns CSVContents::convertToColumnFormat(std::vector<size_t> const& columns
 }
 
 
-//This is a more "real method", but still the rapidcsv lib is the one
+//This is the  "real method", but still the rapidcsv lib is the one
 //doing all the heavy lifting. We try to read the file using mmap
 //and then parse the csv using rapidcsv.
-std::optional<CSVContents> read_csv(const std::string& filename)
+std::optional<CSVContents> readCsv(const std::string& filename)
 {
 	try{
 #if 0
@@ -288,12 +302,32 @@ std::optional<CSVContents> read_csv(const std::string& filename)
 		//-> Using an istream that uses a custom buffer.
 		std::istream file_stream(&buf );
 #endif
-
-		std::cout << std::endl;
 		//-> Direct approach using an ifstream.
  		std::ifstream file_stream(filename);
 		//Try to construct the CSV document directly in the optional.
 		std::optional<CSVContents> res(std::in_place, file_stream);
+
+		return std::move(res);
+	}
+	catch (std::exception& e) {
+		return std::nullopt;
+	}
+	catch (...) {
+		return std::nullopt;
+	}
+
+
+}
+
+//and then read from it as if it was a file. Pretty useful for testing or small
+//experiments.
+std::optional<CSVContents> readCsvFromString(const std::string& contents)
+{
+	try{
+		//-> Direct approach using an ifstream.
+		std::stringstream contents_stream(contents);
+		//Try to construct the CSV document directly in the optional.
+		std::optional<CSVContents> res(std::in_place, contents_stream);
 
 		return std::move(res);
 	}
