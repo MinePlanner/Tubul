@@ -50,7 +50,6 @@ TEST(TUBULException, messages2)
 	catch (std::exception& e)
 	{
 		std::string mesg = e.what();
-		std::cout << "Exception as basic exception: " << mesg << std::endl;
 		EXPECT_TRUE(mesg.find("tubul exception") != std::string::npos);
 		EXPECT_TRUE(mesg.find("second") == std::string::npos);
 	}
