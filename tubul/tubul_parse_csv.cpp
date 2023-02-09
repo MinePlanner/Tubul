@@ -143,7 +143,7 @@ std::vector<DataType> guess_column_types(CSVContents& csv)
 
 	//This should be improved to sample rows farther away. Maybe things like
 	//some from begining, middle and end of list plus some other random locations.
-	auto get_sample_rows = [](CSVContents const& csv){ return std::vector<size_t>{1,2,3}; };
+	auto get_sample_rows = [](CSVContents const& csv){ return std::vector<size_t>{0,1,2}; };
 	//We will check these rows (and we should check a number bigger than 0!)
 	auto rows_to_check = get_sample_rows(csv);
 	assert( rows_to_check.size() > 0);
