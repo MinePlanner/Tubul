@@ -17,7 +17,7 @@ using IntegerColumn = std::vector<long>;
 using StringColumn = std::vector<std::string>;
 using DataColumn = std::variant<std::monostate, DoubleColumn, IntegerColumn, StringColumn>;
 
-struct CSVColumns
+struct DataFrame
 {
 	const DataColumn& operator[](size_t idx) const;
 	const DataColumn& operator[](const std::string& name) const;
@@ -47,9 +47,9 @@ struct CSVContents
 	std::vector<long> getColumnAsInteger(size_t colIndex) const;
 	std::vector<std::string> getColumnAsString(size_t colIndex) const;
 
-	CSVColumns convertAllToColumnFormat();
-	CSVColumns convertToColumnFormat(std::vector<std::string> const& columns);
-	CSVColumns convertToColumnFormat(std::vector<size_t> const& columns);
+	DataFrame convertAllToColumnFormat();
+	DataFrame convertToColumnFormat(std::vector<std::string> const& columns);
+	DataFrame convertToColumnFormat(std::vector<size_t> const& columns);
 
 	std::unique_ptr<CSVRawData> impl_;
 };

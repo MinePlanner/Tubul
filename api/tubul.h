@@ -171,7 +171,7 @@ namespace TU {
 	 * the column types and return an object containing all columns already casted.
 	 * There's also the overload convertToColumnFormat where you can pass a vector of
 	 * indices or strings to indicate which columns you want converted. The return type is
-	 * a CSVColumns object that should be independent of the CSVContents object, so you
+	 * a DataFrame object that should be independent of the CSVContents object, so you
 	 * can safely drop the object to save some memory if you need it.
 	 *
 	 * The CSVColumn object stores the columns as variants of either integer, strings
@@ -181,7 +181,7 @@ namespace TU {
 	 */
 
 	struct CSVContents;
-	struct CSVColumns;
+	struct DataFrame;
 
 	std::optional<CSVContents> readCsv(std::string const& filename);
 	std::optional<CSVContents> readCsvFromString(std::string const& contents);
