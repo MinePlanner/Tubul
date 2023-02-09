@@ -48,7 +48,7 @@ struct MappedFile
 	{
 		if (munmap(data_, size_) == -1)
 		{
-			//Do some error handling? Likely just log and get out
+			std::cout << "CAUTION!! I could not unmap the file properly" << std::endl;
 		}
 
 		// Un-mmaping doesn't close the file, so we still need to do that.
