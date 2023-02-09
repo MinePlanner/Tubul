@@ -73,14 +73,14 @@ struct CSVContents::CSVRawData
 };
 
 //Easy retrieval of columns from the set of clumns that we have.
-const DataColumn& CSVColumns::operator[](size_t idx) const
+const DataColumn& DataFrame::operator[](size_t idx) const
 {
 	if ( idx > columns_.size() ||
 		std::holds_alternative<std::monostate>(columns_[idx]) )
 		throw std::runtime_error("Requesting invalid column");
 	return columns_.at(idx);
 }
-const DataColumn& CSVColumns::operator[](const std::string& name) const
+const DataColumn& DataFrame::operator[](const std::string& name) const
 {
 	auto idx = names_.at(name);
 	return operator[](idx);
@@ -206,7 +206,7 @@ std::vector<DataType> guess_column_types(CSVContents& csv)
 
 //Helper function to request conversion to column format for _all_ the columns of a
 //given file.
-CSVColumns CSVContents::convertAllToColumnFormat()
+DataFrame CSVContents::convertAllToColumnFormat()
 {
 	auto const names =  getColNames();
 
@@ -220,7 +220,7 @@ CSVColumns CSVContents::convertAllToColumnFormat()
 
 //Helper function to request conversion to column format for specific columns from a
 //given file.
-CSVColumns CSVContents::convertToColumnFormat(std::vector<std::string> const& columns)
+DataFrame CSVContents::convertToColumnFormat(std::vector<std::string> const& columns)
 {
 	std::vector<size_t> column_indices;
 	column_indices.reserve(columns.size());
@@ -232,14 +232,14 @@ CSVColumns CSVContents::convertToColumnFormat(std::vector<std::string> const& co
 
 //Main function to get the data of the CSV as columns for the requested
 //values. The other functions should eventually call this one. This
-//function will create a CSVColumns object that stores the data as vector
-//for easier/faster handling. Do note that the CSVColumns object is
+//function will create a DataFrame object that stores the data as vector
+//for easier/faster handling. Do note that the DataFrame object is
 //independent of the original Contents it was created from, although it will
 //retain the column names and indices.
-CSVColumns CSVContents::convertToColumnFormat(std::vector<size_t> const& columns)
+DataFrame CSVContents::convertToColumnFormat(std::vector<size_t> const& columns)
 {
 	//The result we are building.
-	CSVColumns cols;
+	DataFrame cols;
 	//But if we are asked for nothing.... that's it :D
 	if ( columns.empty() )
 		return cols;
