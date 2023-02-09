@@ -157,7 +157,7 @@ namespace TU {
 
 	/** CSV Handling
 	 * These objects/functions are meant to be the main way to interact with CSV files.
-	 * To read a csv file, you use TU::read_csv("some_filename.csv") and the file is
+	 * To read a csv file, you use TU::readCsv("some_filename.csv") and the file is
 	 * read and parsed to memory closely to what is written in the file. You can query some
 	 * simple things like number of rows/cols, retrieve a given row or a column.
 	 * You can request the columns as vectors of strings, integers or doubles by choosing the
@@ -183,5 +183,6 @@ namespace TU {
 	struct CSVContents;
 	struct CSVColumns;
 
-	std::optional<CSVContents> read_csv(std::string const& filename);
+	std::optional<CSVContents> readCsv(std::string const& filename);
+	std::optional<CSVContents> readCsvFromString(std::string const& contents);
 }
