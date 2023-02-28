@@ -5,6 +5,7 @@
 #include <vector>
 #include <string>
 #include <chrono>
+#include <cassert>
 #include "tubul_blocks.h"
 
 

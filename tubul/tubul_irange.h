@@ -66,7 +66,7 @@ namespace details{
 	};
 }
 
-using tubul_range = details::range<size_t>;
-using tubul_skip_range = details::skip_range<size_t>;
+using tubul_range = details::range<std::size_t>;
+using tubul_skip_range = details::skip_range<std::size_t>;
 
 }

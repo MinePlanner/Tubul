@@ -11,6 +11,7 @@
 
 #include <iostream>
 #include <streambuf>
+#include <optional>
 #include <regex>
 #include <algorithm>
 #include "tubul_types.h"
