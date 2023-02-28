@@ -5,11 +5,47 @@
 #include <iostream>
 #include <vector>
 #include <thread>
+#include <sys/resource.h>
 
 #include "tubul.h"
 
+const char* CSVSample = R"(Name,HEX,R,G,B
+White,#FFFFFF,100,100,100
+Silver,#C0C0C0,75,75,75
+Gray,#808080,50,50,50
+Black,#000000,0,0,0
+Red,#FF0000,100,0,0
+Maroon,#800000,50,0,0
+Yellow,#FFFF00,100,100,0
+Olive,#808000,50,50,0
+Lime,#00FF00,0,100,0
+Green,#008000,0,50,0
+Aqua,#00FFFF,0,100,100
+Teal,#008080,0,50,50
+Blue,#0000FF,0,0,100
+Navy,#000080,0,0,50
+Fuchsia,#FF00FF,100,0,100
+Purple,#800080,50,0,50)";
+
 int error_function(){
 	throw TU::throwError("Hay algo mal aqui");
+}
+
+std::string getMemUsage()
+{
+	struct rusage myUsage;
+	getrusage(RUSAGE_SELF, &myUsage);
+	std::vector<std::string> units ={"b", "kb", "mb", "gb"};
+	//This starts in bytes;
+	double value = myUsage.ru_maxrss;
+	for (auto const& unit: units)
+	{
+		if (value < 1024)
+			return std::to_string(value) + unit;
+		value /= 1024;
+	}
+	return std::to_string(value) + "gb";
+
 }
 
 void parseArguments(int argc, char** argv)
@@ -90,6 +126,62 @@ int main(int argc, char** argv){
 	std::cout << "I slept for " << exampleElapsed.count() << " seconds" << std::endl;
 	std::cout <<"\tTuner: Is the alarm up?" << ( (alarm3s.alive())?"YES":"NO" ) << "  remaining: " << alarm3s.remaining() << std::endl;
 	std::cout << TU::getCurrentBlockLocation() << std::endl;
+
+
+	std::cout << "With Tubul I can easily read CSV files (Mem before reading csv:" << getMemUsage() << ")" << std::endl;
+	std::optional<TU::CSVContents> csv_reading_result;
+	{
+		TU::AutoStopWatch st("Time reading CSV file: ");
+		//Here I request tubul to read it. I will get an optional if something
+		//fails (file not found or parsing failure).
+		auto res = TU::readCsvFromString(CSVSample) ;
+		if (!res)
+			std::cout << "Couldn't read sample file " << std::endl;
+		else
+			csv_reading_result.swap(res);
+
+	}
+
+	std::cout << "Mem after reading csv:" << getMemUsage() << std::endl;
+	{
+		TU::AutoStopWatch st("Time converting some csv data to columns : ");
+		auto &csv_file = *csv_reading_result;
+		//With the csv file already read, I can do quick peeking at things.
+		std::cout << "Rows detected: " << csv_file.rowCount() << std::endl;
+		std::cout << "Columns detected: " << csv_file.colCount() << std::endl;
+
+		auto white = csv_file.getRow(0);
+		std::cout <<" I can ask specific rows: White has values: (" << TU::join(white,",") << ")"<< std::endl;
+
+		//I can ask for specific columns, even if some are repeated, no extra work is done if possible.
+		std::vector<std::string> colsToConvert = {"R","G","R","B"};
+		auto cols = csv_file.convertToColumnFormat(colsToConvert);
+
+		//I know this is an integer column.
+		auto col_int = std::get<TU::IntegerColumn>(cols["R"]);
+
+		//And calculate the mean of this column.
+		double mean = 0;
+		for (auto x: col_int)
+			mean += x;
+		std::cout << "The mean of the R col is: " << (mean/col_int.size()) << std::endl;
+
+		std::cout << "Mem after requesting some data columns:" << getMemUsage() << std::endl;
+	}
+
+	//Clearing the cached column data (at this point it should exist!!)
+	{
+		TU::AutoStopWatch st("Time converting all data of csv to columns: ");
+		auto &csv_file = *csv_reading_result;
+		std::cout << "Rows detected: " << csv_file.rowCount() << std::endl;
+		std::cout << "Columns detected: " << csv_file.colCount() << std::endl;
+
+		//Request all data columns to be prepared.
+		auto cols = csv_file.convertAllToColumnFormat();
+		std::cout << "Mem after requesting ALL data columns:" << getMemUsage() << std::endl;
+		(void) cols;
+	}
+
 	// uncomment to test error location funcionality
 	// error_function();
 }

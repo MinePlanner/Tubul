@@ -1,4 +1,4 @@
-project(ARGPARSE)
+project(RAPIDCSV)
 
 message( "Preparing ${PROJECT_NAME}")
 
