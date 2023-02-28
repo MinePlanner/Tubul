@@ -49,7 +49,7 @@ TEST(TUBULCSV, testBasicFunctionality)
 	auto colB = csv_data.getColumnAsInteger(1);
 	std::vector<int> expected_colB= {2,3,1};
 	EXPECT_EQ(colB.size(), expected_colB.size());
-	for (size_t i = 0; i < hugo.size(); ++i )
+	for (size_t i = 0; i < colB.size(); ++i )
 		EXPECT_EQ(expected_colB[i], colB[i]);
 
 }
