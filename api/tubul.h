@@ -196,4 +196,8 @@ namespace TU {
 
 	std::optional<CSVContents> readCsv(std::string const& filename);
 	std::optional<CSVContents> readCsvFromString(std::string const& contents);
+
+
+	std::string memCurrentRSS();
+	std::string memPeakRSS();
 }

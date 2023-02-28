@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 #include <exception>
+#include <stdexcept>
 
 namespace TU
 {
