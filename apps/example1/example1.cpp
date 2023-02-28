@@ -5,7 +5,6 @@
 #include <iostream>
 #include <vector>
 #include <thread>
-#include <sys/resource.h>
 
 #include "tubul.h"
 
@@ -31,21 +30,9 @@ int error_function(){
 	throw TU::throwError("Hay algo mal aqui");
 }
 
-std::string getMemUsage()
+std::string getTubulMem()
 {
-	struct rusage myUsage;
-	getrusage(RUSAGE_SELF, &myUsage);
-	std::vector<std::string> units ={"b", "kb", "mb", "gb"};
-	//This starts in bytes;
-	double value = myUsage.ru_maxrss;
-	for (auto const& unit: units)
-	{
-		if (value < 1024)
-			return std::to_string(value) + unit;
-		value /= 1024;
-	}
-	return std::to_string(value) + "gb";
-
+	return std::string("Memory (current/max): ") + TU::memCurrentRSS() + " / " + TU::memPeakRSS() ;
 }
 
 void parseArguments(int argc, char** argv)
@@ -141,7 +128,7 @@ int main(int argc, char** argv){
 	std::cout << TU::getCurrentBlockLocation() << std::endl;
 
 
-	std::cout << "With Tubul I can easily read CSV files (Mem before reading csv:" << getMemUsage() << ")" << std::endl;
+	std::cout << "With Tubul I can easily read CSV files (Mem before reading csv:" << getTubulMem() << ")" << std::endl;
 	std::optional<TU::CSVContents> csv_reading_result;
 	{
 		TU::AutoStopWatch st("Time reading CSV file: ");
@@ -155,7 +142,7 @@ int main(int argc, char** argv){
 
 	}
 
-	std::cout << "Mem after reading csv:" << getMemUsage() << std::endl;
+	std::cout << "Mem after reading csv:" << getTubulMem() << std::endl;
 	{
 		TU::AutoStopWatch st("Time converting some csv data to columns : ");
 		auto &csv_file = *csv_reading_result;
@@ -179,7 +166,7 @@ int main(int argc, char** argv){
 			mean += x;
 		std::cout << "The mean of the R col is: " << (mean/col_int.size()) << std::endl;
 
-		std::cout << "Mem after requesting some data columns:" << getMemUsage() << std::endl;
+		std::cout << "Mem after requesting some data columns:" << getTubulMem() << std::endl;
 	}
 
 	//Clearing the cached column data (at this point it should exist!!)
@@ -191,10 +178,12 @@ int main(int argc, char** argv){
 
 		//Request all data columns to be prepared.
 		auto cols = csv_file.convertAllToColumnFormat();
-		std::cout << "Mem after requesting ALL data columns:" << getMemUsage() << std::endl;
+		std::cout << "Mem after requesting ALL data columns:" << getTubulMem() << std::endl;
 		(void) cols;
 	}
 
+	std::cout << "Current RSS: " << TU::memCurrentRSS() << std::endl;
+	std::cout << "PeakRSS: " << TU::memPeakRSS() << std::endl;
 	// uncomment to test error location funcionality
 	// error_function();
 }
