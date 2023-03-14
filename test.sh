@@ -2,4 +2,4 @@
 
 ./build_debug.sh
 
-./build/Debug/tests/testtubul
+./bin/Debug/testtubul

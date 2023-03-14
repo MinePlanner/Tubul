@@ -11,6 +11,8 @@ then
 fi
 
 mkdir -p build/$MODE
+mkdir -p bin/$MODE
+mkdir -p lib/$MODE
 cd build/$MODE
 
 if command -v ninja &> /dev/null
@@ -20,10 +22,12 @@ else
     BUILD_ENGINE=""
 fi
 
+COMMON_FLAGS="-DCMAKE_BUILD_TYPE=$MODE"
+
 case "$OSTYPE" in
-  darwin*)  cmake $BUILD_ENGINE $COMMON_FLAGS $SOLVER_FLAGS $EXTRA_ARGS ../.. ;;
-  linux*)  cmake $BUILD_ENGINE $COMMON_FLAGS $SOLVER_FLAGS $LICENSE_FLAGS $EXTRA_ARGS ../.. ;;
-  msys*)    cmake.exe -G "Visual Studio 16 2019 Win64" $COMMON_FLAGS $SOLVER_FLAGS $EXTRA_ARGS ..\\.. ;;
+  darwin*)  cmake $BUILD_ENGINE $COMMON_FLAGS $EXTRA_ARGS ../.. ;;
+  linux*)  cmake $BUILD_ENGINE $COMMON_FLAGS $EXTRA_ARGS ../.. ;;
+  msys*)    cmake.exe -G "Visual Studio 16 2019 Win64" $COMMON_FLAGS $EXTRA_ARGS ..\\.. ;;
   *)        echo "unknown: $OSTYPE" ;;
 esac
 
