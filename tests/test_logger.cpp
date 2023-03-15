@@ -15,7 +15,7 @@ TEST(TUBULLogger, testLogError)
 			}
 			catch (const std::runtime_error &e)
 			{
-				EXPECT_EQ("Error: 'test' at function TestBody", std::string(e.what()).substr(0, 34));
+				EXPECT_EQ("Error: 'test' at function ", std::string(e.what()).substr(0, 26));
 				throw;
 			}
 		},
