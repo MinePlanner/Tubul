@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.22)
 
 # ad-hoc setup for mansci's linux
-if(UNIX AND NOT APPLE)
+if("$ENV{HOSTNAME}" STREQUAL "mansci.public")
     SET(CMAKE_CXX_COMPILER "/opt/rh/devtoolset-11/root/usr/bin/g++")
     SET(CMAKE_C_COMPILER "/opt/rh/devtoolset-11/root/usr/bin/gcc")
 endif()
