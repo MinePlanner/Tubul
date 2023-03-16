@@ -196,7 +196,10 @@ namespace TU {
 
 	std::optional<CSVContents> readCsv(std::string const& filename);
 	std::optional<CSVContents> readCsvFromString(std::string const& contents);
-
+	DataFrame dataFrameFromCSVFile(const std::string& filename);
+	DataFrame dataFrameFromCSVString(const std::string& csvContents);
+	DataFrame dataFrameFromCSVFile(const std::string& filename, const std::vector<std::string>& requestedColumns);
+	DataFrame dataFrameFromCSVFile(const std::string& filename, const ColumnRequest& requestedColumns);
 
 	std::string memCurrentRSS();
 	std::string memPeakRSS();

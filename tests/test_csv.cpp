@@ -86,3 +86,28 @@ TEST(TUBULCSV, testColumnConversion)
 	for (size_t i =0; i< colD.size(); ++i)
 		EXPECT_EQ(colD[i], expected_col_d[i]);
 }
+TEST(TUBULCSV, testDataframeString)
+{
+	TU::DataFrame df = TU::dataFrameFromCSVString( CSV1 );
+
+	auto colCount = df.getColCount();
+	EXPECT_EQ(colCount, 4);
+
+	auto testColumn = []( const std::vector<std::string>& col, const std::vector<std::string>& expected )
+			{
+			  	EXPECT_EQ(col.size(), expected.size());
+			  	bool colEqual = std::equal(col.begin(), col.end(), expected.begin() );
+			  	EXPECT_EQ(colEqual, true);
+			};
+	auto colA = std::get<TU::StringColumn>(df["A"]);
+	testColumn(colA, {"1","4","3"});
+
+	auto colB = std::get<TU::StringColumn>(df["B"]);
+	testColumn( colB, {"2","3","1"} );
+
+	auto colC = std::get<TU::StringColumn>(df["C"]);
+	testColumn( colC, {"3","2","2"} );
+
+	auto colD = std::get<TU::StringColumn>(df["D"]);
+	testColumn( colD, {"4","1","4"} );
+}
