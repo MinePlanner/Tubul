@@ -8,7 +8,7 @@
 #include <unistd.h>
 #include <fast_float/fast_float.h>
 #include <rapidcsv.h>
-
+#include <tuple>
 #include <iostream>
 #include <streambuf>
 #include <optional>
@@ -128,6 +128,66 @@ std::vector<std::string> CSVContents::getRow(size_t rowIndex) const {
 	return impl_->doc.GetRow<std::string>(rowIndex);
 }
 
+
+ColumnRequest& ColumnRequest::add(size_t columnIndex, TU::DataType type)
+{
+	//It has not been initialized.
+	if (std::holds_alternative<std::monostate>(requests_))
+	{
+		requests_ = RequestsByPosition{ {columnIndex, type} };
+	}
+	else if ( std::holds_alternative<RequestsByName>(requests_))
+	{
+		throw std::runtime_error("Can't hold named and indexed requests at the same time");
+	}
+	else
+	{
+		std::get<RequestsByPosition>( requests_).emplace_back(columnIndex, type);
+	}
+
+	return *this;
+}
+
+ColumnRequest& ColumnRequest::add(const std::string& columnName, TU::DataType type)
+{
+	if (std::holds_alternative<std::monostate>(requests_))
+	{
+		requests_ = RequestsByName{ {columnName, type} };
+	}
+	else if ( std::holds_alternative<RequestsByPosition>(requests_))
+	{
+		throw std::runtime_error("Can't hold named and indexed requests at the same time");
+	}
+	else
+	{
+		std::get<RequestsByName>( requests_).emplace_back(columnName, type);
+	}
+	return *this;
+}
+
+
+size_t ColumnRequest::size() const
+{
+	if (std::holds_alternative<std::monostate>(requests_))
+		return 0;
+	if (std::holds_alternative<RequestsByPosition>(requests_))
+		return std::get<RequestsByPosition>(requests_).size();
+	if (std::holds_alternative<RequestsByName>(requests_))
+		return std::get<RequestsByName>(requests_).size();
+	//default to no requests.
+	return 0;
+}
+
+
+size_t DataFrame::getColCount() const
+{
+	return columns_.size();
+}
+
+size_t DataFrame::getRowCount() const
+{
+	return columns_.size(); //FIXME later! deberia retornar numero de filas!!
+}
 
 //Function with the logic to "auto-detect" types of columns. Basically
 //This tries to get a couple of rows from the CSV and tries to match
@@ -342,5 +402,217 @@ std::optional<CSVContents> readCsvFromString(const std::string& contents)
 
 }
 
+
+
+//We fill the dataframe with very basic data from the csv. We copy the column names
+//
+void setupDataFrameFromCSV(DataFrame& frame, const std::unique_ptr<CSVContents::CSVRawData>& ptr)
+{
+	//Check what to do in case of no column names :/
+	auto const& names = ptr->doc.GetColumnNames();
+	for (auto const& name: names)
+	{
+		frame.names_.emplace(name, ptr->doc.GetColumnIdx(name));
+		frame.type_.push_back( DataType::STRING );
+		frame.columns_.push_back( DataColumn() );
+	}
+}
+
+void setupDataFrameRequestedTypes(DataFrame& cols, const ColumnRequest& requestedColumns)
+{
+	if (requestedColumns.size() == 0)
+		return;
+
+	const auto& requests_ = requestedColumns.requests_;
+
+	if (std::holds_alternative<ColumnRequest::RequestsByName>(requests_))
+	{
+		const auto& reqs = std::get<ColumnRequest::RequestsByName>(requests_);
+		for (const auto& req: reqs)
+		{
+			const auto& colName = req.first;
+			const auto& colType= req.second;
+			size_t colId = cols.names_[colName];
+			cols.type_[colId] = colType;
+		}
+	}
+	if (std::holds_alternative<ColumnRequest::RequestsByPosition>(requests_))
+	{
+		const auto& reqs = std::get<ColumnRequest::RequestsByPosition>(requests_);
+
+	}
+
+}
+
+std::vector<size_t> getRequestedColumnId(const ColumnRequest& requestedColumns,  const std::unique_ptr<CSVContents::CSVRawData>& ptr)
+{
+	std::vector<size_t> res;
+
+	const auto& requests_ = requestedColumns.requests_;
+
+	if (std::holds_alternative<ColumnRequest::RequestsByName>(requests_))
+	{
+		const auto& reqs = std::get<ColumnRequest::RequestsByName>(requests_);
+		for (const auto& req: reqs)
+		{
+			const auto& colName = req.first;
+			res.push_back(ptr->doc.GetColumnIdx(colName) );
+		}
+	}
+	else if (std::holds_alternative<ColumnRequest::RequestsByPosition>(requests_))
+	{
+		const auto& reqs = std::get<ColumnRequest::RequestsByPosition>(requests_);
+		for ( auto idx: reqs)
+			res.push_back(idx.first);
+	}
+
+	return res;
+}
+
+std::vector<size_t> getRequestedColumnId(const std::vector<std::string>& requestedColumns,  const std::unique_ptr<CSVContents::CSVRawData>& ptr)
+{
+	std::vector<size_t> res;
+
+	for (const auto& req: requestedColumns)
+	{
+		auto colIdx = ptr->doc.GetColumnIdx(req);
+		res.push_back(colIdx);
+	}
+
+	return res;
+}
+
+void getRequestedColumns(DataFrame& df,  const std::unique_ptr<CSVContents::CSVRawData>& ptr, std::vector<size_t>& columns)
+{
+	auto& colContainer = df.columns_;
+	auto const& colType = df.type_;
+
+	for (auto column_idx: columns )
+	{
+		//Just in case, check we didn't already get this one if a column was repeated
+		//or got called twice.
+		if ( not holds_alternative<std::monostate>(colContainer[column_idx]))
+			continue;
+
+		//Retrieve the column according to the discovered type.
+		if (colType[column_idx] == DataType::INTEGER)
+		{
+			auto col = ptr->doc.GetColumn<long>(column_idx);
+			colContainer[column_idx] = std::move(col);
+
+		}
+		else if (colType[column_idx] == DataType::STRING)
+		{
+			auto col = ptr->doc.GetColumn<std::string>(column_idx);
+			colContainer[column_idx] = std::move(col);
+		}
+	}
+
+}
+
+
+DataFrame dataFrameFromCSVFile(const std::string& filename, const std::vector<std::string>& requestedColumns)
+{
+	auto csv = readCsv(filename);
+	if ( !csv )
+		throw std::runtime_error("couldn't parse contents");
+	//Shorter name for the csv implementation.
+	auto& contents = csv.value();
+
+	//The result we are building.
+	DataFrame df;
+
+	//Setup the basics from the csv data: column count, names and assuming all types as string.
+	setupDataFrameFromCSV(df, contents.impl_);
+	//But if we are asked for nothing.... that's it :D
+	if ( requestedColumns.size() > 0 )
+		return df;
+
+	std::vector<size_t> columns = getRequestedColumnId(requestedColumns, contents.impl_);
+
+	getRequestedColumns(df, contents.impl_, columns);
+
+	return df;
+}
+
+DataFrame dataFrameFromCSVFile(const std::string& filename, const ColumnRequest& requestedColumns)
+{
+	auto csv = readCsv(filename);
+	if ( !csv )
+		throw std::runtime_error("couldn't parse contents");
+	//Shorter name for the csv implementation.
+	auto& contents = csv.value();
+
+	//The result we are building.
+	DataFrame df;
+
+	//Setup the basics from the csv data: column count, names and assuming all types as string.
+	setupDataFrameFromCSV(df, contents.impl_);
+
+	//But if we are asked for nothing.... that's it :D
+	if ( requestedColumns.size() > 0 )
+		return df;
+
+	setupDataFrameRequestedTypes(df, requestedColumns);
+
+	std::vector<size_t> columns = getRequestedColumnId(requestedColumns, contents.impl_);
+
+	getRequestedColumns(df, contents.impl_, columns);
+
+	return df;
+
+}
+
+
+DataFrame dataframeFromCSVFile(const std::string& filename)
+{
+	auto csv = readCsv(filename);
+	if ( !csv )
+		throw std::runtime_error("couldn't parse contents");
+	//Shorter name for the csv implementation.
+	auto& contents = csv.value();
+
+	//The result we are building.
+	DataFrame df;
+
+	//Setup the basics from the csv data: column count, names and assuming all types as string.
+	setupDataFrameFromCSV(df, contents.impl_);
+
+
+	std::vector<size_t> columns;
+	for( int it=0; it < contents.colCount(); ++it)
+		columns.push_back(it);
+
+	getRequestedColumns(df, contents.impl_, columns);
+
+	return df;
+
+}
+
+DataFrame dataFrameFromCSVString(const std::string& csvContents)
+{
+	auto csv = readCsvFromString(csvContents);
+	if ( !csv )
+		throw std::runtime_error("couldn't read file");
+
+	//Shorter name for the csv implementation.
+	auto& contents = csv.value();
+
+	//The result we are building.
+	DataFrame df;
+
+	//Setup the basics from the csv data: column count, names and assuming all types as string.
+	setupDataFrameFromCSV(df, contents.impl_);
+
+
+	std::vector<size_t> columns;
+	for( int it=0; it < contents.colCount(); ++it)
+		columns.push_back(it);
+
+	getRequestedColumns(df, contents.impl_, columns);
+
+	return df;
+
+}
 
 }

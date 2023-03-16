@@ -8,6 +8,7 @@
 #include <string>
 #include <unordered_map>
 #include <variant>
+#include <utility>
 
 namespace TU
 {
@@ -17,14 +18,33 @@ using IntegerColumn = std::vector<long>;
 using StringColumn = std::vector<std::string>;
 using DataColumn = std::variant<std::monostate, DoubleColumn, IntegerColumn, StringColumn>;
 
+struct ColumnRequest
+{
+	using PositionType = std::pair<size_t, TU::DataType>;
+	using NameType = std::pair<std::string, TU::DataType>;
+	using RequestsByPosition = std::vector<PositionType>;
+	using RequestsByName = std::vector<NameType>;
+
+	std::variant < std::monostate, RequestsByPosition , RequestsByName >  requests_;
+
+	size_t size() const;
+
+	ColumnRequest& add(size_t, TU::DataType);
+	ColumnRequest& add(const std::string&, TU::DataType);
+};
+
 struct DataFrame
 {
 	const DataColumn& operator[](size_t idx) const;
 	const DataColumn& operator[](const std::string& name) const;
 
+	size_t getColCount() const;
+	size_t getRowCount() const;
+
 	std::unordered_map<std::string, size_t> names_;
 	std::vector<DataType> type_;
 	std::vector<DataColumn> columns_;
+
 };
 
 struct CSVContents
@@ -53,5 +73,6 @@ struct CSVContents
 
 	std::unique_ptr<CSVRawData> impl_;
 };
+
 
 }
