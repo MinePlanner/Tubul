@@ -184,9 +184,22 @@ size_t DataFrame::getColCount() const
 	return columns_.size();
 }
 
+struct ColSizeVisitor
+{
+	size_t operator()(const TU::DoubleColumn& c){ return c.size();}
+	size_t operator()(const TU::StringColumn& c){ return c.size();}
+	template <typename InvalidColumnType>
+	size_t operator()(const InvalidColumnType&){ throw std::runtime_error("invalid column type");}
+};
+
 size_t DataFrame::getRowCount() const
 {
-	return columns_.size(); //FIXME later! deberia retornar numero de filas!!
+	for (const auto& column: columns_)
+	{
+		if ( !std::holds_alternative<std::monostate>(column))
+			return std::visit( ColSizeVisitor() ,column);
+	}
+	return 0;
 }
 
 //Function with the logic to "auto-detect" types of columns. Basically
@@ -267,6 +280,7 @@ std::vector<DataType> guess_column_types(CSVContents& csv)
 
 //Helper function to request conversion to column format for _all_ the columns of a
 //given file.
+//FXIME: Decidir si borramos esto o no.
 DataFrame CSVContents::convertAllToColumnFormat()
 {
 	auto const names =  getColNames();
@@ -281,6 +295,7 @@ DataFrame CSVContents::convertAllToColumnFormat()
 
 //Helper function to request conversion to column format for specific columns from a
 //given file.
+//FXIME: Decidir si borramos esto o no.
 DataFrame CSVContents::convertToColumnFormat(std::vector<std::string> const& columns)
 {
 	std::vector<size_t> column_indices;
@@ -297,6 +312,7 @@ DataFrame CSVContents::convertToColumnFormat(std::vector<std::string> const& col
 //for easier/faster handling. Do note that the DataFrame object is
 //independent of the original Contents it was created from, although it will
 //retain the column names and indices.
+//FXIME: Decidir si borramos esto o no.
 DataFrame CSVContents::convertToColumnFormat(std::vector<size_t> const& columns)
 {
 	//The result we are building.
@@ -486,9 +502,9 @@ void getRequestedColumns(DataFrame& df,  const std::unique_ptr<CSVContents::CSVR
 			continue;
 
 		//Retrieve the column according to the discovered type.
-		if (colType[column_idx] == DataType::INTEGER)
+		if (colType[column_idx] == DataType::DOUBLE)
 		{
-			auto col = ptr->doc.GetColumn<long>(column_idx);
+			auto col = ptr->doc.GetColumn<double>(column_idx);
 			colContainer[column_idx] = std::move(col);
 
 		}
@@ -503,31 +519,6 @@ void getRequestedColumns(DataFrame& df,  const std::unique_ptr<CSVContents::CSVR
 
 
 #if 0
-DataFrame dataFrameFromCSVFile(const std::string& filename, const std::vector<std::string>& requestedColumns)
-{
-	auto csv = readCsv(filename);
-	if ( !csv )
-		throw std::runtime_error("couldn't parse contents");
-	//Shorter name for the csv implementation.
-	auto& contents = csv.value();
-
-	//The result we are building.
-	DataFrame df;
-
-	//Setup the basics from the csv data: column count, names and assuming all types as string.
-	setupDataFrameFromCSV(df, contents.impl_);
-	//But if we are asked for nothing.... that's it :D
-	if ( requestedColumns.size() > 0 )
-		return df;
-
-	std::vector<size_t> columns = getRequestedColumnId(requestedColumns, contents.impl_);
-
-	getRequestedColumns(df, contents.impl_, columns);
-
-	return df;
-}
-#endif
-
 DataFrame dataFrameFromCSVFile(const std::string& filename, const ColumnRequest& requestedColumns)
 {
 	auto csv = readCsv(filename);
@@ -555,7 +546,7 @@ DataFrame dataFrameFromCSVFile(const std::string& filename, const ColumnRequest&
 	return df;
 
 }
-
+#endif
 
 
 struct ColumnTypeNoInfo
@@ -563,6 +554,40 @@ struct ColumnTypeNoInfo
 	void operator()(DataFrame& df)
 	{ }
 
+};
+
+struct ColumnTypeHelper
+{
+	ColumnTypeHelper(const ColumnRequest& req):
+		request_(req)
+	{}
+
+	void operator()(DataFrame& df)
+	{
+		if (request_.size() == 0)
+			return;
+
+		const auto& requests_ = request_.requests_;
+
+		if (std::holds_alternative<ColumnRequest::RequestsByName>(requests_))
+		{
+			const auto& reqs = std::get<ColumnRequest::RequestsByName>(requests_);
+			for (const auto& req: reqs)
+			{
+				const auto& colName = req.first;
+				const auto& colType= req.second;
+				size_t colId = df.names_[colName];
+				df.type_[colId] = colType;
+			}
+		}
+		if (std::holds_alternative<ColumnRequest::RequestsByPosition>(requests_))
+		{
+			const auto& reqs = std::get<ColumnRequest::RequestsByPosition>(requests_);
+		}
+
+	}
+
+	const ColumnRequest& request_;
 };
 
 struct SelectorAllColumns
@@ -597,6 +622,18 @@ struct SelectorColumnByName
 	const std::vector<std::string>& names_;
 };
 
+struct SelectorColumnAndType
+{
+	SelectorColumnAndType(const ColumnRequest& request):
+		request_(request)
+	{}
+
+	std::vector<size_t> operator()( const std::unique_ptr<CSVContents::CSVRawData>& csv)
+	{
+		return getRequestedColumnId(request_, csv);
+	}
+	const ColumnRequest& request_;
+};
 
 template<typename ColSelector, typename ColTypeRequestor>
 DataFrame dataFrameFromCSVInternal(std::istream& input, ColSelector& selector, ColTypeRequestor& typeRequestor)
@@ -617,6 +654,8 @@ DataFrame dataFrameFromCSVInternal(std::istream& input, ColSelector& selector, C
 	//Now, if we have type request information, fix the the dataframe types.
 	typeRequestor( df );
 
+	//Get get the index for columns that we are asked for. The selector will
+	//vary depending on the needs of the caller.
 	std::vector<size_t> columns = selector(contents.impl_);
 
 	getRequestedColumns(df, contents.impl_, columns);
@@ -654,7 +693,24 @@ DataFrame dataFrameFromCSVFile(const std::string& filename, const std::vector<st
 	SelectorColumnByName chosenCols(requestedColumns);
 	ColumnTypeNoInfo noInfo;
 	return dataFrameFromCSVInternal( contents_stream, chosenCols, noInfo );
+}
 
+DataFrame dataFrameFromCSVString(const std::string& csvContents, const ColumnRequest& requestedColumns)
+{
+	std::stringstream contents_stream(csvContents);
+	SelectorColumnAndType chosenCols(requestedColumns);
+	ColumnTypeHelper noInfo(requestedColumns);
+
+	return dataFrameFromCSVInternal(contents_stream, chosenCols, noInfo );
+}
+
+DataFrame dataFrameFromCSVFile(const std::string& filename, const ColumnRequest& requestedColumns)
+{
+	std::ifstream contents_stream(filename);
+	SelectorColumnAndType chosenCols(requestedColumns);
+	ColumnTypeHelper noInfo(requestedColumns);
+
+	return dataFrameFromCSVInternal(contents_stream, chosenCols, noInfo );
 }
 
 }
