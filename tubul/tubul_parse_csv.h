@@ -25,12 +25,17 @@ struct ColumnRequest
 	using RequestsByPosition = std::vector<PositionType>;
 	using RequestsByName = std::vector<NameType>;
 
-	std::variant < std::monostate, RequestsByPosition , RequestsByName >  requests_;
+	ColumnRequest(const RequestsByPosition& req):
+		requests_(req){};
+	ColumnRequest(const RequestsByName& req):
+		requests_(req){};
 
 	size_t size() const;
 
 	ColumnRequest& add(size_t, TU::DataType);
 	ColumnRequest& add(const std::string&, TU::DataType);
+
+	std::variant < std::monostate, RequestsByPosition , RequestsByName >  requests_;
 };
 
 struct DataFrame
