@@ -346,13 +346,28 @@ DataFrame CSVContents::convertToColumnFormat(std::vector<size_t> const& columns)
 	return cols;
 }
 
+inline
+std::optional<CSVContents> readCsv(std::istream& input)
+{
+	try{
+		//Try to construct the CSV document directly in the optional.
+		std::optional<CSVContents> res(std::in_place, input);
+		return std::move(res);
+	}
+	catch (std::exception& e) {
+		return std::nullopt;
+	}
+	catch (...) {
+		return std::nullopt;
+	}
+
+}
 
 //This is the  "real method", but still the rapidcsv lib is the one
 //doing all the heavy lifting. We try to read the file using mmap
 //and then parse the csv using rapidcsv.
 std::optional<CSVContents> readCsv(const std::string& filename)
 {
-	try{
 #if 0
 		//Calling the file mapping stuff. With this, we have the file
 		//open in a c-style, with the contents mmaped and ready to be read.
@@ -363,43 +378,19 @@ std::optional<CSVContents> readCsv(const std::string& filename)
 		//-> Using an istream that uses a custom buffer.
 		std::istream file_stream(&buf );
 #endif
-		//-> Direct approach using an ifstream.
- 		std::ifstream file_stream(filename);
-		//Try to construct the CSV document directly in the optional.
-		std::optional<CSVContents> res(std::in_place, file_stream);
-
-		return std::move(res);
-	}
-	catch (std::exception& e) {
-		return std::nullopt;
-	}
-	catch (...) {
-		return std::nullopt;
-	}
-
-
+	//-> Direct approach using an ifstream.
+	std::ifstream file_stream(filename);
+	//Try to construct the CSV document directly in the optional.
+	return readCsv(file_stream);
 }
 
 //and then read from it as if it was a file. Pretty useful for testing or small
 //experiments.
 std::optional<CSVContents> readCsvFromString(const std::string& contents)
 {
-	try{
-		//-> Direct approach using an ifstream.
-		std::stringstream contents_stream(contents);
-		//Try to construct the CSV document directly in the optional.
-		std::optional<CSVContents> res(std::in_place, contents_stream);
-
-		return std::move(res);
-	}
-	catch (std::exception& e) {
-		return std::nullopt;
-	}
-	catch (...) {
-		return std::nullopt;
-	}
-
-
+	//->Creating a stringstream to read from the string.
+	std::stringstream contents_stream(contents);
+	return readCsv(contents_stream);
 }
 
 
@@ -511,6 +502,7 @@ void getRequestedColumns(DataFrame& df,  const std::unique_ptr<CSVContents::CSVR
 }
 
 
+#if 0
 DataFrame dataFrameFromCSVFile(const std::string& filename, const std::vector<std::string>& requestedColumns)
 {
 	auto csv = readCsv(filename);
@@ -534,6 +526,7 @@ DataFrame dataFrameFromCSVFile(const std::string& filename, const std::vector<st
 
 	return df;
 }
+#endif
 
 DataFrame dataFrameFromCSVFile(const std::string& filename, const ColumnRequest& requestedColumns)
 {
@@ -564,11 +557,54 @@ DataFrame dataFrameFromCSVFile(const std::string& filename, const ColumnRequest&
 }
 
 
-DataFrame dataframeFromCSVFile(const std::string& filename)
+
+struct ColumnTypeNoInfo
 {
-	auto csv = readCsv(filename);
+	void operator()(DataFrame& df)
+	{ }
+
+};
+
+struct SelectorAllColumns
+{
+
+	std::vector<size_t> operator()( const std::unique_ptr<CSVContents::CSVRawData>& csv)
+	{
+		std::vector<size_t> columns;
+		for( int it=0; it < csv->doc.GetColumnCount(); ++it)
+			columns.push_back(it);
+		return columns;
+	}
+};
+
+struct SelectorColumnByName
+{
+	SelectorColumnByName(const std::vector<std::string>& names):
+		names_(names)
+	{}
+
+	std::vector<size_t> operator()( const std::unique_ptr<CSVContents::CSVRawData>& csv)
+	{
+#if 0
+		std::vector<size_t> columns;
+		for (const std::string& name: names_)
+			columns.push_back( csv->doc.GetColumnIdx(name) );
+
+		return columns;
+#endif
+		return getRequestedColumnId(names_, csv);
+	}
+	const std::vector<std::string>& names_;
+};
+
+
+template<typename ColSelector, typename ColTypeRequestor>
+DataFrame dataFrameFromCSVInternal(std::istream& input, ColSelector& selector, ColTypeRequestor& typeRequestor)
+{
+	auto csv = readCsv(input);
 	if ( !csv )
-		throw std::runtime_error("couldn't parse contents");
+		throw std::runtime_error("couldn't read csv!");
+
 	//Shorter name for the csv implementation.
 	auto& contents = csv.value();
 
@@ -578,40 +614,46 @@ DataFrame dataframeFromCSVFile(const std::string& filename)
 	//Setup the basics from the csv data: column count, names and assuming all types as string.
 	setupDataFrameFromCSV(df, contents.impl_);
 
+	//Now, if we have type request information, fix the the dataframe types.
+	typeRequestor( df );
 
-	std::vector<size_t> columns;
-	for( int it=0; it < contents.colCount(); ++it)
-		columns.push_back(it);
+	std::vector<size_t> columns = selector(contents.impl_);
 
 	getRequestedColumns(df, contents.impl_, columns);
 
 	return df;
-
 }
 
 DataFrame dataFrameFromCSVString(const std::string& csvContents)
 {
-	auto csv = readCsvFromString(csvContents);
-	if ( !csv )
-		throw std::runtime_error("couldn't read file");
+	std::stringstream contents_stream(csvContents);
+	SelectorAllColumns all;
+	ColumnTypeNoInfo noInfo;
+	return dataFrameFromCSVInternal( contents_stream, all, noInfo );
+}
 
-	//Shorter name for the csv implementation.
-	auto& contents = csv.value();
+DataFrame dataframeFromCSVFile(const std::string& filename)
+{
+	std::ifstream contents_stream(filename);
+	SelectorAllColumns all;
+	ColumnTypeNoInfo noInfo;
+	return dataFrameFromCSVInternal( contents_stream, all, noInfo );
+}
 
-	//The result we are building.
-	DataFrame df;
+DataFrame dataFrameFromCSVString(const std::string& csvContents, const std::vector<std::string>& requestedColumns)
+{
+	std::stringstream contents_stream(csvContents);
+	SelectorColumnByName chosenCols(requestedColumns);
+	ColumnTypeNoInfo noInfo;
+	return dataFrameFromCSVInternal( contents_stream, chosenCols, noInfo );
+}
 
-	//Setup the basics from the csv data: column count, names and assuming all types as string.
-	setupDataFrameFromCSV(df, contents.impl_);
-
-
-	std::vector<size_t> columns;
-	for( int it=0; it < contents.colCount(); ++it)
-		columns.push_back(it);
-
-	getRequestedColumns(df, contents.impl_, columns);
-
-	return df;
+DataFrame dataFrameFromCSVFile(const std::string& filename, const std::vector<std::string>& requestedColumns)
+{
+	std::ifstream contents_stream(filename);
+	SelectorColumnByName chosenCols(requestedColumns);
+	ColumnTypeNoInfo noInfo;
+	return dataFrameFromCSVInternal( contents_stream, chosenCols, noInfo );
 
 }
 

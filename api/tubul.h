@@ -199,6 +199,7 @@ namespace TU {
 	DataFrame dataFrameFromCSVFile(const std::string& filename);
 	DataFrame dataFrameFromCSVString(const std::string& csvContents);
 	DataFrame dataFrameFromCSVFile(const std::string& filename, const std::vector<std::string>& requestedColumns);
+	DataFrame dataFrameFromCSVString(const std::string& csvContents, const std::vector<std::string>& requestedColumns);
 	DataFrame dataFrameFromCSVFile(const std::string& filename, const ColumnRequest& requestedColumns);
 
 	std::string memCurrentRSS();

@@ -111,3 +111,28 @@ TEST(TUBULCSV, testDataframeString)
 	auto colD = std::get<TU::StringColumn>(df["D"]);
 	testColumn( colD, {"4","1","4"} );
 }
+
+TEST(TUBULCSV, testDataframeStringColumnsByName)
+{
+	TU::DataFrame df = TU::dataFrameFromCSVString( CSV1 ,{"B","C"});
+
+	auto colCount = df.getColCount();
+	EXPECT_EQ(colCount, 4);
+
+	auto testColumn = []( const std::vector<std::string>& col, const std::vector<std::string>& expected )
+	{
+	  EXPECT_EQ(col.size(), expected.size());
+	  bool colEqual = std::equal(col.begin(), col.end(), expected.begin() );
+	  EXPECT_EQ(colEqual, true);
+	};
+
+	auto colB = std::get<TU::StringColumn>(df["B"]);
+	testColumn( colB, {"2","3","1"} );
+
+	auto colC = std::get<TU::StringColumn>(df["C"]);
+	testColumn( colC, {"3","2","2"} );
+
+	//These columns shouldn't have data!
+	EXPECT_ANY_THROW( auto colA = std::get<TU::StringColumn>(df["A"]) );
+	EXPECT_ANY_THROW( auto colD = std::get<TU::StringColumn>(df["D"]) );
+}
