@@ -10,43 +10,54 @@ namespace TU
 {
 
 
+double getDifference(TimePoint tp)
+{
+	TimeDuration elapsed = (now() - tp);
+	return elapsed.count();
+}
+
+double getDifference(TimePoint tp_begin, TimePoint tp_end)
+{
+	TimeDuration elapsed = (tp_end - tp_begin);
+	return elapsed.count();
+}
 
 
 AutoStopWatch::AutoStopWatch(const std::string& msg):
-	start_(std::chrono::high_resolution_clock::now()),
+	start_(now()),
 	msg_(msg)
 {	}
 
 AutoStopWatch::~AutoStopWatch()
 {
-	auto end_time = std::chrono::high_resolution_clock::now();
+	auto end_time = now();
 	TimeDuration elapsed = (end_time-start_);
 	std::cout << msg_ << elapsed.count() << std::endl;
 }
 
 double AutoStopWatch::elapsed()
 {
-	auto end_time = std::chrono::high_resolution_clock::now();
+	auto end_time = now();
 	TimeDuration elapsed = (end_time-start_);
 	return elapsed.count();
 }
 
 
 StopWatch::StopWatch(TimeDuration& td):
-	start_(std::chrono::high_resolution_clock::now()),
+	start_(now()),
 	out_(td)
 {	}
 
 StopWatch::~StopWatch()
 {
-	auto end_time = std::chrono::high_resolution_clock::now();
+	auto end_time = now();
 	TimeDuration elapsed = (end_time-start_);
 	out_ += elapsed;
 }
 
 double StopWatch::elapsed()
 {
-	auto end_time = std::chrono::high_resolution_clock::now();
+	auto end_time = now();
 	TimeDuration elapsed = (end_time-start_);
 	return elapsed.count();
 }
@@ -54,18 +65,18 @@ double StopWatch::elapsed()
 
 
 Timer::Timer(const TimeDuration& td):
-	start_(std::chrono::high_resolution_clock::now()),
+	start_(now()),
 	wait_time_(td)
 {}
 
 Timer::Timer(int secs):
-	start_(std::chrono::high_resolution_clock::now()),
+	start_(now()),
 	wait_time_(std::chrono::seconds(secs) )
 {}
 
 double Timer::remaining()
 {
-	auto current = std::chrono::high_resolution_clock::now();
+	auto current = now();
 	TimeDuration elapsed = (current-start_);
 	auto remaining = (wait_time_ - elapsed).count();
 	if (remaining>0)
@@ -74,7 +85,7 @@ double Timer::remaining()
 }
 bool Timer::alive()
 {
-	auto current = std::chrono::high_resolution_clock::now();
+	auto current = now();
 	TimeDuration elapsed = (current-start_);
 	return (wait_time_ - elapsed).count() > 0;
 }
