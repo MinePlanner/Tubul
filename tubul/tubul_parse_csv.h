@@ -80,4 +80,17 @@ struct CSVContents
 };
 
 
+struct CSVOptions
+{
+	ColumnHeaders columnHeaders;
+	RowHeaders rowHeaders;
+	char separator;
+};
+
+DataFrame dataFrameFromCSVFile(const std::string& filename, CSVOptions options = {ColumnHeaders::YES, RowHeaders::NO, ','});
+DataFrame dataFrameFromCSVFile(const std::string& filename, const std::vector<std::string>& requestedColumns, CSVOptions options = {ColumnHeaders::YES, RowHeaders::NO, ','});
+DataFrame dataFrameFromCSVFile(const std::string& filename, const ColumnRequest& requestedColumns, CSVOptions options = {ColumnHeaders::YES, RowHeaders::NO, ','});
+DataFrame dataFrameFromCSVString(const std::string& csvContents, CSVOptions options = {ColumnHeaders::YES, RowHeaders::NO, ','});
+DataFrame dataFrameFromCSVString(const std::string& csvContents, const std::vector<std::string>& requestedColumns, CSVOptions options = {ColumnHeaders::YES, RowHeaders::NO, ','});
+DataFrame dataFrameFromCSVString(const std::string& csvContents, const ColumnRequest& requestedColumns, CSVOptions options = {ColumnHeaders::YES, RowHeaders::NO, ','});
 }

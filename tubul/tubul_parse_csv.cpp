@@ -451,6 +451,9 @@ void setupDataFrameRequestedTypes(DataFrame& cols, const ColumnRequest& requeste
 
 }
 
+//Helper function to retrieve the colum id's from a ColumnRequest. This
+//can be more or less direct if the columns are requested by id, or may need
+//to convert the names into id.
 std::vector<size_t> getRequestedColumnId(const ColumnRequest& requestedColumns,  const std::unique_ptr<CSVContents::CSVRawData>& ptr)
 {
 	std::vector<size_t> res;
@@ -476,6 +479,7 @@ std::vector<size_t> getRequestedColumnId(const ColumnRequest& requestedColumns, 
 	return res;
 }
 
+//Helper function to retrieve the ids of a list of column names.
 std::vector<size_t> getRequestedColumnId(const std::vector<std::string>& requestedColumns,  const std::unique_ptr<CSVContents::CSVRawData>& ptr)
 {
 	std::vector<size_t> res;
@@ -489,6 +493,10 @@ std::vector<size_t> getRequestedColumnId(const std::vector<std::string>& request
 	return res;
 }
 
+//Function that will go over the columns defined in a dataframe and will try to
+//populate them depending on if they were initialized and using the type already
+//set to describe them. For now, only supporting doubles and strings as that
+//should be the minimum to handle all other derived cases.
 void getRequestedColumns(DataFrame& df,  const std::unique_ptr<CSVContents::CSVRawData>& ptr, std::vector<size_t>& columns)
 {
 	auto& colContainer = df.columns_;
@@ -517,6 +525,8 @@ void getRequestedColumns(DataFrame& df,  const std::unique_ptr<CSVContents::CSVR
 
 }
 
+//Helper object to set type info on a dataframe when there's no info...
+//basically do nothing :D
 struct ColumnTypeNoInfo
 {
 	void operator()(DataFrame& df)
@@ -524,6 +534,8 @@ struct ColumnTypeNoInfo
 
 };
 
+//The ColumnRequest object contains type information for each column, and
+//this object can extract that information and pass it to the dataframe.
 struct ColumnTypeHelper
 {
 	ColumnTypeHelper(const ColumnRequest& req):
@@ -550,7 +562,7 @@ struct ColumnTypeHelper
 		}
 		if (std::holds_alternative<ColumnRequest::RequestsByPosition>(requests_))
 		{
-			const auto& reqs = std::get<ColumnRequest::RequestsByPosition>(requests_);
+			const auto& reqs = std::get<ColumnRequest::RequestsByPosition>(requests_); //Fixme!
 		}
 
 	}
@@ -560,7 +572,6 @@ struct ColumnTypeHelper
 
 struct SelectorAllColumns
 {
-
 	std::vector<size_t> operator()( const std::unique_ptr<CSVContents::CSVRawData>& csv)
 	{
 		std::vector<size_t> columns;
@@ -603,8 +614,19 @@ struct SelectorColumnAndType
 	const ColumnRequest& request_;
 };
 
+
+//Main function to read from a csv, setup a dataframe and retrieve the selected
+//columns into vectors. This is done by passing a the stream that contains
+//the csv data, and a couple objects to customize the selection of columns
+//and the expected types of columns. Depending on what is asked, the parameters
+//used to customize will vary accordingly.
+//@param selector is a functor that should know how to return the list of column
+//id's that are being requested.
+//@param typeRequestor is a functor that has to "fix" the types of each column
+//in the dataframe. This is done by setting the correct datatype value on the
+//corresponding column.
 template<typename ColSelector, typename ColTypeRequestor>
-DataFrame dataFrameFromCSVInternal(std::istream& input, ColSelector& selector, ColTypeRequestor& typeRequestor)
+DataFrame dataFrameFromCSVInternal(std::istream& input, const CSVOptions& options, ColSelector& selector, ColTypeRequestor& typeRequestor)
 {
 	auto csv = readCsv(input);
 	if ( !csv )
@@ -631,54 +653,54 @@ DataFrame dataFrameFromCSVInternal(std::istream& input, ColSelector& selector, C
 	return df;
 }
 
-DataFrame dataFrameFromCSVString(const std::string& csvContents)
+DataFrame dataFrameFromCSVString(const std::string& csvContents, TU::CSVOptions options)
 {
 	std::stringstream contents_stream(csvContents);
 	SelectorAllColumns all;
 	ColumnTypeNoInfo noInfo;
-	return dataFrameFromCSVInternal( contents_stream, all, noInfo );
+	return dataFrameFromCSVInternal( contents_stream, options, all, noInfo );
 }
 
-DataFrame dataframeFromCSVFile(const std::string& filename)
-{
-	std::ifstream contents_stream(filename);
-	SelectorAllColumns all;
-	ColumnTypeNoInfo noInfo;
-	return dataFrameFromCSVInternal( contents_stream, all, noInfo );
-}
-
-DataFrame dataFrameFromCSVString(const std::string& csvContents, const std::vector<std::string>& requestedColumns)
-{
-	std::stringstream contents_stream(csvContents);
-	SelectorColumnByName chosenCols(requestedColumns);
-	ColumnTypeNoInfo noInfo;
-	return dataFrameFromCSVInternal( contents_stream, chosenCols, noInfo );
-}
-
-DataFrame dataFrameFromCSVFile(const std::string& filename, const std::vector<std::string>& requestedColumns)
-{
-	std::ifstream contents_stream(filename);
-	SelectorColumnByName chosenCols(requestedColumns);
-	ColumnTypeNoInfo noInfo;
-	return dataFrameFromCSVInternal( contents_stream, chosenCols, noInfo );
-}
-
-DataFrame dataFrameFromCSVString(const std::string& csvContents, const ColumnRequest& requestedColumns)
+DataFrame dataFrameFromCSVString(const std::string& csvContents, const ColumnRequest& requestedColumns, TU::CSVOptions options)
 {
 	std::stringstream contents_stream(csvContents);
 	SelectorColumnAndType chosenCols(requestedColumns);
 	ColumnTypeHelper noInfo(requestedColumns);
 
-	return dataFrameFromCSVInternal(contents_stream, chosenCols, noInfo );
+	return dataFrameFromCSVInternal(contents_stream, options, chosenCols, noInfo );
 }
 
-DataFrame dataFrameFromCSVFile(const std::string& filename, const ColumnRequest& requestedColumns)
+DataFrame dataFrameFromCSVString(const std::string& csvContents, const std::vector<std::string>& requestedColumns, TU::CSVOptions options)
+{
+	std::stringstream contents_stream(csvContents);
+	SelectorColumnByName chosenCols(requestedColumns);
+	ColumnTypeNoInfo typeInfo;
+	return dataFrameFromCSVInternal( contents_stream, options, chosenCols, typeInfo );
+}
+
+DataFrame dataframeFromCSVFile(const std::string& filename, TU::CSVOptions options)
+{
+	std::ifstream contents_stream(filename);
+	SelectorAllColumns all;
+	ColumnTypeNoInfo noInfo;
+	return dataFrameFromCSVInternal( contents_stream, options, all, noInfo );
+}
+
+DataFrame dataFrameFromCSVFile(const std::string& filename, const std::vector<std::string>& requestedColumns, TU::CSVOptions options)
+{
+	std::ifstream contents_stream(filename);
+	SelectorColumnByName chosenCols(requestedColumns);
+	ColumnTypeNoInfo noInfo;
+	return dataFrameFromCSVInternal( contents_stream, options, chosenCols, noInfo );
+}
+
+DataFrame dataFrameFromCSVFile(const std::string& filename, const ColumnRequest& requestedColumns, TU::CSVOptions options)
 {
 	std::ifstream contents_stream(filename);
 	SelectorColumnAndType chosenCols(requestedColumns);
-	ColumnTypeHelper noInfo(requestedColumns);
+	ColumnTypeHelper typeInfo(requestedColumns);
 
-	return dataFrameFromCSVInternal(contents_stream, chosenCols, noInfo );
+	return dataFrameFromCSVInternal(contents_stream, options, chosenCols, typeInfo );
 }
 
 }

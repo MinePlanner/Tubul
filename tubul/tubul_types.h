@@ -12,4 +12,15 @@ enum class DataType
 	STRING
 };
 
+enum class ColumnHeaders
+{
+	YES,
+	NO
+};
+enum class RowHeaders
+{
+	YES,
+	NO
+};
+
 }

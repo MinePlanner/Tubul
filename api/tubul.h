@@ -211,14 +211,14 @@ namespace TU {
 	struct CSVContents;
 	struct DataFrame;
 
-	std::optional<CSVContents> readCsv(std::string const& filename);
-	std::optional<CSVContents> readCsvFromString(std::string const& contents);
-	DataFrame dataFrameFromCSVFile(const std::string& filename);
-	DataFrame dataFrameFromCSVString(const std::string& csvContents);
-	DataFrame dataFrameFromCSVFile(const std::string& filename, const std::vector<std::string>& requestedColumns);
-	DataFrame dataFrameFromCSVString(const std::string& csvContents, const std::vector<std::string>& requestedColumns);
-	DataFrame dataFrameFromCSVFile(const std::string& filename, const ColumnRequest& requestedColumns);
-	DataFrame dataFrameFromCSVString(const std::string& csvContents, const ColumnRequest& requestedColumns);
+	std::optional<CSVContents> readCsv(std::string const& filename );
+	std::optional<CSVContents> readCsvFromString(std::string const& contents );
+	DataFrame dataFrameFromCSVFile(const std::string& filename, CSVOptions );
+	DataFrame dataFrameFromCSVString(const std::string& csvContents, CSVOptions options );
+	DataFrame dataFrameFromCSVFile(const std::string& filename, const std::vector<std::string>& requestedColumns, CSVOptions options );
+	DataFrame dataFrameFromCSVString(const std::string& csvContents, const std::vector<std::string>& requestedColumns, CSVOptions options );
+	DataFrame dataFrameFromCSVFile(const std::string& filename, const ColumnRequest& requestedColumns, CSVOptions options );
+	DataFrame dataFrameFromCSVString(const std::string& csvContents, const ColumnRequest& requestedColumns, CSVOptions options );
 
 	std::string memCurrentRSS();
 	std::string memPeakRSS();
