@@ -11,6 +11,11 @@ namespace TU
 using TimeDuration = std::chrono::duration<double> ;
 using TimePoint = std::chrono::high_resolution_clock::time_point;
 
+auto constexpr now = &std::chrono::high_resolution_clock::now;
+
+double getDifference(TimePoint tp);
+double getDifference(TimePoint tp_begin, TimePoint tp_end);
+
 struct AutoStopWatch
 {
 	explicit AutoStopWatch(const std::string& msg);

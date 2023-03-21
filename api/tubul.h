@@ -126,6 +126,23 @@ namespace TU {
 	struct StopWatch;
 	struct Timer;
 
+	/** The following 2 functions are mostly to ease the access to the
+	 * most common operations of substracting 2 timestamps. You can use:
+	 *
+	 * TimePoint begin = TU::now();
+	 * doStuff(); //this function takes time.
+	 * std::cout << "doStuff lasted "<< TU::getDifference(begin) << "s".
+	 *
+	 * Basically the function now gets the current time, and the getDifference
+	 * function can calculate how many seconds have passed since the time passed
+	 * as parameter. It simply calls now() inside and calculates the difference
+	 * (but in seconds, even if it's calculated with high accuracy). Also you can
+	 * pass 2 TimePoints if you want to get the time between 2 timestamps
+	 */
+	double getDifference(TimePoint tp);
+	double getDifference(TimePoint tp_begin, TimePoint tp_end);
+
+
 	/** Processing blocks
 	 * The idea of the process blocks is that you can have some extra logging
 	 * and/or information regarding what your application is doing at certain
