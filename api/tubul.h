@@ -183,29 +183,46 @@ namespace TU {
 	struct Exception;
 
 
-	/** CSV Handling
-	 * These objects/functions are meant to be the main way to interact with CSV files.
-	 * To read a csv file, you use TU::readCsv("some_filename.csv") and the file is
-	 * read and parsed to memory closely to what is written in the file. You can query some
-	 * simple things like number of rows/cols, retrieve a given row or a column.
+	/** CSV Handling/Dataframes
+	 * The DataFrames are the main way that we expect to use CSV files. The expectation
+	 * is that normally the CSV files will have data meant to be used in statistics
+	 * or some type of aggregation, so the main use case would be to use all the data
+	 * of a given column. DataFrames can store the columns in vectors that you can
+	 * query normally.
+	 * You can use dataFrameFromCSVFile(<filename>) to directly get back a CSV file
+	 * organized by columns in a dataframe, but this is the simpler method and will
+	 * retrieve all columns and store them as strings.
+	 * By using the other variants of the function that receive either a name list
+	 * or a Columnrequest object, you can choose the columns that will be populated
+	 * in the dataframe (the rest is dropped) and even choose some the type of the
+	 * column (for now just string/double).
+	 * For example
+	 * 		TU::ColumnRequest req({
+				{"B",TU::DataType::DOUBLE},
+				{"C",TU::DataType::STRING},
+				});
+	   		auto df = TU::dataFrameFromCSVFile( "file.csv", req);
+	   		TU::DoubleColumn dcol = std::get<TU::DoubleColumn>( df["B"]);
+	 * This will populate the columns "B" and "C" in df with the contents of file.csv and
+	 * then you can retrieve the columns with the correct type using std::get<COLUMN_TYPE>.
+ 	 * The CSVColumn object stores the columns as variants of either strings
+	 * or doubles so when you retrieve a given column, you have to use std::get of
+	 * the appropriate type. You can use operator[] on the columns object to retrieve
+	 * a column by name or index.
+	 * You can further customize some details of the parsing by selecting if the csv
+	 * file has headers for columns/rows and the separator character.
+	 *
+	 * To read a csv file and just do basic operations, you use TU::readCsv("some_filename.csv")
+	 * and the file is read and parsed to memory closely to what is written in the file. You
+	 * can query some simple things like number of rows/cols, retrieve a given row or a column.
 	 * You can request the columns as vectors of strings, integers or doubles by choosing the
 	 * function:
 	 * std::vector<double> getColumnAsDouble(size_t colIndex) const;
 	 * std::vector<long> getColumnAsInteger(size_t colIndex) const;
 	 * std::vector<std::string> getColumnAsString(size_t colIndex) const;
 	 *
-	 * Also, you can batch-request columns to be converted to their guessed types
-	 * by calling csvcontents::convertAllToColumnFormat(), which will auto detect
-	 * the column types and return an object containing all columns already casted.
-	 * There's also the overload convertToColumnFormat where you can pass a vector of
-	 * indices or strings to indicate which columns you want converted. The return type is
-	 * a DataFrame object that should be independent of the CSVContents object, so you
-	 * can safely drop the object to save some memory if you need it.
 	 *
-	 * The CSVColumn object stores the columns as variants of either integer, strings
-	 * or doubles so when you retrieve a given column, you have to use std::get of
-	 * the appropriate type. You can use operator[] on the columns object to retrieve
-	 * a column by name or index.
+
 	 */
 
 	struct CSVContents;
@@ -213,12 +230,12 @@ namespace TU {
 
 	std::optional<CSVContents> readCsv(std::string const& filename );
 	std::optional<CSVContents> readCsvFromString(std::string const& contents );
-	DataFrame dataFrameFromCSVFile(const std::string& filename, CSVOptions );
 	DataFrame dataFrameFromCSVString(const std::string& csvContents, CSVOptions options );
-	DataFrame dataFrameFromCSVFile(const std::string& filename, const std::vector<std::string>& requestedColumns, CSVOptions options );
 	DataFrame dataFrameFromCSVString(const std::string& csvContents, const std::vector<std::string>& requestedColumns, CSVOptions options );
-	DataFrame dataFrameFromCSVFile(const std::string& filename, const ColumnRequest& requestedColumns, CSVOptions options );
 	DataFrame dataFrameFromCSVString(const std::string& csvContents, const ColumnRequest& requestedColumns, CSVOptions options );
+	DataFrame dataFrameFromCSVFile(const std::string& filename, CSVOptions );
+	DataFrame dataFrameFromCSVFile(const std::string& filename, const std::vector<std::string>& requestedColumns, CSVOptions options );
+	DataFrame dataFrameFromCSVFile(const std::string& filename, const ColumnRequest& requestedColumns, CSVOptions options );
 
 	std::string memCurrentRSS();
 	std::string memPeakRSS();

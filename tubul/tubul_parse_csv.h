@@ -14,7 +14,7 @@ namespace TU
 {
 
 using DoubleColumn = std::vector<double>;
-using IntegerColumn = std::vector<long>;
+using IntegerColumn = std::vector<int64_t>;
 using StringColumn = std::vector<std::string>;
 using DataColumn = std::variant<std::monostate, DoubleColumn, IntegerColumn, StringColumn>;
 
@@ -59,6 +59,7 @@ struct CSVContents
 
 	explicit CSVContents(std::string const& filename);
 	explicit CSVContents(std::istream& input_stream);
+	explicit CSVContents( std::unique_ptr<CSVRawData>&& rawData);
 	CSVContents(CSVContents&& other) noexcept ;
 	~CSVContents();
 
@@ -69,12 +70,8 @@ struct CSVContents
 	std::vector<std::string> getRow(size_t rowIndex) const;
 	std::vector<std::string> getColNames() const;
 	std::vector<double> getColumnAsDouble(size_t colIndex) const;
-	std::vector<long> getColumnAsInteger(size_t colIndex) const;
+	std::vector<int64_t> getColumnAsInteger(size_t colIndex) const;
 	std::vector<std::string> getColumnAsString(size_t colIndex) const;
-
-	DataFrame convertAllToColumnFormat();
-	DataFrame convertToColumnFormat(std::vector<std::string> const& columns);
-	DataFrame convertToColumnFormat(std::vector<size_t> const& columns);
 
 	std::unique_ptr<CSVRawData> impl_;
 };
@@ -87,10 +84,10 @@ struct CSVOptions
 	char separator;
 };
 
-DataFrame dataFrameFromCSVFile(const std::string& filename, CSVOptions options = {ColumnHeaders::YES, RowHeaders::NO, ','});
-DataFrame dataFrameFromCSVFile(const std::string& filename, const std::vector<std::string>& requestedColumns, CSVOptions options = {ColumnHeaders::YES, RowHeaders::NO, ','});
-DataFrame dataFrameFromCSVFile(const std::string& filename, const ColumnRequest& requestedColumns, CSVOptions options = {ColumnHeaders::YES, RowHeaders::NO, ','});
-DataFrame dataFrameFromCSVString(const std::string& csvContents, CSVOptions options = {ColumnHeaders::YES, RowHeaders::NO, ','});
-DataFrame dataFrameFromCSVString(const std::string& csvContents, const std::vector<std::string>& requestedColumns, CSVOptions options = {ColumnHeaders::YES, RowHeaders::NO, ','});
-DataFrame dataFrameFromCSVString(const std::string& csvContents, const ColumnRequest& requestedColumns, CSVOptions options = {ColumnHeaders::YES, RowHeaders::NO, ','});
+DataFrame dataFrameFromCSVFile(const std::string& filename, CSVOptions options = {ColumnHeaders::YES, RowHeaders::YES, ','});
+DataFrame dataFrameFromCSVFile(const std::string& filename, const std::vector<std::string>& requestedColumns, CSVOptions options = {ColumnHeaders::YES, RowHeaders::YES, ','});
+DataFrame dataFrameFromCSVFile(const std::string& filename, const ColumnRequest& requestedColumns, CSVOptions options = {ColumnHeaders::YES, RowHeaders::YES, ','});
+DataFrame dataFrameFromCSVString(const std::string& csvContents, CSVOptions options = {ColumnHeaders::YES, RowHeaders::YES, ','});
+DataFrame dataFrameFromCSVString(const std::string& csvContents, const std::vector<std::string>& requestedColumns, CSVOptions options = {ColumnHeaders::YES, RowHeaders::YES, ','});
+DataFrame dataFrameFromCSVString(const std::string& csvContents, const ColumnRequest& requestedColumns, CSVOptions options = {ColumnHeaders::YES, RowHeaders::YES, ','});
 }

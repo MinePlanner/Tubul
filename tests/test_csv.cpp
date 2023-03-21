@@ -13,6 +13,13 @@ paco,4,3,2,1
 luis,3,1,2,4
 )";
 
+const char* CSV2 = R"(name;A;B;C;D
+hugo;1;2;3;4
+paco;4;3;2;1
+luis;3;1;2;4
+)";
+
+const TU::StringColumn expectedColNames = {"hugo","paco","luis"};
 const TU::StringColumn expectedColAs = {"1","4","3"};
 const TU::StringColumn expectedColBs = {"2","3","1"};
 const TU::StringColumn expectedColCs = {"3","2","2"};
@@ -73,39 +80,7 @@ TEST(TUBULCSV, testBasicFunctionality)
 		EXPECT_EQ(expected_colB[i], colB[i]);
 
 }
-TEST(TUBULCSV, testColumnConversion)
-{
-	auto res = TU::readCsvFromString(CSV1);
-	EXPECT_TRUE(res);
 
-	auto& csv_file = res.value();
-	auto cols = csv_file.convertAllToColumnFormat();
-
-	//Get columns
-	auto colA = std::get< TU::IntegerColumn >(cols["A"]);
-	auto colB = std::get< TU::IntegerColumn >(cols["B"]);
-	auto colC = std::get< TU::IntegerColumn >(cols["C"]);
-	auto colD = std::get< TU::IntegerColumn >(cols["D"]);
-	EXPECT_EQ(colA.size(),3);
-	TU::IntegerColumn expected_col_a = {1,4,3};
-	for (size_t i =0; i< colA.size(); ++i)
-		EXPECT_EQ(colA[i], expected_col_a[i]);
-
-	EXPECT_EQ(colB.size(),3);
-	TU::IntegerColumn expected_col_b = {2,3,1};
-	for (size_t i =0; i< colB.size(); ++i)
-		EXPECT_EQ(colB[i], expected_col_b[i]);
-
-	EXPECT_EQ(colC.size(),3);
-	TU::IntegerColumn expected_col_c = {3,2,2};
-	for (size_t i =0; i< colC.size(); ++i)
-		EXPECT_EQ(colC[i], expected_col_c[i]);
-
-	EXPECT_EQ(colD.size(),3);
-	TU::IntegerColumn expected_col_d = {4,1,4};
-	for (size_t i =0; i< colD.size(); ++i)
-		EXPECT_EQ(colD[i], expected_col_d[i]);
-}
 TEST(TUBULCSV, testDataframeString)
 {
 	TU::DataFrame df = TU::dataFrameFromCSVString( CSV1 );
@@ -113,12 +88,6 @@ TEST(TUBULCSV, testDataframeString)
 	auto colCount = df.getColCount();
 	EXPECT_EQ(colCount, 4);
 
-	auto testColumn = []( const std::vector<std::string>& col, const std::vector<std::string>& expected )
-			{
-			  	EXPECT_EQ(col.size(), expected.size());
-			  	bool colEqual = std::equal(col.begin(), col.end(), expected.begin() );
-			  	EXPECT_EQ(colEqual, true);
-			};
 	auto colA = std::get<TU::StringColumn>(df["A"]);
 	testColumn(colA, expectedColAs);
 
@@ -237,6 +206,7 @@ TEST(TUBULCSV, testDataframeColumnsByNameAndType1)
 	EXPECT_ANY_THROW( auto fail = std::get<TU::StringColumn>(df["B"]) );
 	EXPECT_ANY_THROW( auto fail = std::get<TU::StringColumn>(df["C"]) );
 }
+
 TEST(TUBULCSV, testDataframeColumnsByNameAndType2)
 {
 	TU::ColumnRequest req({
@@ -291,4 +261,145 @@ TEST(TUBULCSV, testDataframeColumnsByNameAndType3)
 	EXPECT_ANY_THROW( auto fail = std::get<TU::DoubleColumn>(df["A"]) );
 	EXPECT_ANY_THROW( auto fail = std::get<TU::DoubleColumn>(df["C"]) );
 	EXPECT_ANY_THROW( auto fail = std::get<TU::DoubleColumn>(df["D"]) );
+}
+
+TEST(TUBULCSV, testDataframeNoRowHeader)
+{
+	TU::DataFrame df = TU::dataFrameFromCSVString( CSV1, { TU::ColumnHeaders::YES, TU::RowHeaders::NO, ','});
+
+	auto colCount = df.getColCount();
+	EXPECT_EQ(colCount, 5);
+
+
+	auto colA = std::get<TU::StringColumn>(df["A"]);
+	auto colB = std::get<TU::StringColumn>(df["B"]);
+	auto colC = std::get<TU::StringColumn>(df["C"]);
+	auto colD = std::get<TU::StringColumn>(df["D"]);
+	auto colName = std::get<TU::StringColumn>(df["name"]);
+
+	testColumn(colA, expectedColAs);
+	testColumn( colB, expectedColBs );
+	testColumn( colC, expectedColCs );
+	testColumn( colD, expectedColDs );
+	testColumn(colName, expectedColNames);
+}
+
+TEST(TUBULCSV, testDataframeNoRowHeader2)
+{
+	TU::ColumnRequest req({
+							  {"B",TU::DataType::DOUBLE},
+							  {"C",TU::DataType::STRING},
+							  {"name",TU::DataType::STRING}
+						  });
+	TU::DataFrame df = TU::dataFrameFromCSVString( CSV1,
+                                                  req,
+												   { TU::ColumnHeaders::YES, TU::RowHeaders::NO, ','});
+
+	auto colCount = df.getColCount();
+	EXPECT_EQ(colCount, 5);
+
+	auto colB = std::get<TU::DoubleColumn>(df["B"]);
+	auto colC = std::get<TU::StringColumn>(df["C"]);
+	auto colName = std::get<TU::StringColumn>(df["name"]);
+
+	testColumn( colB, expectedColBd );
+	testColumn( colC, expectedColCs );
+	testColumn(colName, expectedColNames);
+	EXPECT_ANY_THROW( auto fail = std::get<TU::StringColumn>(df["A"]) );
+	EXPECT_ANY_THROW( auto fail = std::get<TU::StringColumn>(df["D"]) );
+}
+
+TEST(TUBULCSV, testDataframeNoRowHeader3)
+{
+	TU::DataFrame df = TU::dataFrameFromCSVString( CSV1,
+												   {"name","D"},
+												   { TU::ColumnHeaders::YES, TU::RowHeaders::NO, ','});
+
+	auto colCount = df.getColCount();
+	EXPECT_EQ(colCount, 5);
+
+	auto colD = std::get<TU::StringColumn>(df["D"]);
+	auto colName = std::get<TU::StringColumn>(df["name"]);
+
+	testColumn( colD, expectedColDs );
+	testColumn(colName, expectedColNames);
+	EXPECT_ANY_THROW( auto fail = std::get<TU::StringColumn>(df["A"]) );
+	EXPECT_ANY_THROW( auto fail = std::get<TU::StringColumn>(df["B"]) );
+	EXPECT_ANY_THROW( auto fail = std::get<TU::StringColumn>(df["C"]) );
+}
+
+TEST(TUBULCSV, testDataframeSeparator)
+{
+	//This case should have 1 column because it's a proper csv
+	TU::DataFrame df_base = TU::dataFrameFromCSVString( CSV1, { TU::ColumnHeaders::YES, TU::RowHeaders::NO, ';'});
+	auto expectedWrongCount = df_base.getColCount();
+	EXPECT_EQ(expectedWrongCount, 1);
+
+	//This case should have 1 column, because it's separated by ;, si read
+	//normally should have 1 column.
+	TU::DataFrame df_base2 = TU::dataFrameFromCSVString( CSV2, { TU::ColumnHeaders::YES, TU::RowHeaders::NO, ','});
+	auto expectedWrongCount2 = df_base2.getColCount();
+	EXPECT_EQ(expectedWrongCount, 1);
+
+	//CSV2 should be separated by ";" instead of commas, but now should be
+	//parsed correctly.
+	TU::DataFrame df = TU::dataFrameFromCSVString( CSV2, { TU::ColumnHeaders::YES, TU::RowHeaders::NO, ';'});
+
+	auto colCount = df.getColCount();
+	EXPECT_EQ(colCount, 5);
+
+
+	auto colA = std::get<TU::StringColumn>(df["A"]);
+	auto colB = std::get<TU::StringColumn>(df["B"]);
+	auto colC = std::get<TU::StringColumn>(df["C"]);
+	auto colD = std::get<TU::StringColumn>(df["D"]);
+	auto colName = std::get<TU::StringColumn>(df["name"]);
+
+	testColumn(colA, expectedColAs);
+	testColumn( colB, expectedColBs );
+	testColumn( colC, expectedColCs );
+	testColumn( colD, expectedColDs );
+	testColumn(colName, expectedColNames);
+}
+
+TEST(TUBULCSV, testDataframeNoColumnHeader)
+{
+	{
+		//This case should have 1 column because it's a proper csv
+		TU::DataFrame df_base            = TU::dataFrameFromCSVString(CSV1, {TU::ColumnHeaders::YES, TU::RowHeaders::NO, ';'});
+		auto          expectedWrongCount = df_base.getColCount();
+		EXPECT_EQ(expectedWrongCount, 1);
+	}
+
+	{
+		// This case should have 1 column, because it's separated by ;, so read
+		// normally with "," as separator should have 0 or 1 column depending on
+		// row headers enabled or not.
+		TU::DataFrame df_base2            = TU::dataFrameFromCSVString(CSV2 );
+		auto          expectedWrongCount2 = df_base2.getColCount();
+		EXPECT_EQ(expectedWrongCount2, 0);
+		TU::DataFrame df_base3            = TU::dataFrameFromCSVString(CSV2, {TU::ColumnHeaders::YES, TU::RowHeaders::NO, ','});
+		auto          expectedWrongCount3 = df_base3.getColCount();
+		EXPECT_EQ(expectedWrongCount3, 1);
+	}
+
+	//CSV2 should be separated by ";" instead of commas, but now should be
+	//parsed correctly.
+	TU::DataFrame df = TU::dataFrameFromCSVString( CSV2, { TU::ColumnHeaders::YES, TU::RowHeaders::NO, ';'});
+
+	auto colCount = df.getColCount();
+	EXPECT_EQ(colCount, 5);
+
+
+	auto colA = std::get<TU::StringColumn>(df["A"]);
+	auto colB = std::get<TU::StringColumn>(df["B"]);
+	auto colC = std::get<TU::StringColumn>(df["C"]);
+	auto colD = std::get<TU::StringColumn>(df["D"]);
+	auto colName = std::get<TU::StringColumn>(df["name"]);
+
+	testColumn(colA, expectedColAs);
+	testColumn( colB, expectedColBs );
+	testColumn( colC, expectedColCs );
+	testColumn( colD, expectedColDs );
+	testColumn(colName, expectedColNames);
 }
