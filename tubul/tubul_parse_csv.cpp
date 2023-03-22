@@ -377,7 +377,7 @@ void getRequestedColumns(DataFrame& df,  const rapidcsv::Document& doc, std::vec
 }
 
 /** This function implements the process to read from a csv, setup a dataframe
- * and retrieve the selected columns into vectors. This is done by passing a
+ * and retrieve the selected columns into vectors. This is done by passing
  * the stream that contains the csv data + some csv options, and a couple
  * objects to customize the selection of columns and the expected types of
  * columns. Depending on what is asked, the parameters used to customize will

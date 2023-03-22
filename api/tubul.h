@@ -193,9 +193,9 @@ namespace TU {
 	 * organized by columns in a dataframe, but this is the simpler method and will
 	 * retrieve all columns and store them as strings.
 	 * By using the other variants of the function that receive either a name list
-	 * or a Columnrequest object, you can choose the columns that will be populated
-	 * in the dataframe (the rest is dropped) and even choose some the type of the
-	 * column (for now just string/double).
+	 * or a ColumnRequest object, you can choose the columns that will be populated
+	 * in the dataframe (the rest is dropped) and even choose the types of the columns
+	 * (for now just int/string/double).
 	 * For example
 	 * 		TU::ColumnRequest req({
 				{"B",TU::DataType::DOUBLE},
