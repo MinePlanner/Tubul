@@ -154,32 +154,35 @@ int main(int argc, char** argv){
 		std::cout <<" I can ask specific rows: White has values: (" << TU::join(white,",") << ")"<< std::endl;
 
 		//I can ask for specific columns, even if some are repeated, no extra work is done if possible.
-		std::vector<std::string> colsToConvert = {"R","G","R","B"};
-		auto cols = csv_file.convertToColumnFormat(colsToConvert);
-
 		//I know this is an integer column.
-		auto col_int = std::get<TU::IntegerColumn>(cols["R"]);
+		auto colR_int = csv_file.getColumnAsInteger(1);
 
 		//And calculate the mean of this column.
 		double mean = 0;
-		for (auto x: col_int)
+		for (auto x: colR_int)
 			mean += x;
-		std::cout << "The mean of the R col is: " << (mean/col_int.size()) << std::endl;
+		std::cout << "The mean of the R col is: " << (mean/colR_int.size()) << std::endl;
 
 		std::cout << "Mem after requesting some data columns:" << getTubulMem() << std::endl;
 	}
 
-	//Clearing the cached column data (at this point it should exist!!)
+	//Clearing the cached column data (at this point it still exists!!)
+	csv_reading_result.reset();
+	//But now we want to treate all as column based data, i.e. a dataframe, with
+	//the RGB columns as int, and hex as string.
 	{
+		using TU::DataType;
 		TU::AutoStopWatch st("Time converting all data of csv to columns: ");
-		auto &csv_file = *csv_reading_result;
-		std::cout << "Rows detected: " << csv_file.rowCount() << std::endl;
-		std::cout << "Columns detected: " << csv_file.colCount() << std::endl;
+		TU::ColumnRequest req({ {"HEX", DataType::STRING},
+							   {"R", DataType::INTEGER},
+							   {"G", DataType::INTEGER},
+							   {"B", DataType::INTEGER}});
+		auto df = TU::dataFrameFromCSVString(CSVSample, req);
+		std::cout << "Rows detected: " << df.getRowCount() << std::endl;
+		std::cout << "Columns detected: " << df.getColCount() << std::endl;
 
 		//Request all data columns to be prepared.
-		auto cols = csv_file.convertAllToColumnFormat();
 		std::cout << "Mem after requesting ALL data columns:" << getTubulMem() << std::endl;
-		(void) cols;
 	}
 
 	std::cout << "Current RSS: " << TU::memCurrentRSS() << std::endl;
