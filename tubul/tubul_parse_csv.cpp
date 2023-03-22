@@ -379,7 +379,7 @@ std::optional<CSVContents> readCsv(std::istream& input)
 
 }
 
-//This is the  "real method", but still the rapidcsv lib is the one
+//This is the "real method", but still the rapidcsv lib is the one
 //doing all the heavy lifting. We try to read the file using mmap
 //and then parse the csv using rapidcsv.
 std::optional<CSVContents> readCsv(const std::string& filename)
@@ -479,7 +479,7 @@ std::vector<size_t> getRequestedColumnId(const ColumnRequest& requestedColumns, 
 std::vector<size_t> getRequestedColumnId(const std::vector<std::string>& requestedColumns,  const std::unique_ptr<CSVContents::CSVRawData>& ptr)
 {
 	std::vector<size_t> res;
-
+	res.reserve( requestedColumns.size());
 	for (const auto& req: requestedColumns)
 	{
 		auto colIdx = ptr->doc.GetColumnIdx(req);
@@ -516,38 +516,6 @@ void getRequestedColumns(DataFrame& df,  const std::unique_ptr<CSVContents::CSVR
 	}
 
 }
-
-
-#if 0
-DataFrame dataFrameFromCSVFile(const std::string& filename, const ColumnRequest& requestedColumns)
-{
-	auto csv = readCsv(filename);
-	if ( !csv )
-		throw std::runtime_error("couldn't parse contents");
-	//Shorter name for the csv implementation.
-	auto& contents = csv.value();
-
-	//The result we are building.
-	DataFrame df;
-
-	//Setup the basics from the csv data: column count, names and assuming all types as string.
-	setupDataFrameFromCSV(df, contents.impl_);
-
-	//But if we are asked for nothing.... that's it :D
-	if ( requestedColumns.size() > 0 )
-		return df;
-
-	setupDataFrameRequestedTypes(df, requestedColumns);
-
-	std::vector<size_t> columns = getRequestedColumnId(requestedColumns, contents.impl_);
-
-	getRequestedColumns(df, contents.impl_, columns);
-
-	return df;
-
-}
-#endif
-
 
 struct ColumnTypeNoInfo
 {
