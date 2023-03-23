@@ -1,5 +1,5 @@
 name: CMake
-run-name: ${{ github.actor }} is checking the PR ${{ github.ref }}
+run-name: ${{ github.actor }} is checking the PR ${{ github.head_ref }}
 
 on:
   #push:
