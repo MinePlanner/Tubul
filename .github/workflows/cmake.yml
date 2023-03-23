@@ -34,7 +34,7 @@ jobs:
       # Build your program with the given configuration
       run: cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
 
-    - name: TestL
+    - name: TestLinux
       if: runner.os == 'Linux'
       #working-directory: ${{github.workspace}}/build
       # Execute tests defined by the CMake configuration.
@@ -43,12 +43,12 @@ jobs:
       run: |
         ${{github.workspace}}/bin/${{env.BUILD_TYPE}}/testtubul
    
-    - name: TestM
+    - name: TestMacOS
       if: runner.os == 'macOS'
       run: |
         ${{github.workspace}}/bin/${{env.BUILD_TYPE}}/testtubul
 
-    - name: TestM
+    - name: TestWindows
       if: runner.os == 'Windows'
       run: |
         ${{github.workspace}}\bin\${{env.BUILD_TYPE}}\${{env.BUILD_TYPE}}\testtubul.exe
