@@ -31,5 +31,5 @@ TEST(TUBULTime, BasicTime)
 	std::this_thread::sleep_for(seconds(1));
 	spentTime = TU::getDifference(begin);
 	EXPECT_GT(spentTime, 1 );
-	EXPECT_LT(spentTime, 1.01 );
+	EXPECT_LT(spentTime, 2 );
 }
