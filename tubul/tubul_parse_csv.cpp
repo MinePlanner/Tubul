@@ -2,7 +2,6 @@
 // Created by Carlos Acosta on 02-02-23.
 //
 
-#include <unistd.h>
 #include <fast_float/fast_float.h>
 #include <rapidcsv.h>
 #include <tuple>
@@ -14,6 +13,7 @@
 #include "tubul_types.h"
 #include "tubul_parse_csv.h"
 #ifndef TUBUL_WINDOWS
+#include <unistd.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <fcntl.h>
