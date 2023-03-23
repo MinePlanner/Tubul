@@ -2,9 +2,6 @@
 // Created by Carlos Acosta on 02-02-23.
 //
 
-#include <sys/mman.h>
-#include <sys/stat.h>
-#include <fcntl.h>
 #include <unistd.h>
 #include <fast_float/fast_float.h>
 #include <rapidcsv.h>
@@ -16,10 +13,16 @@
 #include <algorithm>
 #include "tubul_types.h"
 #include "tubul_parse_csv.h"
+#ifndef TUBUL_WINDOWS
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#endif
+
 
 namespace TU
 {
-
+#ifndef TUBUL_WINDOWS
 //Structure to hold a Memory map of a file. For some cases,
 //it's very useful to have access to a file a memory map instead
 //of the normal c++ stream view.
@@ -60,7 +63,7 @@ struct MappedFile
 	char* data_;
 	std::streamsize size_;
 };
-
+#endif 
 //Simple structure to hide the rapidcsv document from the headers.
 struct CSVContents::CSVRawData
 {
