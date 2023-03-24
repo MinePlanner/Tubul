@@ -14,11 +14,11 @@ project(tubul)
 
 #Tubul-wide detection of target architecture.
 if(APPLE)
-    add_compile_definitions(TUBUL_MACOS)
+  set(TUBUL_COMPILE_DEFS "TUBUL_MACOS")
 elseif(WIN32)
-    add_compile_definitions(TUBUL_WINDOWS)
+  set(TUBUL_COMPILE_DEFS "TUBUL_WINDOWS")
 elseif(UNIX) # We should move to CMake 3.22+ where we have LINUX direct check
-    add_compile_definitions(TUBUL_LINUX)
+  set(TUBUL_COMPILE_DEFS "TUBUL_LINUX")
 endif()
 
 # Setup location of the generated files, binaries and libraries.
