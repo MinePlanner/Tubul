@@ -48,5 +48,12 @@ include_directories(${PROJECT_SOURCE_DIR}/api)
 include_directories(${PROJECT_SOURCE_DIR}/tubul)
 
 add_subdirectory(tubul)
+
+#Check to add tests and apps directories only if we are building tubul
+#as the main target. I.e, if someone fetches tubul through Fetch_Content
+#only the tubul lib would be compiled, wich is most likely what a user
+#would want.
+if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
 add_subdirectory(tests)
 add_subdirectory(apps)
+endif()
