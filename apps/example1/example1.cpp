@@ -31,7 +31,7 @@ std::string getTubulMem()
 	return std::string("Memory (current/max): ") + TU::memCurrentRSS() + " / " + TU::memPeakRSS() ;
 }
 
-void parseArguments(int argc, char** argv)
+void parseArguments(int argc, const char** argv)
 {
 	TU::addArgument("-c", "--chanchito")
 		.help("Testing a flag argument")
@@ -133,7 +133,7 @@ void exampleTimers(TU::Timer &alarm3s)
 	TU::logReport() <<"\tTuner: Is the alarm up?" << ( (alarm3s.alive())?"YES":"NO" ) << "  remaining: " << alarm3s.remaining();
 }
 
-int main(int argc, char** argv){
+int main(int argc, const char** argv){
 
 	// the main program should create a Tubul.
 	// Sub-libraries are free to use this one!

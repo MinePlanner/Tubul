@@ -64,7 +64,7 @@ Argument addArgument(std::string const& short_form, std::string const& long_form
 /**
  * Very explicit call to parse arguments or die trying.
  */
-void parseArgsOrDie(int argc, char** argv)
+void parseArgsOrDie(int argc, const char** argv)
 {
 	try
 	{
@@ -76,6 +76,13 @@ void parseArgsOrDie(int argc, char** argv)
 		std::cerr << getArgumentsParser() << std::endl;
 		std::exit(1);
 	}
+}
+
+std::string getArgsHelp()
+{
+    std::stringstream helpStr;
+    helpStr << getArgumentsParser() << std::endl;
+    return helpStr.str();
 }
 
 /***
