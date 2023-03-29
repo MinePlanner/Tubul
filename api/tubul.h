@@ -177,7 +177,7 @@ namespace TU {
 
 	struct Argument;
 
-	void parseArgsOrDie(int argc, char** argv);
+	void parseArgsOrDie(int argc, const char** argv);
 	Argument addArgument(std::string const& short_form, std::string const& long_form);
 
 	template<typename T>
@@ -185,6 +185,9 @@ namespace TU {
 
 	template <typename T>
 	std::optional<T> getOptionalArg( std::string const& param);
+
+
+    std::string getArgsHelp();
 
 	//////////
 	// Timers
@@ -336,4 +339,18 @@ namespace TU {
 
     std::string memCurrentRSS();
 	std::string memPeakRSS();
+
+    /////////
+    // File Utils
+    /////////
+    /** Set of simple functions to perform tasks that are common
+     * but regularly require typing a lot more than just these names
+     * in order to do them. For example the strToXXX use the from_chars functions
+     * which are awesome, but require a couple extra steps to be used which are
+     * very cumbersome.
+     */
+    bool isRegularFile(const std::string_view& name);
+    size_t countCharInFile( const std::string_view& filename, char c);
+    double strToDouble(const std::string_view& p);
+    int strToInt(const std::string_view& p);
 }
