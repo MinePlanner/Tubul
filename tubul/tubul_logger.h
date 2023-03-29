@@ -6,6 +6,7 @@
 
 #include <cstdint>
 #include "tubul_string.h"
+#include "tubul_exception.h"
 // #include "tubul_engine.h"
 
 namespace TU {
@@ -45,13 +46,10 @@ namespace TU {
  * @param The message to be sent
  */
     void logInfo(std::string const &msg);
-
     void logReport(std::string const &msg);
-
     void logWarning(std::string const &msg);
-
     void logError(std::string const &msg);
-
+    void logDebug(std::string const &msg);
 
 // ostream handler objects
 
@@ -62,9 +60,10 @@ namespace TU {
         ~LogStream();
 
         LogStream &operator<<(std::string const &msg);
-
+        LogStream &operator<<(std::string_view const &msg);
+        LogStream &operator<<(char const *msg);
         LogStream &operator<<(int const &msg);
-
+        LogStream &operator<<(size_t const &msg);
         LogStream &operator<<(double const &msg);
 
     private:
@@ -76,5 +75,15 @@ namespace TU {
     LogStream logReport();
     LogStream logWarning();
     LogStream logError();
+    LogStream logDebug();
 
+#ifdef TUBUL_MACOS
+    [[nodiscard]] TU::Exception throwError(const std::string &msg, int line = __builtin_LINE(),
+                                           const char *file = __builtin_FILE(),
+                                           const char *function = __builtin_FUNCTION());
+#else
+    [[nodiscard]] TU::Exception throwError(const std::string &message,
+												const std::source_location location =
+													std::source_location::current());
+#endif
 }

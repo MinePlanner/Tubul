@@ -53,6 +53,11 @@ namespace TU {
 
     void TubulEngine::log(LogLevel level, std::string const &text) {
 
+#ifdef NDEBUG
+        if (level == LogLevel::DEBUG)
+            return;
+#endif
+
         for (auto &logDefinition: loggers_) {
             std::ostream &logStream = std::get<0>(logDefinition);
             LogLevel loggerLevel = std::get<1>(logDefinition);

@@ -49,14 +49,16 @@ namespace TU {
         getInstance().log(LogLevel::ERROR, "ERROR: " + msg);
     }
 
+    void logDebug(std::string const &msg) {
+        getInstance().log(LogLevel::DEBUG, "DEBUG: " + msg);
+    }
+
 #ifdef TUBUL_MACOS
 
     [[nodiscard]] TU::Exception throwError(const std::string &msg, int line, const char *file, const char *function) {
         std::string errormsg =
                 std::string("Error: '") + msg + "' at function " + function + " (" + file + ":" + std::to_string(line) +
                 ")";
-        // this should go to logger:
-        // std::cout << errormsg << std::endl;
         logError(errormsg);
         return {errormsg};
     }
@@ -82,7 +84,22 @@ namespace TU {
         return *this;
     }
 
+    LogStream &LogStream::operator<<(std::string_view const &msg) {
+        parts_.emplace_back(msg);
+        return *this;
+    }
+
+    LogStream &LogStream::operator<<(char const *msg){
+        parts_.emplace_back(msg);
+        return *this;
+    }
+
     LogStream &LogStream::operator<<(int const &msg) {
+        parts_.push_back(std::to_string(msg));
+        return *this;
+    }
+
+    LogStream &LogStream::operator<<(size_t const &msg) {
         parts_.push_back(std::to_string(msg));
         return *this;
     }
@@ -91,7 +108,6 @@ namespace TU {
         parts_.push_back(std::to_string(msg));
         return *this;
     }
-
 
     LogStream logInfo() {
         return LogStream(LogLevel::INFO);

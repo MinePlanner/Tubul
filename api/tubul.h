@@ -93,9 +93,12 @@ namespace TU {
      * exception that should not be ignored.
      */
 #ifdef TUBUL_MACOS
-	[[nodiscard]] TU::Exception throwError(const std::string &msg, int line = __builtin_LINE(),
-												const char *file = __builtin_FILE(),
-												const char *function = __builtin_FUNCTION());
+
+    [[nodiscard]] TU::Exception throwError(
+            const std::string &msg, int line,
+            const char *file,
+            const char *function);
+
 #else
 	[[nodiscard]] TU::Exception throwError(const std::string &message,
 												const std::source_location location =

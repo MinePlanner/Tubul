@@ -11,6 +11,8 @@
 #include <regex>
 #include "tubul_types.h"
 #include "tubul_parse_csv.h"
+#include "tubul_logger.h"
+
 #ifndef TUBUL_WINDOWS
 #include <unistd.h>
 #include <sys/mman.h>
@@ -32,10 +34,8 @@ struct MappedFile
 		fd_ = open(filename, O_RDONLY );
 		struct stat file_stats{0};
 		if (fstat(fd_, &file_stats) == -1)
-		{
-			//ERROR handling
-			std::cout << "This is bad!!" << std::endl;
-		}
+            throw TU::throwError(std::string("Could not open file:") + filename);
+
 		size_ = file_stats.st_size;
 		data_ = static_cast<char*>(  mmap(nullptr, size_, PROT_READ, MAP_PRIVATE, fd_, 0) );
 		//We expect to read the file sequentially.
@@ -51,7 +51,7 @@ struct MappedFile
 	{
 		if (munmap(data_, size_) == -1)
 		{
-			std::cout << "CAUTION!! I could not unmap the file properly" << std::endl;
+			TU::logWarning() << "CAUTION!! I could not unmap the file properly";
 		}
 
 		// Un-mmaping doesn't close the file, so we still need to do that.
