@@ -51,20 +51,20 @@ void parseArguments(int argc, char** argv)
 	TU::parseArgsOrDie(argc, argv);
 	bool askedFor = TU::getArg<bool>("-c");
 	if (askedFor)
-		std::cout << " > I was asked for a piggy" << std::endl;
+		TU::logReport() << " > I was asked for a piggy";
 	else
-		std::cout << " > No piggy??" << std::endl;
+		TU::logReport() << " > No piggy??";
 
 	auto cachupin = TU::getArg<std::string>("-p");
-	std::cout <<" > The doggy i was asked is " << cachupin << std::endl;
+	TU::logReport() <<" > The doggy i was asked is " << cachupin;
 
 	auto magicNumber = TU::getOptionalArg<double>("-x");
 	if (magicNumber)
-		std::cout << " I got a magic number!"  << *magicNumber << std::endl;
+		TU::logReport() << " I got a magic number!"  << *magicNumber;
 
 	auto barkTypes = TU::getOptionalArg<std::vector<std::string>>("-b");
 	if (barkTypes )
-		std::cout << "Barks: " << TU::join( *barkTypes, ",") << std::endl ;
+		TU::logReport() << "Barks: " << TU::join( *barkTypes, ",");
 
 
 }
@@ -91,12 +91,13 @@ void exampleLogging()
 
 	TU::logReport("This message should go to screen and example1.log");
 	TU::logInfo("This message should go only to example1.log");
+    TU::logWarning("Everybody should see this warning.");
 
 	// without arguments, log* will behave like a stream
 	// TU::logWarning() << "Everybody should see this warning." << "Everybody!";
-	TU::logWarning("Everybody should see this warning.");
-
     TU::logReport() << "There are " << 4 << " logger streams";
+
+    TU::logDebug("Only print this message on Debug builds.");
 
 }
 
@@ -104,32 +105,32 @@ void exampleStrings()
 {
 	std::string hello("Hello world 1 2 3");
 	auto tokens = TU::split(hello );
-	std::cout << "I can split and join strings: " << hello << " -> '" << TU::join(tokens,"->") << "'" << std::endl;
+	TU::logReport() << "I can split and join strings: " << hello << " -> '" << TU::join(tokens,"->") << "'";
 	std::string_view hello_view  = hello;
 	auto tokens_from_view = TU::split(hello_view);
-	std::cout << "Also works with string_views: " << hello_view << " -> '" << TU::join(tokens_from_view,"->") << "'" << std::endl;
+	TU::logReport() << "Also works with string_views: " << hello_view << " -> '" << TU::join(tokens_from_view,"->") << "'";
 }
 
 void exampleRangeAndJoin()
 {
-	std::cout << "With Tubul I can easily iterate simple ranges\n";
+	TU::logReport() << "With Tubul I can easily iterate simple ranges";
 	std::vector<std::string> numbers;
 	for (auto i: TU::irange(1,7))
 		numbers.push_back(std::to_string(i));
-	std::cout << TU::join(numbers, "->") << std::endl;
+	TU::logReport() << TU::join(numbers, "->");
 }
 
 void exampleTimers(TU::Timer &alarm3s)
 {
-	std::cout <<"\tTimer: Is the alarm up?" << ((alarm3s.alive())?"YES":"NO") << "  remaining: " << alarm3s.remaining() << std::endl;
+	TU::logReport() <<"\tTimer: Is the alarm up?" << ((alarm3s.alive())?"YES":"NO") << "  remaining: " << alarm3s.remaining();
 
 	TU::TimeDuration exampleElapsed;
 	{
 		TU::StopWatch st(exampleElapsed);
 		std::this_thread::sleep_for(std::chrono::seconds(3));
 	}
-	std::cout << "I slept for " << exampleElapsed.count() << " seconds" << std::endl;
-	std::cout <<"\tTuner: Is the alarm up?" << ( (alarm3s.alive())?"YES":"NO" ) << "  remaining: " << alarm3s.remaining() << std::endl;
+	TU::logReport() << "I slept for " << exampleElapsed.count() << " seconds";
+	TU::logReport() <<"\tTuner: Is the alarm up?" << ( (alarm3s.alive())?"YES":"NO" ) << "  remaining: " << alarm3s.remaining();
 }
 
 int main(int argc, char** argv){
@@ -137,6 +138,10 @@ int main(int argc, char** argv){
 	// the main program should create a Tubul.
 	// Sub-libraries are free to use this one!
 	std::cout << "Hello Tubul version: " << TU::getVersion() << ".\n";
+
+    // start by setting up loggers
+    exampleLogging();
+
 	TU::ProcessBlock b("exampleApp");
 	TU::AutoStopWatch exampleTimer("Example app elapsed:");
 
@@ -147,49 +152,42 @@ int main(int argc, char** argv){
 		TU::ProcessBlock parsing("Parsing");
 		TU::AutoStopWatch t(std::string("Tubul example timer for parse arguments:"));
 		parseArguments(argc, argv);
-		std::cout << TU::getCurrentBlockLocation() << std::endl;
+        TU::logReport() << TU::getCurrentBlockLocation();
 	}
 
-	std::cout << "I can check some arguments! explicit and default values! (use -h for help, or -c for a flag and -p for a name)" << std::endl;
+    TU::logReport() << "I can check some arguments! explicit and default values! (use -h for help, or -c for a flag and -p for a name)";
 
 	exampleStrings();
 	exampleRangeAndJoin();
-	exampleLogging();
 	exampleTimers(alarm3s);
 
-	std::cout << "With Tubul I can easily iterate simple ranges\n";
-	std::vector<std::string> numbers;
-	for (std::integral auto i: TU::irange(1,7))
-		numbers.push_back(std::to_string(i));
-	std::cout << TU::join(numbers, "->") << std::endl;
-	std::cout <<"\tTimer: Is the alarm up?" << ((alarm3s.alive())?"YES":"NO") << "  remaining: " << alarm3s.remaining() << std::endl;
+    TU::logReport()  <<"\tTimer: Is the alarm up?" << ((alarm3s.alive())?"YES":"NO") << "  remaining: " << alarm3s.remaining();
 
 	TU::TimeDuration exampleElapsed;
 	{
 		TU::ProcessBlock ps("sleeping");
 		TU::StopWatch st(exampleElapsed);
 		std::this_thread::sleep_for(std::chrono::seconds(3));
-		std::cout << TU::getCurrentBlockLocation() << std::endl;
+		TU::logReport() << TU::getCurrentBlockLocation();
 	}
 	try
 	{
-		std::cout << "I slept for " << exampleElapsed.count() << " seconds" << std::endl;
-		std::cout << "\tTimer: Is the alarm up?" << ((alarm3s.alive()) ? "YES" : "NO") << "  remaining: " << alarm3s.remaining() << std::endl;
-		std::cout << TU::getCurrentBlockLocation() << std::endl;
+		TU::logReport() << "I slept for " << exampleElapsed.count() << " seconds";
+		TU::logReport() << "\tTimer: Is the alarm up?" << ((alarm3s.alive()) ? "YES" : "NO") << "  remaining: " << alarm3s.remaining();
+		TU::logReport() << TU::getCurrentBlockLocation();
 		throw TU::Exception("a nefarious error")  << "And it can receive more danger!" << TU::getCurrentBlockLocation();
 	}
 	catch (TU::Exception& r)
 	{
-		std::cout << "catched a new exception" << r.to_string() << std::endl ;
-		std::cout << "And the what also works: '" << r.what() << "'\n" ;
+		TU::logReport() << "catched a new exception" << r.to_string();
+		TU::logReport() << "And the what also works: '" << r.what() << "'" ;
 
 	}
-	std::cout << "I slept for " << exampleElapsed.count() << " seconds" << std::endl;
-	std::cout <<"\tTuner: Is the alarm up?" << ( (alarm3s.alive())?"YES":"NO" ) << "  remaining: " << alarm3s.remaining() << std::endl;
-	std::cout << TU::getCurrentBlockLocation() << std::endl;
+	TU::logReport() << "I slept for " << exampleElapsed.count() << " seconds";
+	TU::logReport() <<"\tTuner: Is the alarm up?" << ( (alarm3s.alive())?"YES":"NO" ) << "  remaining: " << alarm3s.remaining();
+	TU::logReport() << TU::getCurrentBlockLocation();
 
-
-	std::cout << "With Tubul I can easily read CSV files (Mem before reading csv:" << getTubulMem() << ")" << std::endl;
+	TU::logReport() << "With Tubul I can easily read CSV files (Mem before reading csv:" << getTubulMem() << ")";
 	std::optional<TU::CSVContents> csv_reading_result;
 	{
 		TU::AutoStopWatch st("Time reading CSV file: ");
@@ -197,22 +195,22 @@ int main(int argc, char** argv){
 		//fails (file not found or parsing failure).
 		auto res = TU::readCsvFromString(CSVSample) ;
 		if (!res)
-			std::cout << "Couldn't read sample file " << std::endl;
+			TU::logReport() << "Couldn't read sample file ";
 		else
 			csv_reading_result.swap(res);
 
 	}
 
-	std::cout << "Mem after reading csv:" << getTubulMem() << std::endl;
+	TU::logReport() << "Mem after reading csv:" << getTubulMem();
 	{
 		TU::AutoStopWatch st("Time converting some csv data to columns : ");
 		auto &csv_file = *csv_reading_result;
 		//With the csv file already read, I can do quick peeking at things.
-		std::cout << "Rows detected: " << csv_file.rowCount() << std::endl;
-		std::cout << "Columns detected: " << csv_file.colCount() << std::endl;
+		TU::logReport() << "Rows detected: " << csv_file.rowCount();
+		TU::logReport() << "Columns detected: " << csv_file.colCount();
 
 		auto white = csv_file.getRow(0);
-		std::cout <<" I can ask specific rows: White has values: (" << TU::join(white,",") << ")"<< std::endl;
+		TU::logReport() <<" I can ask specific rows: White has values: (" << TU::join(white,",") << ")";
 
 		//I can ask for specific columns, even if some are repeated, no extra work is done if possible.
 		//I know this is an integer column.
@@ -222,9 +220,9 @@ int main(int argc, char** argv){
 		double mean = 0;
 		for (auto x: colR_int)
 			mean += x;
-		std::cout << "The mean of the R col is: " << (mean/colR_int.size()) << std::endl;
+		TU::logReport() << "The mean of the R col is: " << (mean/colR_int.size());
 
-		std::cout << "Mem after requesting some data columns:" << getTubulMem() << std::endl;
+		TU::logReport() << "Mem after requesting some data columns:" << getTubulMem();
 	}
 
 	//Clearing the cached column data (at this point it still exists!!)
@@ -239,14 +237,14 @@ int main(int argc, char** argv){
 							   {"G", DataType::INTEGER},
 							   {"B", DataType::INTEGER}});
 		auto df = TU::dataFrameFromCSVString(CSVSample, req);
-		std::cout << "Rows detected: " << df.getRowCount() << std::endl;
-		std::cout << "Columns detected: " << df.getColCount() << std::endl;
+		TU::logReport() << "Rows detected: " << df.getRowCount();
+		TU::logReport() << "Columns detected: " << df.getColCount();
 
 		//Request all data columns to be prepared.
-		std::cout << "Mem after requesting ALL data columns:" << getTubulMem() << std::endl;
+		TU::logReport() << "Mem after requesting ALL data columns:" << getTubulMem();
 	}
 
-	std::cout << "Current RSS: " << TU::memCurrentRSS() << std::endl;
-	std::cout << "PeakRSS: " << TU::memPeakRSS() << std::endl;
+	TU::logReport() << "Current RSS: " << TU::memCurrentRSS();
+	TU::logReport() << "PeakRSS: " << TU::memPeakRSS();
 
 }

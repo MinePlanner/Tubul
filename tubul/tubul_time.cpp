@@ -5,6 +5,7 @@
 #include <chrono>
 #include <iostream>
 #include "tubul_time.h"
+#include "tubul_logger.h"
 
 namespace TU
 {
@@ -32,7 +33,7 @@ AutoStopWatch::~AutoStopWatch()
 {
 	auto end_time = now();
 	TimeDuration elapsed = (end_time-start_);
-	std::cout << msg_ << elapsed.count() << std::endl;
+	TU::logInfo() << msg_ << elapsed.count();
 }
 
 double AutoStopWatch::elapsed()
