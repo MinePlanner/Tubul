@@ -100,8 +100,7 @@ namespace TU {
 
 #else
 	[[nodiscard]] TU::Exception throwError(const std::string &message,
-												const std::source_location location =
-													std::source_location::current());
+												const std::source_location location);
 #endif
 
     /** \brief Adds a new logger sink/target, which can be either
