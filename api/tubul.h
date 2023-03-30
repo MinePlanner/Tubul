@@ -127,10 +127,12 @@ namespace TU {
      * End-of-line is added atomatically.
      * @param The message to be sent
      */
-	void logInfo(std::string const &msg);
-	void logReport(std::string const &msg);
-	void logWarning(std::string const &msg);
     void logError(std::string const &msg);
+    void logWarning(std::string const &msg);
+	void logReport(std::string const &msg);
+    void logInfo(std::string const &msg);
+    void logDevel(std::string const &msg);
+    void logStats(std::string const &msg);
 
     /** \brief log streams, which allow to send strings and numbers using
      * the "<<" operator. Example:
@@ -138,10 +140,12 @@ namespace TU {
      * End-of-line is added automatically.
      * @return
      */
-    LogStream logInfo();
-    LogStream logReport();
-    LogStream logWarning();
     LogStream logError();
+    LogStream logWarning();
+    LogStream logReport();
+    LogStream logInfo();
+    LogStream logDevel();
+    LogStream logStats();
 
 	/////////
 	// Args

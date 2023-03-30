@@ -53,6 +53,14 @@ namespace TU {
         getInstance().log(LogLevel::DEBUG, "DEBUG: " + msg);
     }
 
+    void logDevel(std::string const &msg) {
+        getInstance().log(LogLevel::DEVEL, "DEVEL: " + msg);
+    }
+
+    void logStat(std::string const &msg) {
+        getInstance().log(LogLevel::STATS, "STATS: " + msg);
+    }
+
 #ifdef TUBUL_MACOS
 
     [[nodiscard]] TU::Exception throwError(const std::string &msg, int line, const char *file, const char *function) {
@@ -123,6 +131,14 @@ namespace TU {
 
     LogStream logError() {
         return LogStream(LogLevel::ERROR);
+    }
+
+    LogStream logDevel() {
+        return LogStream(LogLevel::DEVEL);
+    }
+
+    LogStream logStats() {
+        return LogStream(LogLevel::STATS);
     }
 
 }; // namespace TU

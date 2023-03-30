@@ -47,10 +47,12 @@ namespace TU {
  * participate on the corresponding level
  * @param The message to be sent
  */
-    void logInfo(std::string const &msg);
-    void logReport(std::string const &msg);
-    void logWarning(std::string const &msg);
     void logError(std::string const &msg);
+    void logWarning(std::string const &msg);
+    void logReport(std::string const &msg);
+    void logInfo(std::string const &msg);
+    void logDevel(std::string const &msg);
+    void logStat(std::string const &msg);
     void logDebug(std::string const &msg);
 
 // ostream handler objects
@@ -73,10 +75,12 @@ namespace TU {
         LogLevel level_;
     };
 
-    LogStream logInfo();
-    LogStream logReport();
-    LogStream logWarning();
     LogStream logError();
+    LogStream logWarning();
+    LogStream logReport();
+    LogStream logInfo();
+    LogStream logDevel();
+    LogStream logStat();
     LogStream logDebug();
 
 #ifdef TUBUL_MACOS
