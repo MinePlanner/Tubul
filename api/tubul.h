@@ -93,7 +93,6 @@ namespace TU {
      * exception that should not be ignored.
      */
 #ifdef TUBUL_MACOS
-
     [[nodiscard]] TU::Exception throwError(
             const std::string &msg, int line,
             const char *file,
