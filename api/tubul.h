@@ -221,8 +221,8 @@ namespace TU {
 	 * (but in seconds, even if it's calculated with high accuracy). Also you can
 	 * pass 2 TimePoints if you want to get the time between 2 timestamps
 	 */
-	double getDifference(TimePoint tp);
-	double getDifference(TimePoint tp_begin, TimePoint tp_end);
+	double elapsed(TimePoint tp);
+	double elapsed(TimePoint tp_begin, TimePoint tp_end);
 
 
     //////////

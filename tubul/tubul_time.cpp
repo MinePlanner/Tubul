@@ -11,13 +11,13 @@ namespace TU
 {
 
 
-double getDifference(TimePoint tp)
+double elapsed(TimePoint tp)
 {
 	TimeDuration elapsed = (now() - tp);
 	return elapsed.count();
 }
 
-double getDifference(TimePoint tp_begin, TimePoint tp_end)
+double elapsed(TimePoint tp_begin, TimePoint tp_end)
 {
 	TimeDuration elapsed = (tp_end - tp_begin);
 	return elapsed.count();

@@ -13,8 +13,8 @@ using TimePoint = std::chrono::high_resolution_clock::time_point;
 
 auto constexpr now = &std::chrono::high_resolution_clock::now;
 
-double getDifference(TimePoint tp);
-double getDifference(TimePoint tp_begin, TimePoint tp_end);
+double elapsed(TimePoint tp);
+double elapsed(TimePoint tp_begin, TimePoint tp_end);
 
 struct AutoStopWatch
 {
