@@ -7,7 +7,9 @@
 #include <cstdint>
 #include "tubul_string.h"
 #include "tubul_exception.h"
-// #include "tubul_engine.h"
+#ifndef TUBUL_MACOS
+#include <source_location>
+#endif
 
 namespace TU {
     enum class LogLevel : uint8_t {
