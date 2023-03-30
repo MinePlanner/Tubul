@@ -66,11 +66,13 @@ namespace TU {
             if (level > loggerLevel)
                 continue;
 
-            if (options & LogOptions::QUIET) {
+            if (options & LogOptions::QUIET)
                 continue;
-            }
 
-            if (options ^ LogOptions::NOTIMESTAMP)
+            if ((options & LogOptions::EXCLUSIVE) and (level != loggerLevel))
+                continue;
+
+            if (not (options & LogOptions::NOTIMESTAMP))
                 streamTimestamp(logStream);
 
             logStream << text;

@@ -54,3 +54,19 @@ TEST(TUBULLogger, testLogWithTimestamp)
     EXPECT_EQ(msg , "Xello Tubul\n");
 }
 
+TEST(TUBULLogger, testLogExpclusive) {
+    std::ostringstream infoexc;
+    std::ostringstream info;
+
+    TU::clearLoggerDefinitions();
+    TU::addLoggerDefinition(infoexc, TU::LogLevel::INFO,
+                           TU::LogOptions::EXCLUSIVE |
+                           TU::LogOptions::NOTIMESTAMP);
+    TU::addLoggerDefinition(info, TU::LogLevel::INFO, TU::LogOptions::NOTIMESTAMP);
+
+    TU::logInfo() << "MessageInfo";
+    TU::logWarning() << "MessageWarning";
+
+    EXPECT_EQ(infoexc.str(), "MessageInfo\n");
+    EXPECT_EQ(info.str(), "MessageInfo\nMessageWarning\n");
+}
