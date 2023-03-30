@@ -70,3 +70,20 @@ TEST(TUBULLogger, testLogExpclusive) {
     EXPECT_EQ(infoexc.str(), "MessageInfo\n");
     EXPECT_EQ(info.str(), "MessageInfo\nMessageWarning\n");
 }
+
+
+TEST(TUBULLogger, testLogDevel) {
+    std::ostringstream ossReport;
+    std::ostringstream ossDevel;
+
+    TU::clearLoggerDefinitions();
+
+    TU::addLoggerDefinition(ossReport, TU::LogLevel::REPORT, TU::LogOptions::NOTIMESTAMP);
+    TU::addLoggerDefinition(ossDevel, TU::LogLevel::DEVEL, TU::LogOptions::NOTIMESTAMP);
+
+    TU::logDevel() << "Message to Devel"; // should go to ossDevel only
+    TU::logWarning() << "Danger, Will Robinson!"; // should go to both
+
+    EXPECT_EQ(ossReport.str(), "Danger, Will Robinson!\n");
+    EXPECT_EQ(ossDevel.str(), "Message to Devel\nDanger, Will Robinson!\n");
+}
