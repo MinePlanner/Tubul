@@ -10,6 +10,7 @@
 #include <string_view>
 #include <algorithm>
 #include <type_traits>
+#include "tubul_string.h"
 
 namespace TU
 {
@@ -213,4 +214,11 @@ template std::string join<std::vector<std::string_view>>(std::vector<std::string
 template std::string join<std::deque<std::string_view>>(std::deque<std::string_view> const& container, std::string const& joiner);
 template std::string join<std::list<std::string_view>>(std::list<std::string_view> const& container, std::string const& joiner);
 template std::string join<std::set<std::string_view>>(std::set<std::string_view> const& container, std::string const& joiner);
+
+
+details::string_line_range slinerange(const std::string& s)
+{
+    return details::string_line_range(s);
+}
+
 }
