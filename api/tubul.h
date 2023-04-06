@@ -82,7 +82,19 @@ namespace TU {
     template<typename IteratorType>
     std::string join(IteratorType begin, IteratorType end, std::string const &joiner);
 
-
+    /** The slinerange function will return an object that can be iterated
+     * with the range loop idiom (or using begin/end iterators if that's your
+     * style). Each item of the range is a line contained in the input string
+     * s (using "\n" as separator). If you load the contents of a text file into
+     * memory, you can iterate very easily by using slinerange. It's very similar
+     * to std::getline, but uses string_views to avoid copies and has more c++
+     * flavour imho.
+     *
+     * for ( auto line: TU::slinerange(my_string) )
+     *      std::cout << "This is a line: " << line << std::endl;
+     *
+     */
+    StringLineRange slinerange(const std::string& s);
 	////////////
 	// Logger
 	////////////

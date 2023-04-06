@@ -6,6 +6,16 @@
 #include <algorithm>
 #include "tubul.h"
 
+const char* test_string1 = R"(This is a test
+for the line iterator
+that uses
+string views)";
+const char* test_string2 = R"(This is a test
+for the line iterator
+that uses
+string views
+)";
+
 TEST(TUBULString, testSplitEmpty){
 	std::vector<std::string> tests = {""," ", "  " } ;
 	for ( auto const& test_string: tests)
@@ -224,4 +234,37 @@ TEST(TUBULString, testJoin){
 	test = {"A","B"};
 	res = TU::join(test, "->");
 	EXPECT_EQ(res, "A->B");
+}
+
+
+TEST(TUBULString, testLineIterator) {
+
+    std::string test(test_string1);
+    std::vector<std::string> expected1 = {
+                "This is a test",
+                "for the line iterator",
+                "that uses",
+                "string views"};
+    auto range = TU::slinerange(test);
+    auto it = range.begin();
+    auto end = range.end();
+    size_t expected_id = 0;
+    while( it != end ) {
+        EXPECT_EQ(*it, expected1.at(expected_id));
+        ++it; ++expected_id;
+    }
+    expected_id = 0;
+    for (auto line: TU::slinerange(test)) {
+        EXPECT_EQ(line, expected1.at(expected_id));
+        expected_id++;
+    }
+
+    std::string test2(test_string2);
+    expected_id =0;
+    expected1.emplace_back("");
+    for (auto line: TU::slinerange(test2)) {
+        EXPECT_EQ(line, expected1.at(expected_id));
+        expected_id++;
+    }
+
 }
