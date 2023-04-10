@@ -50,12 +50,12 @@ namespace TU {
                         start_ = finish_ = std::string::npos;
                     } else {
                         start_ = 0;
-                        finish_ = source_.find_first_of("\n", start_);
+                        finish_ = source_.find_first_of('\n', start_);
                     }
 
                 }
 
-                explicit iter(std::string_view s, std::string::size_type p) :
+                explicit iter(std::string_view s, std::string::size_type) :
                         source_(s),
                         start_(std::string::npos),
                         finish_(std::string::npos) {
