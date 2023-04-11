@@ -355,7 +355,7 @@ namespace TU {
     /////////
     // File Utils
     /////////
-    /** Set of simple functions to perform tasks that are common
+    /** Set of simple functions to perform tasks_ that are common
      * but regularly require typing a lot more than just these names
      * in order to do them. For example the strToXXX use the from_chars functions
      * which are awesome, but require a couple extra steps to be used which are
