@@ -44,6 +44,8 @@ void sleep_log(int ms)
 
 }
 
+static constexpr bool TUBUL_THREAD_TESTS_LOG = false;
+
 TEST(TUBULThread, testPool) {
 
     g_counter.store(0);
@@ -51,11 +53,11 @@ TEST(TUBULThread, testPool) {
     TU::ThreadPool pool(1);
     auto work = [](int f) {
         std::stringstream out;
-        out << "Fibo("<< f << ") : " << fib(f) << std::endl;
+        out << "Fibo(" << f << ") : " << fib(f) << std::endl;
         auto text = out.str();
         size_t textSize = text.size();
         auto prev = g_counter.fetch_add(textSize, std::memory_order_seq_cst);
-        std::copy( text.begin(), text.end(), g_buffer.data()+prev);
+        std::copy(text.begin(), text.end(), g_buffer.data() + prev);
     };
     pool.pushTask(work, 90);
     pool.pushTask(work, 70);
@@ -64,9 +66,11 @@ TEST(TUBULThread, testPool) {
     pool.pushTask(work, 50);
     pool.waitForTasks();
 
-    std::string res(g_buffer.data(), g_counter.load());
-    std::cout << res << std::endl;
-    std::cout << "Esto es despues" << std::endl;
+    if (TUBUL_THREAD_TESTS_LOG) {
+        std::string res(g_buffer.data(), g_counter.load());
+        std::cout << res << std::endl;
+        std::cout << "Finished test!" << std::endl;
+    }
 }
 
 TEST(TUBULThread, testPool2) {
@@ -101,30 +105,73 @@ TEST(TUBULThread, testPool2) {
     pool.pushTask(work, 40);
     pool.pushTask(work, 50);
     pool.waitForTasks();
-    std::string res(g_buffer.data(), g_counter.load());
-    std::cout << res << std::endl;
-    std::cout << "Esto es despues" << std::endl;
+
+    if (TUBUL_THREAD_TESTS_LOG) {
+        std::string res(g_buffer.data(), g_counter.load());
+        std::cout << res << std::endl;
+        std::cout << "Esto es despues" << std::endl;
+    }
 }
 
 TEST(TUBULThread, testSleepyPool) {
-    for (std::integral auto i: TU::irange(40000)) {
-        std::cout << "Iteration " << i << std::endl;
-        g_counter.store(0);
-        TU::ThreadPool pool(4);
-        pool.pushTask(sleep_log, 5000);  pool.pushTask(sleep_log, 5000);
-        pool.pushTask(sleep_log, 15000); pool.pushTask(sleep_log, 5000);
-        pool.pushTask(sleep_log, 5000);  pool.pushTask(sleep_log, 20000);
-        pool.pushTask(sleep_log, 7500);  pool.pushTask(sleep_log, 7500);
-        pool.pushTask(sleep_log, 5000);  pool.pushTask(sleep_log, 5000);
-        pool.pushTask(sleep_log, 15000); pool.pushTask(sleep_log, 5000);
-        pool.pushTask(sleep_log, 5000);  pool.pushTask(sleep_log, 20000);
-        pool.pushTask(sleep_log, 7500);  pool.pushTask(sleep_log, 7500);
+    //This is here mostly to test possible issues with several invocations.
+    //I don't think it's commonly required, but if you need it, simply change
+    //the constant
+    static constexpr bool enabled = false;
+    if (enabled) {
+        for (std::integral auto i: TU::irange(40000)) {
+            std::cout << "Iteration " << i << std::endl;
+            g_counter.store(0);
+            TU::ThreadPool pool(2);
+            pool.pushTask(sleep_log, 5000);
+            pool.pushTask(sleep_log, 5000);
+            pool.pushTask(sleep_log, 15000);
+            pool.pushTask(sleep_log, 5000);
+            pool.pushTask(sleep_log, 5000);
+            pool.pushTask(sleep_log, 20000);
+            pool.pushTask(sleep_log, 7500);
+            pool.pushTask(sleep_log, 7500);
+            pool.pushTask(sleep_log, 5000);
+            pool.pushTask(sleep_log, 5000);
+            pool.pushTask(sleep_log, 15000);
+            pool.pushTask(sleep_log, 5000);
+            pool.pushTask(sleep_log, 5000);
+            pool.pushTask(sleep_log, 20000);
+            pool.pushTask(sleep_log, 7500);
+            pool.pushTask(sleep_log, 7500);
+            pool.waitForTasks();
+            std::string res(g_buffer.data(), g_counter.load());
+            std::cout << res << std::endl;
+            std::cout << "Iteracion " << i << " terminada " << std::endl;
+        }
+    }
+}
+
+
+
+TEST(TUBULThread, testFuture) {
+    g_counter.store(0);
+    TU::ThreadPool pool(2);
+
+    auto work = [](int f) -> size_t {
+        std::stringstream out;
+        auto res = fib(f);
+        out << "Fibo(" << f << ") : " << res << std::endl;
+        auto text = out.str();
+        size_t textSize = text.size();
+        auto prev = g_counter.fetch_add(textSize, std::memory_order_seq_cst);
+        std::copy(text.begin(), text.end(), g_buffer.data() + prev);
+        return res;
+    };
+    pool.pushTask(work,70);
+    auto myfib = pool.submit(work,80);
+    pool.pushTask(work,70);
+
+    EXPECT_EQ(myfib.get(), fib(80));
+    if (TUBUL_THREAD_TESTS_LOG) {
+        std::cout << "result of future: " << myfib.get() << std::endl;
         pool.waitForTasks();
         std::string res(g_buffer.data(), g_counter.load());
-        std::cout << res << std::endl;
-        std::cout << "Iteracion " << i << " terminada " << std::endl;
+        std::cout << "thread log: " << res << std::endl;
     }
-
-
-
 }
