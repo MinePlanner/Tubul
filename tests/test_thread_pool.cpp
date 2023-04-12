@@ -6,6 +6,9 @@
 #include "tubul.h"
 #include <array>
 
+std::atomic_size_t g_counter;
+std::array<char, 1024> g_buffer;
+
 size_t fib(int n) {
     size_t f0 = 0, f1 = 1, f2, i;
     if( n == 0)
@@ -15,10 +18,31 @@ size_t fib(int n) {
         f0 = f1;
         f1 = f2;
     }
+    using namespace  std::chrono_literals;
+    std::this_thread::sleep_for(0.1s);
     return f1;
 }
-std::atomic_size_t g_counter;
-std::array<char, 1024> g_buffer;
+void sleep_log(int ms)
+{
+    {
+        std::stringstream out;
+        out << "Thread (" << std::this_thread::get_id() << ") : sleeping for" << ms << "ms" << std::endl;
+        auto text = out.str();
+        size_t textSize = text.size();
+        auto prev = g_counter.fetch_add(textSize, std::memory_order_seq_cst);
+        std::copy( text.begin(), text.end(), g_buffer.data()+prev);
+    }
+    std::this_thread::sleep_for(std::chrono::microseconds(ms));
+    {
+        std::stringstream out;
+        out << "Thread (" << std::this_thread::get_id() << ") : woke up! " << std::endl;
+        auto text = out.str();
+        size_t textSize = text.size();
+        auto prev = g_counter.fetch_add(textSize, std::memory_order_seq_cst);
+        std::copy( text.begin(), text.end(), g_buffer.data()+prev);
+    }
+
+}
 
 TEST(TUBULThread, testPool) {
 
@@ -33,11 +57,11 @@ TEST(TUBULThread, testPool) {
         auto prev = g_counter.fetch_add(textSize, std::memory_order_seq_cst);
         std::copy( text.begin(), text.end(), g_buffer.data()+prev);
     };
-    pool.push_task(work, 90);
-    pool.push_task(work, 70);
-    pool.push_task(work, 80);
-    pool.push_task(work, 40);
-    pool.push_task(work, 50);
+    pool.pushTask(work, 90);
+    pool.pushTask(work, 70);
+    pool.pushTask(work, 80);
+    pool.pushTask(work, 40);
+    pool.pushTask(work, 50);
     pool.waitForTasks();
 
     std::string res(g_buffer.data(), g_counter.load());
@@ -46,7 +70,7 @@ TEST(TUBULThread, testPool) {
 }
 
 TEST(TUBULThread, testPool2) {
-
+    g_counter.store(0);
     TU::ThreadPool pool(4);
     auto work = [](int f) {
         std::stringstream out;
@@ -56,28 +80,51 @@ TEST(TUBULThread, testPool2) {
         auto prev = g_counter.fetch_add(textSize, std::memory_order_seq_cst);
         std::copy( text.begin(), text.end(), g_buffer.data()+prev);
     };
-    pool.push_task(work, 90);
-    pool.push_task(work, 70);
-    pool.push_task(work, 80);
-    pool.push_task(work, 40);
-    pool.push_task(work, 50);
-    pool.push_task(work, 90);
-    pool.push_task(work, 90);
-    pool.push_task(work, 70);
-    pool.push_task(work, 80);
-    pool.push_task(work, 40);
-    pool.push_task(work, 50);
-    pool.push_task(work, 70);
-    pool.push_task(work, 80);
-    pool.push_task(work, 40);
-    pool.push_task(work, 50);
-    pool.push_task(work, 90);
-    pool.push_task(work, 70);
-    pool.push_task(work, 80);
-    pool.push_task(work, 40);
-    pool.push_task(work, 50);
+    pool.pushTask(work, 90);
+    pool.pushTask(work, 70);
+    pool.pushTask(work, 80);
+    pool.pushTask(work, 40);
+    pool.pushTask(work, 50);
+    pool.pushTask(work, 90);
+    pool.pushTask(work, 90);
+    pool.pushTask(work, 70);
+    pool.pushTask(work, 80);
+    pool.pushTask(work, 40);
+    pool.pushTask(work, 50);
+    pool.pushTask(work, 70);
+    pool.pushTask(work, 80);
+    pool.pushTask(work, 40);
+    pool.pushTask(work, 50);
+    pool.pushTask(work, 90);
+    pool.pushTask(work, 70);
+    pool.pushTask(work, 80);
+    pool.pushTask(work, 40);
+    pool.pushTask(work, 50);
     pool.waitForTasks();
     std::string res(g_buffer.data(), g_counter.load());
     std::cout << res << std::endl;
     std::cout << "Esto es despues" << std::endl;
+}
+
+TEST(TUBULThread, testSleepyPool) {
+    for (std::integral auto i: TU::irange(40000)) {
+        std::cout << "Iteration " << i << std::endl;
+        g_counter.store(0);
+        TU::ThreadPool pool(4);
+        pool.pushTask(sleep_log, 5000);  pool.pushTask(sleep_log, 5000);
+        pool.pushTask(sleep_log, 15000); pool.pushTask(sleep_log, 5000);
+        pool.pushTask(sleep_log, 5000);  pool.pushTask(sleep_log, 20000);
+        pool.pushTask(sleep_log, 7500);  pool.pushTask(sleep_log, 7500);
+        pool.pushTask(sleep_log, 5000);  pool.pushTask(sleep_log, 5000);
+        pool.pushTask(sleep_log, 15000); pool.pushTask(sleep_log, 5000);
+        pool.pushTask(sleep_log, 5000);  pool.pushTask(sleep_log, 20000);
+        pool.pushTask(sleep_log, 7500);  pool.pushTask(sleep_log, 7500);
+        pool.waitForTasks();
+        std::string res(g_buffer.data(), g_counter.load());
+        std::cout << res << std::endl;
+        std::cout << "Iteracion " << i << " terminada " << std::endl;
+    }
+
+
+
 }

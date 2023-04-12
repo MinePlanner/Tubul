@@ -41,7 +41,7 @@ namespace TU
          * (or this), followed by the actual arguments.
          */
         template <typename F, typename... A>
-        void push_task(F&& task, A&&... args)
+        void pushTask(F&& task, A&&... args)
         {
             std::function<void()> task_function = std::bind(std::forward<F>(task), std::forward<A>(args)...);
             {
@@ -72,7 +72,7 @@ namespace TU
         {
             std::function<R()> task_function = std::bind(std::forward<F>(task), std::forward<A>(args)...);
             std::shared_ptr<std::promise<R>> task_promise = std::make_shared<std::promise<R>>();
-            push_task(
+            pushTask(
                     [task_function, task_promise]
                     {
                         try
@@ -110,34 +110,7 @@ namespace TU
          * push_task() that a task is available, and then retrieves the task from the queue and executes it. Once
          * the task finishes, the worker notifies waitForTasks() in case it is waiting_.
          */
-        void workerFn()
-        {
-            while (running_)
-            {
-                std::function<void()> task;
-                std::unique_lock<std::mutex> tasks_lock(tasks_mutex_);
-                task_available_cv_.wait(tasks_lock, [this] { return !tasks_.empty() || !running_; });
-                if (running_)
-                {
-                    task = std::move(tasks_.front());
-                    tasks_.pop();
-                    tasks_lock.unlock();
-                    task();
-                    tasks_lock.lock();
-                    --tasks_total_;
-                    if (waiting_)
-                        task_done_cv_.notify_one();
-                }
-            }
-        }
-
-
-
-        /**
-         * @brief An atomic variable indicating to the workers to keep running_. When set to false, the
-         * workers permanently stop working.
-         */
-        std::atomic<bool> running_;
+        void workerFn();
 
         /**
          * @brief A condition variable used to notify worker() that a new task has become available.
@@ -155,12 +128,6 @@ namespace TU
         std::queue<std::function<void()>> tasks_ = {};
 
         /**
-         * @brief An atomic variable to keep track of the total number of unfinished
-         * tasks either still in the queue, or running in a thread.
-         */
-        std::atomic<size_t> tasks_total_;
-
-        /**
          * @brief A mutex to synchronize access to the task queue by different threads_.
          */
         mutable std::mutex tasks_mutex_;
@@ -176,10 +143,22 @@ namespace TU
         std::unique_ptr<std::thread[]> threads_;
 
         /**
+         * @brief An atomic variable to keep track of the total number of unfinished
+         * tasks either still in the queue, or running in a thread.
+         */
+        std::atomic<size_t> tasks_total_;
+
+        /**
          * @brief An atomic variable indicating that waitForTasks() is active and expects to be
          * notified whenever a task is done.
          */
-        std::atomic<bool> waiting_;
+        std::atomic_flag waiting_ = ATOMIC_FLAG_INIT;
+
+        /**
+         * @brief An atomic variable indicating to the workers to keep running_. When set to false, the
+         * workers permanently stop working.
+         */
+        std::atomic_flag  running_ = ATOMIC_FLAG_INIT;
     };
 
 
