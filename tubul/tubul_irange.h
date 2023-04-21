@@ -4,7 +4,7 @@
 
 #pragma once
 #include <concepts>
-#include <assert.h>
+#include <cstddef>
 
 namespace TU{
 namespace details{
@@ -69,4 +69,7 @@ namespace details{
 using tubul_range = details::range<std::size_t>;
 using tubul_skip_range = details::skip_range<std::size_t>;
 
+tubul_range irange(size_t end);
+tubul_range irange(size_t begin, size_t end);
+tubul_skip_range irange(size_t begin, size_t end, size_t step);
 }
