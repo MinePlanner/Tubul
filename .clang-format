@@ -15,7 +15,7 @@ UseTab: ForContinuationAndIndentation
 IndentWidth: 4
 IndentCaseLabels: true
 ContinuationIndentWidth: 4
-NamespaceIndentation: None
+NamespaceIndentation: Inner
 
 # Align options
 AlignAfterOpenBracket: Align

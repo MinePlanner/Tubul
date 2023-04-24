@@ -68,7 +68,13 @@ namespace TU::Graph {
         void write(const DAG& g, const std::string& filename);
 
         DAG read(const std::string& filename);
-
     }
+
+    namespace IO::Encoded{
+        void write(const DAG& g, const std::string& filename);
+
+        DAG read(const std::string& filename);
+    }
+
 } // TU::Graph
 

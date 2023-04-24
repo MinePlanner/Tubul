@@ -89,7 +89,7 @@ namespace TU
             ++size_;
         }
 
-        uint8_t* data() {
+        const uint8_t* data() const {
             return std::addressof(buf_[0]);
         }
 
