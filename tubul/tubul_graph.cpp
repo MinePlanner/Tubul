@@ -39,6 +39,38 @@ namespace TU::Graph {
         return true;
     }
 
+    //Namespace for functions that can be used by other more specific
+    //IO methods.
+    namespace IO
+    {
+        template<typename TypeToWrite>
+        void writePod(std::ostream& o, const TypeToWrite& t) {
+            o.write(reinterpret_cast<const char*>(&t), sizeof(t));
+        }
+
+        template<typename TypeToRead>
+        void readPod(std::istream& i, TypeToRead& t) {
+            i.read(reinterpret_cast<char*>(&t), sizeof(t));
+        }
+
+        void writeVarInt(std::ostream& o, const VarIntBuffer& v){
+            o.write(reinterpret_cast<const char*>(v.data()), v.size());
+        }
+
+        uint64_t readVarInt(std::istream& i){
+            VarIntBuffer buff;
+            char byte = 0;
+            i.get(byte);
+            buff.push_back(byte);
+            constexpr uint8_t continuationBit = 128;
+            while( byte & 128 ){
+                i.get(byte);
+                buff.push_back(byte);
+            }
+
+            return fromVarint(buff);
+        }
+    }//namespace IO.
 
     namespace IO::Text
     {
@@ -157,15 +189,6 @@ namespace TU::Graph {
 
     namespace IO::Binary
     {
-        template<typename TypeToWrite>
-        void writePod(std::ostream& o, const TypeToWrite& t) {
-            o.write(reinterpret_cast<const char*>(&t), sizeof(t));
-        }
-
-        template<typename TypeToRead>
-        void readPod(std::istream& i, TypeToRead& t) {
-            i.read(reinterpret_cast<char*>(&t), sizeof(t));
-        }
 
         void writeHeader(std::ostream& o){
             o.write(GraphHeader, sizeof(GraphHeader));
@@ -278,33 +301,6 @@ namespace TU::Graph {
             SameCost
         };
 
-        template<typename TypeToWrite>
-        void writePod(std::ostream& o, const TypeToWrite& t) {
-            o.write(reinterpret_cast<const char*>(&t), sizeof(t));
-        }
-
-        template<typename TypeToRead>
-        void readPod(std::istream& i, TypeToRead& t) {
-            i.read(reinterpret_cast<char*>(&t), sizeof(t));
-        }
-
-        void writeVarInt(std::ostream& o, const VarIntBuffer& v){
-            o.write(reinterpret_cast<const char*>(v.data()), v.size());
-        }
-
-        uint64_t readVarInt(std::istream& i){
-            VarIntBuffer buff;
-            char byte = 0;
-            i.get(byte);
-            buff.push_back(byte);
-            constexpr uint8_t continuationBit = 128;
-            while( byte & 128 ){
-                i.get(byte);
-                buff.push_back(byte);
-            }
-
-            return fromVarint(buff);
-        }
 
         void writeHeader(std::ostream& o){
             o.write(GraphHeader, sizeof(GraphHeader));
