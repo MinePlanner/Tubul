@@ -9,6 +9,8 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <algorithm>
+#include <unordered_map>
 
 
 namespace TU::Graph {
@@ -154,13 +156,13 @@ namespace TU::Graph {
             g.adj_.resize(n);
         }
 
-        std::vector<DAG::Edge> readEdgeList(std::istream& in, TU::Graph::DAG& g) {
+        DAG::EdgeList readEdgeList(std::istream& in, TU::Graph::DAG& g) {
             size_t nEdges;
             in >> nEdges;
-            std::vector<DAG::Edge> edgeList;
+            DAG::EdgeList edgeList;
             for ( int i = 0; i < nEdges; ++i) {
                 NodeId nid;
-                double cost;
+                CostType cost;
                 in >> nid;
                 in >> cost;
                 edgeList.push_back( DAG::Edge{nid,cost} );
@@ -183,9 +185,6 @@ namespace TU::Graph {
             return g;
         }
     }// namespace IO::Text
-
-
-
 
     namespace IO::Binary
     {
@@ -265,10 +264,10 @@ namespace TU::Graph {
             g.adj_.resize(n);
         }
 
-        std::vector<DAG::Edge> readEdgeList(std::istream& in, TU::Graph::DAG& g) {
+        DAG::EdgeList readEdgeList(std::istream& in, TU::Graph::DAG& g) {
             size_t nEdges=0;
             readPod(in, nEdges);
-            std::vector<DAG::Edge> edgeList;
+            DAG::EdgeList edgeList;
             for ( int i = 0; i < nEdges; ++i) {
                 DAG::Edge e{0,0};
                 readPod(in,e);
@@ -298,7 +297,8 @@ namespace TU::Graph {
         enum class EdgeListDescriptionMask : uint8_t {
             UniqueCosts,
             NoCost,
-            SameCost
+            SameCost,
+            CostByGroup
         };
 
 
@@ -331,6 +331,30 @@ namespace TU::Graph {
             return false;
         }
         template <typename ContainerType>
+        std::unordered_map<CostType, DAG::NodeIdList > bucketCosts(const ContainerType& c)  {
+            std::unordered_map<CostType, DAG::NodeIdList > costs;
+            for (const auto& item: c) {
+                costs[item.cost_].push_back( item.dest_ );
+            }
+            return costs;
+        }
+
+        void writeExpandedEdgeList(std::ostream& o, const DAG::EdgeList& c){
+            auto mask = (std::underlying_type_t<EdgeListDescriptionMask>) EdgeListDescriptionMask::UniqueCosts;
+            writePod(o, mask);
+            for ( const auto& edge: c) {
+                writeEdge(o, edge );
+            }
+        }
+
+        bool bucketMinSize(const std::unordered_map<CostType, DAG::NodeIdList >& buckets, size_t min){
+            return std::all_of( buckets.begin(), buckets.end(),
+                                [=](const auto& item) -> bool
+                                         { return (item.second.size() >= min); }
+            );
+        }
+
+        template <typename ContainerType>
         void writeEdgeList(std::ostream& o, const ContainerType& c){
             //The edge list will be written depending on what is the content.
             //1) If the list is empty, we simply write the 0
@@ -347,30 +371,60 @@ namespace TU::Graph {
             if (c.empty())
                 return;
 
-            if ( c.size() > 1 && allCostsEqual(c)) {
+            if ( c.size() == 1 ) {
+                writeExpandedEdgeList(o,c);
+                return;
+            }
+            auto costBuckets = bucketCosts(c);
+            //There's only one cost, so we use the abbreviated form (even
+            //better if it's 0 because we skip it altogether).
+            if (costBuckets.size() == 1) {
                 auto firstCost = c.front().cost_;
-                if ( firstCost == 0) {
+                if (firstCost == 0) {
                     auto mask = (std::underlying_type_t<EdgeListDescriptionMask>) EdgeListDescriptionMask::NoCost;
-                    o.write((char *) (&mask), sizeof(mask));
-                    for (const auto &edge: c) {
-                        writeVarInt(o, toVarint(edge.dest_));
-                    }
+                    writePod(o, mask);
                 } else {
                     auto mask = (std::underlying_type_t<EdgeListDescriptionMask>) EdgeListDescriptionMask::SameCost;
                     writePod(o, mask);
-                    writePod( o, firstCost );
-                    for (const auto &edge: c) {
-                        writeVarInt(o, toVarint(edge.dest_));
-                    }
+                    writePod(o, firstCost);
+                }
+
+                for (const auto &edge: c) {
+                    writeVarInt(o, toVarint(edge.dest_));
                 }
                 return;
             }
+            //What i would like here is a proper way to estimate which way
+            //of encoding is going to save me more bytes. For now i expect that each
+            //bucket has more than 2 items each.
+            if (costBuckets.size() == 2 and bucketMinSize(costBuckets,2))
+            {
+                auto mask = (std::underlying_type_t<EdgeListDescriptionMask>) EdgeListDescriptionMask::CostByGroup;
+                writePod(o, mask);
+                for (const auto& item: costBuckets ) {
+                    auto firstCost = item.first;
+                    writeVarInt(o, toVarint( item.second.size() ) );
+                    if (firstCost == 0) {
+                        auto submask = (std::underlying_type_t<EdgeListDescriptionMask>) EdgeListDescriptionMask::NoCost;
+                        writePod(o, submask);
+                    } else {
+                        auto submask = (std::underlying_type_t<EdgeListDescriptionMask>) EdgeListDescriptionMask::SameCost;
+                        writePod(o, submask);
+                        writePod(o, firstCost);
+                    }
+                    for (const auto &dest: item.second) {
+                        writeVarInt(o, toVarint(dest));
+                    }
+                }
 
-            auto mask = (std::underlying_type_t<EdgeListDescriptionMask>) EdgeListDescriptionMask::UniqueCosts;
-            writePod(o, mask);
-            for ( const auto& edge: c) {
-                writeEdge(o, edge );
+                return;
             }
+
+
+
+            //Final case, simply write all edges
+            writeExpandedEdgeList(o,c);
+
         }
 
         void write(const DAG& g, const std::string& filename) {
@@ -419,9 +473,9 @@ namespace TU::Graph {
             g.adj_.resize(n);
         }
 
-        std::vector<DAG::Edge> readEdgeList(std::istream& in, TU::Graph::DAG& g) {
+        DAG::EdgeList readEdgeList(std::istream& in, TU::Graph::DAG& g) {
             size_t nEdges= readVarInt(in);
-            std::vector<DAG::Edge> edgeList;
+            DAG::EdgeList edgeList;
             if ( nEdges == 0 )
                 return edgeList;
 
@@ -430,8 +484,33 @@ namespace TU::Graph {
             auto descr =  static_cast<EdgeListDescriptionMask>((std::underlying_type_t<EdgeListDescriptionMask>)c);
 
             //If all arcs have unique costs, we simply read all edges directly.
-            double commonCost = 0;
-            if ( descr == EdgeListDescriptionMask::UniqueCosts ) {
+            CostType commonCost = 0;
+            if ( descr == EdgeListDescriptionMask::CostByGroup) {
+                size_t edgesToRead = nEdges;
+                while ( edgesToRead > 0){
+                    commonCost = 0;
+                    size_t subListEdges = readVarInt(in);
+                    auto sublistByte = (std::underlying_type_t<EdgeListDescriptionMask>) EdgeListDescriptionMask::NoCost;
+                    readPod(in,sublistByte);
+                    auto sublistDescr =  static_cast<EdgeListDescriptionMask>((std::underlying_type_t<EdgeListDescriptionMask>)sublistByte);
+                    //Should only by SameCost or NoCost.
+                    if ( sublistDescr == EdgeListDescriptionMask::SameCost )
+                        readPod(in, commonCost);
+                    else if ( sublistDescr != EdgeListDescriptionMask::NoCost)
+                        throw TU::Exception("Reading list with subgroups decoded something invalid");
+
+                    for (int i = 0; i < subListEdges; ++i) {
+                        DAG::Edge e{0, 0};
+                        e.dest_ = static_cast<NodeId >( readVarInt(in));
+                        e.cost_ = commonCost;
+                        edgeList.push_back(e);
+                    }
+                    edgesToRead -= subListEdges;
+                }
+                return edgeList;
+
+            }
+            else if ( descr == EdgeListDescriptionMask::UniqueCosts ) {
                 for (int i = 0; i < nEdges; ++i) {
                     DAG::Edge e{0, 0};
                     e.dest_ = static_cast<NodeId >( readVarInt(in));
