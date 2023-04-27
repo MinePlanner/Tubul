@@ -41,6 +41,16 @@ namespace TU::Graph {
         return true;
     }
 
+    template<typename EnumType>
+    auto toNumber(EnumType val) -> std::underlying_type_t<EnumType> {
+        return static_cast< std::underlying_type_t<EnumType> > (val);
+    }
+
+    template<typename EnumType>
+    auto toEnum( std::underlying_type_t<EnumType> val) -> EnumType {
+        return static_cast< EnumType >(val);
+    }
+
     //Namespace for functions that can be used by other more specific
     //IO methods.
     namespace IO
@@ -340,7 +350,7 @@ namespace TU::Graph {
         }
 
         void writeExpandedEdgeList(std::ostream& o, const DAG::EdgeList& c){
-            auto mask = (std::underlying_type_t<EdgeListDescriptionMask>) EdgeListDescriptionMask::UniqueCosts;
+            auto mask = toNumber( EdgeListDescriptionMask::UniqueCosts );
             writePod(o, mask);
             for ( const auto& edge: c) {
                 writeEdge(o, edge );
@@ -381,10 +391,10 @@ namespace TU::Graph {
             if (costBuckets.size() == 1) {
                 auto firstCost = c.front().cost_;
                 if (firstCost == 0) {
-                    auto mask = (std::underlying_type_t<EdgeListDescriptionMask>) EdgeListDescriptionMask::NoCost;
+                    auto mask = toNumber( EdgeListDescriptionMask::NoCost );
                     writePod(o, mask);
                 } else {
-                    auto mask = (std::underlying_type_t<EdgeListDescriptionMask>) EdgeListDescriptionMask::SameCost;
+                    auto mask = toNumber( EdgeListDescriptionMask::SameCost );
                     writePod(o, mask);
                     writePod(o, firstCost);
                 }
@@ -399,16 +409,16 @@ namespace TU::Graph {
             //bucket has more than 2 items each.
             if (costBuckets.size() == 2 and bucketMinSize(costBuckets,2))
             {
-                auto mask = (std::underlying_type_t<EdgeListDescriptionMask>) EdgeListDescriptionMask::CostByGroup;
+                auto mask = toNumber( EdgeListDescriptionMask::CostByGroup );
                 writePod(o, mask);
                 for (const auto& item: costBuckets ) {
                     auto firstCost = item.first;
                     writeVarInt(o, toVarint( item.second.size() ) );
                     if (firstCost == 0) {
-                        auto submask = (std::underlying_type_t<EdgeListDescriptionMask>) EdgeListDescriptionMask::NoCost;
+                        auto submask = toNumber( EdgeListDescriptionMask::NoCost );
                         writePod(o, submask);
                     } else {
-                        auto submask = (std::underlying_type_t<EdgeListDescriptionMask>) EdgeListDescriptionMask::SameCost;
+                        auto submask = toNumber( EdgeListDescriptionMask::SameCost );
                         writePod(o, submask);
                         writePod(o, firstCost);
                     }
@@ -479,9 +489,9 @@ namespace TU::Graph {
             if ( nEdges == 0 )
                 return edgeList;
 
-            auto c = (std::underlying_type_t<EdgeListDescriptionMask>) EdgeListDescriptionMask::NoCost;
+            auto c = toNumber( EdgeListDescriptionMask::NoCost );
             readPod(in,c);
-            auto descr =  static_cast<EdgeListDescriptionMask>((std::underlying_type_t<EdgeListDescriptionMask>)c);
+            auto descr =  toEnum<EdgeListDescriptionMask>(c );
 
             //If all arcs have unique costs, we simply read all edges directly.
             CostType commonCost = 0;
@@ -490,9 +500,9 @@ namespace TU::Graph {
                 while ( edgesToRead > 0){
                     commonCost = 0;
                     size_t subListEdges = readVarInt(in);
-                    auto sublistByte = (std::underlying_type_t<EdgeListDescriptionMask>) EdgeListDescriptionMask::NoCost;
+                    auto sublistByte = toNumber( EdgeListDescriptionMask::NoCost );
                     readPod(in,sublistByte);
-                    auto sublistDescr =  static_cast<EdgeListDescriptionMask>((std::underlying_type_t<EdgeListDescriptionMask>)sublistByte);
+                    auto sublistDescr = toEnum<EdgeListDescriptionMask>(sublistByte );
                     //Should only by SameCost or NoCost.
                     if ( sublistDescr == EdgeListDescriptionMask::SameCost )
                         readPod(in, commonCost);
