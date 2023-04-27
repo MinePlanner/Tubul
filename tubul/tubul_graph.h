@@ -13,15 +13,19 @@ namespace TU::Graph {
     static constexpr char GraphHeader[]  = "%ALICANGRAPH%";
     static constexpr size_t HeaderSize = sizeof(GraphHeader);
     using NodeId = std::int32_t;
+    using CostType = double;
 
     struct DAG {
         struct Edge {
             NodeId dest_;
-            double cost_;
+            CostType cost_;
         };
         struct NodeInfo {
             std::string name;
         };
+
+        using EdgeList = std::vector<Edge>;
+        using NodeIdList = std::vector<NodeId>;
 
         [[nodiscard]] inline
         size_t nodeCount() const {
@@ -29,17 +33,17 @@ namespace TU::Graph {
         };
 
         [[nodiscard]] inline
-        const std::vector<Edge>& neighbors(NodeId n) const{
+        const EdgeList& neighbors(NodeId n) const{
             return adj_.at(n);
         }
 
         inline
-        std::vector<Edge>& neighbors(NodeId n) {
+        EdgeList& neighbors(NodeId n) {
             return adj_.at(n);
         }
 
 
-        std::vector< std::vector<Edge> > adj_;
+        std::vector< EdgeList > adj_;
         //std::vector<NodeInfo> info_; //Needs to be here?
     };
 
