@@ -75,7 +75,7 @@ namespace TU::Graph {
             i.get(byte);
             buff.push_back(byte);
             constexpr uint8_t continuationBit = 128;
-            while( byte & 128 ){
+            while( byte & continuationBit ){
                 i.get(byte);
                 buff.push_back(byte);
             }
@@ -158,7 +158,7 @@ namespace TU::Graph {
                 std::string error;
                 error += "Expected graph with id '" + std::to_string(expected) +
                           "' but found '" + std::to_string( id ) + "'" ;
-                throw TU::Exception("[Graph] There's a difference in the header, file may be corrupt!");
+                throw TU::Exception("[Graph] There's a difference in the header, file may be corrupt!" + error);
             }
 
             int n;
@@ -166,7 +166,7 @@ namespace TU::Graph {
             g.adj_.resize(n);
         }
 
-        DAG::EdgeList readEdgeList(std::istream& in, TU::Graph::DAG& g) {
+        DAG::EdgeList readEdgeList(std::istream& in) {
             size_t nEdges;
             in >> nEdges;
             DAG::EdgeList edgeList;
@@ -189,7 +189,7 @@ namespace TU::Graph {
             readDescription(in,g);
             std::string line;
             for(int i = 0; i < g.nodeCount(); ++i) {
-                g.adj_.at(i) = readEdgeList(in, g);
+                g.adj_.at(i) = readEdgeList(in);
             }
 
             return g;
@@ -266,7 +266,7 @@ namespace TU::Graph {
                 std::string error;
                 error += "Expected graph with id '" + std::to_string(expected) +
                          "' but found '" + std::to_string(id) + "'";
-                throw TU::Exception("[Graph] There's a difference in the header, file may be corrupt!");
+                throw TU::Exception("[Graph] There's a difference in the header, file may be corrupt!" + error);
             }
 
             size_t n;
@@ -274,7 +274,7 @@ namespace TU::Graph {
             g.adj_.resize(n);
         }
 
-        DAG::EdgeList readEdgeList(std::istream& in, TU::Graph::DAG& g) {
+        DAG::EdgeList readEdgeList(std::istream& in) {
             size_t nEdges=0;
             readPod(in, nEdges);
             DAG::EdgeList edgeList;
@@ -295,7 +295,7 @@ namespace TU::Graph {
             readDescription(in,g);
 
             for(int i = 0; i < g.nodeCount(); ++i) {
-                g.adj_.at(i) = readEdgeList(in, g);
+                g.adj_.at(i) = readEdgeList(in);
             }
 
             return g;
@@ -329,17 +329,6 @@ namespace TU::Graph {
             writePod(o, e.cost_);
         }
 
-        template <typename ContainerType>
-        bool allCostsEqual(const ContainerType& c) {
-            auto firstCost = c.front().cost_;
-            auto found = std::find_if(c.begin(), c.end(),
-                                      [=](const typename ContainerType::value_type& v)->bool
-                                             { return v.cost_ != firstCost;}
-                                      );
-            if (found == c.end())
-                return true;
-            return false;
-        }
         template <typename ContainerType>
         std::unordered_map<CostType, DAG::NodeIdList > bucketCosts(const ContainerType& c)  {
             std::unordered_map<CostType, DAG::NodeIdList > costs;
@@ -475,7 +464,7 @@ namespace TU::Graph {
                 std::string error;
                 error += "Expected graph with id '" + std::to_string(expected) +
                          "' but found '" + std::to_string(id) + "'";
-                throw TU::Exception("[Graph] There's a difference in the header, file may be corrupt!");
+                throw TU::Exception("[Graph] There's a difference in the header, file may be corrupt!" + error);
             }
 
             size_t n = readVarInt(i);
@@ -483,7 +472,7 @@ namespace TU::Graph {
             g.adj_.resize(n);
         }
 
-        DAG::EdgeList readEdgeList(std::istream& in, TU::Graph::DAG& g) {
+        DAG::EdgeList readEdgeList(std::istream& in) {
             size_t nEdges= readVarInt(in);
             DAG::EdgeList edgeList;
             if ( nEdges == 0 )
@@ -554,7 +543,7 @@ namespace TU::Graph {
             readDescription(in,g);
 
             for(int i = 0; i < g.nodeCount(); ++i) {
-                g.adj_.at(i) = readEdgeList(in, g);
+                g.adj_.at(i) = readEdgeList(in);
             }
 
             return g;
