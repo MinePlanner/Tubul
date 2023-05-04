@@ -14,6 +14,7 @@
 #include <string>
 #include <algorithm>
 #include <unordered_map>
+#include <deque>
 
 
 namespace TU::Graph {
@@ -396,8 +397,8 @@ namespace TU::Graph {
                 }
                 return;
             }
-            //What i would like here is a proper way to estimate which way
-            //of encoding is going to save me more bytes. For now i expect that each
+            //What I would like here is a proper way to estimate which way
+            //of encoding is going to save me more bytes. For now, I expect that each
             //bucket has more than 2 items each.
             if (costBuckets.size() == 2 and bucketMinSize(costBuckets,2))
             {
@@ -495,7 +496,7 @@ namespace TU::Graph {
                     auto sublistByte = toNumber( EdgeListDescriptionMask::NoCost );
                     readPod(in,sublistByte);
                     auto sublistDescr = toEnum<EdgeListDescriptionMask>(sublistByte );
-                    //Should only by SameCost or NoCost.
+                    //Should only be SameCost or NoCost.
                     if ( sublistDescr == EdgeListDescriptionMask::SameCost )
                         readPod(in, commonCost);
                     else if ( sublistDescr != EdgeListDescriptionMask::NoCost)
@@ -553,10 +554,71 @@ namespace TU::Graph {
         }
     }//namespace IO::Encoded
 
-
-
     namespace IO::Prec {
+        std::string buildPrecString(const DAG::Edge& e){
+            if (e.cost_ == 0)
+                return std::to_string(e.dest_);
+            else
+                return std::to_string(e.dest_) + ":" + std::to_string(e.cost_);
+        }
+
+        std::string buildPrecLine(NodeId nId, const DAG::EdgeList& edges){
+            std::ostringstream precLine;
+            precLine << nId << ' ' << edges.size();
+            if (edges.empty())
+                return precLine.str();
+
+            auto edgeIt = edges.begin();
+            precLine << ' ' << buildPrecString(*edgeIt );
+            ++edgeIt;
+            for (;edgeIt != edges.end(); ++edgeIt ){
+                precLine << ' ' << buildPrecString(*edgeIt );
+
+            }
+            return precLine.str();
+        }
+
+        std::string buildPrecString(const DAG::Edge& e, const DAG::NodeNameList& names){
+            if (e.cost_ == 0)
+                return names[e.dest_];
+            else
+                return names[e.dest_] + ":" + std::to_string(e.cost_);
+        }
+
+        std::string buildPrecLine(NodeId nId, const DAG::EdgeList& edges, const DAG::NodeNameList& names){
+            std::ostringstream precLine;
+            precLine << names[nId] << ' ' << edges.size();
+            if (edges.empty())
+                return precLine.str();
+
+            auto edgeIt = edges.begin();
+            precLine << ' ' << buildPrecString(*edgeIt, names );
+            ++edgeIt;
+            for (;edgeIt != edges.end(); ++edgeIt ){
+                precLine << ' ' << buildPrecString(*edgeIt, names );
+
+            }
+            return precLine.str();
+        }
+
         void write(const DAG& g, const std::string& filename){
+            std::ofstream o(filename);
+            if (g.nameTable_.empty()){
+                for (std::integral auto nId: TU::irange(g.nodeCount())) {
+                    const auto &neighbors = g.neighbors(nId);
+                    if ( not neighbors.empty())
+                        o << buildPrecLine(nId, neighbors) << '\n';
+                }
+            }
+            else{
+                for (auto nodeName: g.nameTable_) {
+                    NodeId nId = g.nameIndex_.at(nodeName);
+                    const auto &neighbors = g.neighbors(nId);
+                    if ( not neighbors.empty())
+                        o << buildPrecLine(nId, neighbors, g.nameTable_) << '\n';
+                }
+
+            }
 
         }
 
@@ -595,35 +657,37 @@ namespace TU::Graph {
         }
 
 
-        std::tuple<std::vector<std::string>, DAG> read(const std::string& filename){
-            std::vector<std::string> nameTable;
-            std::unordered_map<std::string_view, size_t> nameIndex;
+         DAG read(const std::string& filename){
+            DAG graph;
+            DAG::NodeNameList & nameTable = graph.nameTable_;
+            DAG::NodeNameIndex & nameIndex = graph.nameIndex_;
 
             auto getNameId = [&](std::string_view nodeName) -> size_t {
-                auto headFound = nameIndex.find(nodeName);
+                auto headFound = nameIndex.find( nodeName );
                 if ( headFound != nameIndex.end()){
                     return headFound->second;
                 }
 
+                auto newId = nameTable.size();
                 auto [strbegin, strend] = TU::strview_range(nodeName);
                 nameTable.emplace_back(strbegin, strend);
-                auto newId = nameTable.size() - 1;
-                nameIndex[nameTable[newId]] = newId;
+                std::string_view nameView( nameTable.back() );
+                nameIndex.emplace(nameView, newId);
                 return newId;
             };
 
-            DAG graph;
             auto safeNeighbors = [&](size_t n) -> DAG::EdgeList& {
                 if ( graph.nodeCount() <= n)
                     graph.adj_.resize(n+1);
                 return graph.neighbors(n);
             };
+
             auto precCount = TU::countCharInFile(filename, '\n');
             graph.adj_.resize(precCount);
-            std::cout<< "reading precedences for " << filename << " with at least " << precCount << " nodes " << std::endl;
 
             std::ifstream in(filename);
             std::string line;
+            size_t lineNumber = 0;
             while ( std::getline(in,line)){
 
                 //just in case, drop the \r that may be left at the end.
@@ -641,22 +705,26 @@ namespace TU::Graph {
                 auto count = TU::strToInt(*it);
                 ++it;
 
-                size_t headId = getNameId(headName);
-                DAG::EdgeList& nodeEdges = safeNeighbors(headId);
+                    size_t headId = getNameId(headName);
+                    DAG::EdgeList &nodeEdges = safeNeighbors(headId);
+                    nodeEdges.reserve(count);
 
 
-                if ( tokens.size() - 2 != count)
-                    throw TU::Exception("Error parsing precedence line. Line mismatch between declared count and found items.");
+                    if (tokens.size() - 2 != count)
+                        throw TU::Exception(
+                                "Error parsing precedence line. Line mismatch between declared count and found items.");
 
-                for (; it!= tokens.end(); ++it){
-                    auto [name,lag] = readPrecEdge(*it);
-                    auto precNameId = getNameId(name);
-                    nodeEdges.emplace_back(DAG::Edge{static_cast<NodeId>(precNameId),static_cast<CostType>(lag)});
-                }
+                    for (; it != tokens.end(); ++it) {
+                        auto [name, lag] = readPrecEdge(*it);
+                        auto precNameId = getNameId(name);
+                        nodeEdges.emplace_back(DAG::Edge{static_cast<NodeId>(precNameId), static_cast<CostType>(lag)});
+                    }
+
+                ++lineNumber;
 
             }
 
-            return {std::move(nameTable), std::move(graph)};
+            return graph;
         }
 
     } //namespace IO::Prec

@@ -6,6 +6,8 @@
 #include <vector>
 #include <string>
 #include <string_view>
+#include <deque>
+#include <unordered_map>
 
 namespace TU::Graph {
 
@@ -20,12 +22,11 @@ namespace TU::Graph {
             NodeId dest_;
             CostType cost_;
         };
-        struct NodeInfo {
-            std::string name;
-        };
 
         using EdgeList = std::vector<Edge>;
         using NodeIdList = std::vector<NodeId>;
+        using NodeNameList = std::deque<std::string>;
+        using NodeNameIndex = std::unordered_map<std::string_view, size_t>;
 
         [[nodiscard]] inline
         size_t nodeCount() const {
@@ -37,12 +38,13 @@ namespace TU::Graph {
             return adj_.at(n);
         }
 
-        inline
+        [[nodiscard]] inline
         EdgeList& neighbors(NodeId n) {
             return adj_.at(n);
         }
 
-
+        NodeNameList nameTable_;
+        NodeNameIndex nameIndex_;
         std::vector< EdgeList > adj_;
     };
 
@@ -82,7 +84,7 @@ namespace TU::Graph {
     namespace IO::Prec {
         void write(const DAG& g, const std::string& filename);
 
-        std::tuple<std::vector<std::string>, DAG> read(const std::string& filename);
+        DAG read(const std::string& filename);
     }
 
 } // TU::Graph

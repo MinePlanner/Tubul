@@ -12,7 +12,7 @@
 
 TEST(TUBULGraph, testBasic) {
 
-    TU::Graph::DAG dag{{
+    TU::Graph::DAG dag{{},{},{
                                {{1, 0}, {2, 0}, {3,2}, {5,2}},
                                {{2, 1}, {4,1}, {5,0}},
                                {{1, 0},{4,0}},
@@ -39,11 +39,16 @@ TEST(TUBULGraph, testBasic) {
 
 }
 TEST(TUBULGraph, testPrecedencesFormat) {
-
-
+//If you want do do some tests, get a precedences file and point to it here. I
+//was not sure how to properly add a prec file that i would know how to reach
+//from the test.
+#if 0
     auto start = TU::now();
-    std::string filename("Barrick-DBS.prec");
-    auto [name, dag] = TU::Graph::IO::Prec::read(filename);
+    std::string filename("Pueblo_Viejo.prec");
+    auto dag = TU::Graph::IO::Prec::read(filename);
     std::cout << " Parsing " << filename << " tool " << TU::elapsed(start) << "s" << std::endl;
 
+    std::string out("publocopy.prec");
+    TU::Graph::IO::Prec::write(dag, out);
+#endif
 }
