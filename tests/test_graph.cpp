@@ -38,3 +38,12 @@ TEST(TUBULGraph, testBasic) {
     EXPECT_EQ(true, equal(dag, binenc));
 
 }
+TEST(TUBULGraph, testPrecedencesFormat) {
+
+
+    auto start = TU::now();
+    std::string filename("Barrick-DBS.prec");
+    auto [name, dag] = TU::Graph::IO::Prec::read(filename);
+    std::cout << " Parsing " << filename << " tool " << TU::elapsed(start) << "s" << std::endl;
+
+}

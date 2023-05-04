@@ -6,9 +6,12 @@
 #include "tubul_irange.h"
 #include "tubul_exception.h"
 #include "tubul_varint.h"
+#include "tubul_string.h"
+#include "tubul_file_utils.h"
 #include <iostream>
 #include <fstream>
 #include <sstream>
+#include <string>
 #include <algorithm>
 #include <unordered_map>
 
@@ -549,4 +552,112 @@ namespace TU::Graph {
             return g;
         }
     }//namespace IO::Encoded
+
+
+
+    namespace IO::Prec {
+        void write(const DAG& g, const std::string& filename){
+
+        }
+
+        std::tuple<std::string_view, int> readPrecEdge(std::string_view item){
+            auto pieces = TU::split(item,":");
+            auto checkPrecType = []( std::string_view t) -> bool{
+                if ( t.size() != 2)
+                    return false;
+                if ( t == "mb" || t == "MB")
+                    return true;
+                return false;
+            };
+
+            switch ( pieces.size() ) {
+                case 1:
+                    return {item, 0};
+                    break;
+                case 2:{
+                    auto& firstItem = pieces.front();
+                    if (  checkPrecType(firstItem) )
+                        return {pieces[1], 0};
+                    return { pieces[0], TU::strToInt(pieces[1])};
+                }
+                    break;
+                case 3:{
+                    auto& firstItem = pieces.front();
+                   if ( not checkPrecType(firstItem) )
+                       throw TU::Exception("Error when trying to parse precedence. First item should be identifier MB, but isn't");
+                   return {pieces[1], TU::strToInt(pieces[2])};
+
+                }
+                    break;
+                default:
+                    throw TU::Exception("Error when trying to parse precedence");
+            }
+        }
+
+
+        std::tuple<std::vector<std::string>, DAG> read(const std::string& filename){
+            std::vector<std::string> nameTable;
+            std::unordered_map<std::string_view, size_t> nameIndex;
+
+            auto getNameId = [&](std::string_view nodeName) -> size_t {
+                auto headFound = nameIndex.find(nodeName);
+                if ( headFound != nameIndex.end()){
+                    return headFound->second;
+                }
+
+                auto [strbegin, strend] = TU::strview_range(nodeName);
+                nameTable.emplace_back(strbegin, strend);
+                auto newId = nameTable.size() - 1;
+                nameIndex[nameTable[newId]] = newId;
+                return newId;
+            };
+
+            DAG graph;
+            auto safeNeighbors = [&](size_t n) -> DAG::EdgeList& {
+                if ( graph.nodeCount() <= n)
+                    graph.adj_.resize(n+1);
+                return graph.neighbors(n);
+            };
+            auto precCount = TU::countCharInFile(filename, '\n');
+            graph.adj_.resize(precCount);
+            std::cout<< "reading precedences for " << filename << " with at least " << precCount << " nodes " << std::endl;
+
+            std::ifstream in(filename);
+            std::string line;
+            while ( std::getline(in,line)){
+
+                //just in case, drop the \r that may be left at the end.
+                if ( line.ends_with('\r') )
+                    line.erase(line.size()-1);
+                //split by spaces and the line should have at least 2 items:
+                //the head and count of precedences
+                auto tokens = TU::split(line);
+                if ( tokens.size() < 2)
+                    throw TU::Exception("Error parsing precedence line. Line contains less than 2 items.");
+
+                auto it = tokens.begin();
+                auto [headName, dummy] = readPrecEdge(*it);
+                ++it;
+                auto count = TU::strToInt(*it);
+                ++it;
+
+                size_t headId = getNameId(headName);
+                DAG::EdgeList& nodeEdges = safeNeighbors(headId);
+
+
+                if ( tokens.size() - 2 != count)
+                    throw TU::Exception("Error parsing precedence line. Line mismatch between declared count and found items.");
+
+                for (; it!= tokens.end(); ++it){
+                    auto [name,lag] = readPrecEdge(*it);
+                    auto precNameId = getNameId(name);
+                    nodeEdges.emplace_back(DAG::Edge{static_cast<NodeId>(precNameId),static_cast<CostType>(lag)});
+                }
+
+            }
+
+            return {std::move(nameTable), std::move(graph)};
+        }
+
+    } //namespace IO::Prec
 } // TU

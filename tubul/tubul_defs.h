@@ -20,6 +20,7 @@
 #include "tubul_time.h"
 #include "tubul_blocks.h"
 #include "tubul_exception.h"
+#include "tubul_file_utils.h"
 #include "tubul_parse_csv.h"
 #include "tubul_logger.h"
 #include "tubul_engine.h"

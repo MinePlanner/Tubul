@@ -44,7 +44,6 @@ namespace TU::Graph {
 
 
         std::vector< EdgeList > adj_;
-        //std::vector<NodeInfo> info_; //Needs to be here?
     };
 
 
@@ -78,6 +77,12 @@ namespace TU::Graph {
         void write(const DAG& g, const std::string& filename);
 
         DAG read(const std::string& filename);
+    }
+
+    namespace IO::Prec {
+        void write(const DAG& g, const std::string& filename);
+
+        std::tuple<std::vector<std::string>, DAG> read(const std::string& filename);
     }
 
 } // TU::Graph

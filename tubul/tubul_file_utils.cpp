@@ -1,6 +1,7 @@
 //
 // Created by Carlos Acosta on 30-03-23.
 //
+#include "tubul_file_utils.h"
 #include <filesystem>
 #include <string>
 #include <string_view>
@@ -30,11 +31,6 @@ size_t countCharInFile( const std::string_view& filename, char c)
 }
 
 
-//Simple wrapper for common task when using str_views to convert to types.
-inline
-constexpr auto strview_range(std::string_view s) noexcept {
-    return std::tuple(s.data(), s.data() + s.size());
-}
 
 
 //Template implementation to actually do the conversion to a given type.
