@@ -2,6 +2,7 @@
 // Created by Carlos Acosta on 27-01-23.
 //
 
+#include <utility>
 #include <vector>
 #include <string>
 #include <chrono>
@@ -14,8 +15,8 @@ namespace TU
 struct BlockDescription
 {
 	using TimePoint = decltype(std::chrono::high_resolution_clock::now());
-	BlockDescription(const std::string& n, TimePoint tp):
-		name(n), start_time(tp)
+	BlockDescription(std::string n, TimePoint tp):
+		name(std::move(n)), start_time(tp)
 	{}
 
 	std::string name;
@@ -51,7 +52,7 @@ ProcessBlock::~ProcessBlock()
 	//warnings for variables not used.
 	(void) block_duration;
 	blocks.pop_back();
-	//Just to be safe, let's check the number of blocks is the.
+	//Just to be safe, let's check the number of blocks is ok
 	assert(index_ == blocks.size());
 }
 

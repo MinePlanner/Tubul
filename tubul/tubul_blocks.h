@@ -10,7 +10,7 @@ namespace TU
 
 struct ProcessBlock
 {
-	ProcessBlock(const std::string& name);
+	explicit ProcessBlock(const std::string& name);
 	~ProcessBlock();
 
 private:

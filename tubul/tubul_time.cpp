@@ -3,7 +3,6 @@
 //
 
 #include <chrono>
-#include <iostream>
 #include "tubul_time.h"
 #include "tubul_logger.h"
 

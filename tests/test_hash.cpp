@@ -4,7 +4,6 @@
 
 #include <gtest/gtest.h>
 #include "tubul.h"
-#include <iostream>
 #include <unordered_map>
 #include <tuple>
 

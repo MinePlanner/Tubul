@@ -4,7 +4,6 @@
 
 #pragma once
 #include <concepts>
-#include <cstddef>
 
 namespace TU{
 namespace details{
@@ -14,7 +13,7 @@ namespace details{
 	private:
 		class iter {
 		public:
-			iter(T at) : at_(at) {}
+			explicit iter(T at) : at_(at) {}
 			bool operator!=(iter const& other) const { return at_ != other.at_; }
 			T const& operator*() const { return at_; }
 			iter& operator++() { ++at_; return *this; }
@@ -35,7 +34,7 @@ namespace details{
 	};
 
 	template <std::integral T>
-	class skip_range {
+	class skipRange {
 	private:
 		class iter {
 		public:
@@ -52,7 +51,7 @@ namespace details{
 		};
 
 	public:
-		skip_range(T begin, T end, T step) :
+		skipRange(T begin, T end, T step) :
 			begin_val_(begin),
 			end_val_(end),
 			step_val_(step)
@@ -67,7 +66,7 @@ namespace details{
 }
 
 using tubul_range = details::range<std::size_t>;
-using tubul_skip_range = details::skip_range<std::size_t>;
+using tubul_skip_range = details::skipRange<std::size_t>;
 
 tubul_range irange(size_t end);
 tubul_range irange(size_t begin, size_t end);

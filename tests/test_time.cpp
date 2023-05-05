@@ -4,8 +4,7 @@
 
 #include <gtest/gtest.h>
 #include "tubul.h"
-#include <iostream>
-#include  <thread>
+#include <thread>
 
 TEST(TUBULTime, BasicTime)
 {
@@ -23,7 +22,7 @@ TEST(TUBULTime, BasicTime)
 	EXPECT_EQ( 5.5, TU::elapsed(begin, end));
 
 	double spentTime = TU::elapsed(begin);
-	//Not sure about the value, but i would expect the clock to be more
+	//Not sure about the value, but I would expect the clock to be more
 	//precise than a millisecond.
 	EXPECT_LT(spentTime, 0.001);
 
