@@ -15,7 +15,7 @@ namespace TU::Graph {
     static constexpr char GraphHeader[]  = "%ALICANGRAPH%";
     static constexpr size_t HeaderSize = sizeof(GraphHeader);
     using NodeId = std::int32_t;
-    using CostType = double;
+    using CostType = std::int32_t;
 
     struct DAG {
         struct Edge {

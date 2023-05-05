@@ -330,7 +330,7 @@ namespace TU::Graph {
 
         void writeEdge(std::ostream& o, const DAG::Edge& e) {
             writeVarInt(o, toVarint(e.dest_));
-            writePod(o, e.cost_);
+            writeVarInt(o, toVarint(e.cost_));
         }
 
         template <typename ContainerType>
@@ -389,7 +389,7 @@ namespace TU::Graph {
                 } else {
                     auto mask = toNumber( EdgeListDescriptionMask::SameCost );
                     writePod(o, mask);
-                    writePod(o, firstCost);
+                    writeVarInt(o, toVarint(firstCost));
                 }
 
                 for (const auto &edge: c) {
@@ -413,7 +413,7 @@ namespace TU::Graph {
                     } else {
                         auto submask = toNumber( EdgeListDescriptionMask::SameCost );
                         writePod(o, submask);
-                        writePod(o, firstCost);
+                        writeVarInt(o, toVarint(firstCost));
                     }
                     for (const auto &dest: item.second) {
                         writeVarInt(o, toVarint(dest));
@@ -498,7 +498,7 @@ namespace TU::Graph {
                     auto sublistDescr = toEnum<EdgeListDescriptionMask>(sublistByte );
                     //Should only be SameCost or NoCost.
                     if ( sublistDescr == EdgeListDescriptionMask::SameCost )
-                        readPod(in, commonCost);
+                        commonCost = static_cast<CostType>(readVarInt(in));
                     else if ( sublistDescr != EdgeListDescriptionMask::NoCost)
                         throw TU::Exception("Reading list with subgroups decoded something invalid");
 
@@ -517,7 +517,7 @@ namespace TU::Graph {
                 for (int i = 0; i < nEdges; ++i) {
                     DAG::Edge e{0, 0};
                     e.dest_ = static_cast<NodeId >( readVarInt(in));
-                    readPod(in, e.cost_);
+                    e.cost_ = static_cast<CostType>( readVarInt(in));
                     edgeList.push_back(e);
                 }
                 return edgeList;
@@ -525,7 +525,7 @@ namespace TU::Graph {
             //If all arcs have the same cost, we "buffer" the common cost
             //and use it for all edges. If the cost is 0, it works the same.
             else if ( descr == EdgeListDescriptionMask::SameCost ){
-                readPod(in, commonCost);
+                commonCost = static_cast<CostType>(readVarInt(in));
             }
             //else EdgeListDescriptionMask::NoCost -> nothing to do
             for (int i = 0; i < nEdges; ++i) {
