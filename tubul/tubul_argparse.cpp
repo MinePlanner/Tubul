@@ -26,7 +26,7 @@ argparse::ArgumentParser& getArgumentsParser()
  */
 struct Argument::ArgImpl
 {
-	ArgImpl(argparse::Argument& a):arg_(a){}
+	explicit ArgImpl(argparse::Argument& a):arg_(a){}
 	argparse::Argument& get() {return arg_;}
 	argparse::Argument& arg_;
 };
@@ -35,7 +35,7 @@ struct Argument::ArgImpl
 // Implementation of the Argument class, which is pretty much
 // forwarding everything to the internal argparse implementation.
 Argument::Argument(ArgImplPtr&& arg): arg_(std::forward<ArgImplPtr>(arg) ) { }
-Argument::~Argument(){ }
+Argument::~Argument() = default;
 
 Argument& Argument::required() { arg_->get().required(); return *this; }
 Argument& Argument::help(std::string const& help_text) { arg_->get().help(help_text); return *this; }
@@ -46,6 +46,7 @@ Argument& Argument::defaultValue( const char* val){  arg_->get().default_value( 
 Argument& Argument::setAsDouble( ){  arg_->get().scan<'g',double>(); return *this;}
 Argument& Argument::setAsInteger( ){  arg_->get().scan<'d',int>(); return *this;}
 Argument& Argument::setAsFlag(){ arg_->get().implicit_value(true).default_value(false); return *this;}
+Argument& Argument::setAsBool(){ arg_->get().implicit_value(true).default_value(false); return *this;}
 Argument& Argument::setAsList( ){  arg_->get().nargs(argparse::nargs_pattern::at_least_one); return *this;}
 
 

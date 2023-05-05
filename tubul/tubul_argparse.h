@@ -25,6 +25,7 @@ public:
 	Argument& defaultValue( std::string const& val );
 	Argument& defaultValue( const char* val );
 	Argument& setAsFlag();
+	Argument& setAsBool();
 	Argument& setAsDouble();
 	Argument& setAsInteger();
 	Argument& setAsList();
