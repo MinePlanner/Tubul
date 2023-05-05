@@ -66,7 +66,7 @@ namespace TU {
                 std::string("Error: '") + msg + "' at function " + function + " (" + file + ":" + std::to_string(line) +
                 ")";
         logError(errormsg);
-        return {errormsg};
+        return TU::Exception(errormsg);
     }
 
 #else

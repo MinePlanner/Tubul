@@ -19,17 +19,17 @@
 
 namespace TU{
 
-std::string read_file_to_string(const std::string& filename)
+std::string readFileToString(const std::string& filename)
 {
-	std::ifstream proc_file( filename );
+	std::ifstream proc_file( filename , std::ios::in );
 	std::string str((std::istreambuf_iterator<char>(proc_file)),
                     std::istreambuf_iterator<char>());
 	return str;
 }
 
-std::string bytes_to_string(size_t value_in_bytes)
+std::string bytesToString(size_t value_in_bytes)
 {
-	std::vector<std::string> units ={"b", "kb", "mb", "gb"};
+	std::vector<std::string> units = {"b", "kb", "mb", "gb"};
 	std::stringstream buffer;
 	buffer << std::setprecision(2) << std::fixed;
 	//This starts in bytes;
@@ -60,7 +60,7 @@ std::string bytes_to_string(size_t value_in_bytes)
 	dt         (7) dirty pages (unused in Linux 2.6)
 	 */
 
-size_t getLinuxRSS()
+size_t getCurrentRSS()
 {
 	//The statsm proc file contains the memory as page counts, so
 	//we need the page size to accurately measure this as bytes
@@ -81,7 +81,7 @@ size_t getLinuxRSS()
 
 
 
-size_t getLinuxPeakRSS()
+size_t getPeakRSS()
 {
 	auto status_procfile = read_file_to_string("/proc/self/status");
 	//Get the line containing "VmHWM:"
@@ -106,7 +106,7 @@ size_t getLinuxPeakRSS()
 #endif
 
 #if defined(TUBUL_MACOS)
-size_t getAppleRSS()
+size_t getCurrentRSS()
 {
 	struct mach_task_basic_info info;
 	mach_msg_type_number_t infoCount = MACH_TASK_BASIC_INFO_COUNT;
@@ -116,7 +116,7 @@ size_t getAppleRSS()
 	return (size_t)info.resident_size;
 }
 
-size_t getApplePeakRSS()
+size_t getPeakRSS()
 {
 	struct mach_task_basic_info info;
 	mach_msg_type_number_t infoCount = MACH_TASK_BASIC_INFO_COUNT;
@@ -128,14 +128,14 @@ size_t getApplePeakRSS()
 #endif
 
 #if defined(TUBUL_WINDOWS)
-size_t getWindowsPeakRSS( )
+size_t getPeakRSS( )
 {
 	PROCESS_MEMORY_COUNTERS info;
 	GetProcessMemoryInfo( GetCurrentProcess( ), &info, sizeof(info) );
 	return (size_t)info.PeakWorkingSetSize;
 }
 
-size_t getWindowsRSS( )
+size_t getCurrentRSS( )
 {
 	PROCESS_MEMORY_COUNTERS info;
 	GetProcessMemoryInfo(GetCurrentProcess(), &info, sizeof(info));
@@ -146,25 +146,12 @@ size_t getWindowsRSS( )
 
 std::string memPeakRSS()
 {
-#if defined(TUBUL_MACOS)
-	return bytes_to_string( getApplePeakRSS() );
-#elif defined(TUBUL_LINUX)
-	return bytes_to_string( getLinuxPeakRSS() );
-#elif defined(TUBUL_WINDOWS)
-	return bytes_to_string( getWindowsPeakRSS() );
-#endif
+	return bytesToString(getPeakRSS());
 }
 
 std::string memCurrentRSS()
 {
-#if defined(TUBUL_MACOS)
-	return bytes_to_string( getAppleRSS() );
-#elif defined(TUBUL_LINUX)
-	return bytes_to_string( getLinuxRSS() );
-#elif defined(TUBUL_WINDOWS)
-	return bytes_to_string( getWindowsRSS() );
-#endif
-
+	return bytesToString(getCurrentRSS());
 }
 
 }
