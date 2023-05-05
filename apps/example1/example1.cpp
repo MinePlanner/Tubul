@@ -142,14 +142,14 @@ int main(int argc, const char** argv){
     // start by setting up loggers
     exampleLogging();
 
-	TU::ProcessBlock b("exampleApp");
+	TU::Block b("exampleApp");
 	TU::AutoStopWatch exampleTimer("Example app elapsed:");
 
 	//Cool trick to use "3s" instead of std::chrono::seconds(3)
 	using namespace std::chrono_literals;
 	TU::Timer alarm3s(3s);
 	{
-		TU::ProcessBlock parsing("Parsing");
+		TU::Block parsing("Parsing");
 		TU::AutoStopWatch t(std::string("Tubul example timer for parse arguments:"));
 		parseArguments(argc, argv);
         TU::logReport() << TU::getCurrentBlockLocation();
@@ -165,7 +165,7 @@ int main(int argc, const char** argv){
 
 	TU::TimeDuration exampleElapsed;
 	{
-		TU::ProcessBlock ps("sleeping");
+		TU::Block ps("sleeping");
 		TU::StopWatch st(exampleElapsed);
 		std::this_thread::sleep_for(std::chrono::seconds(3));
 		TU::logReport() << TU::getCurrentBlockLocation();

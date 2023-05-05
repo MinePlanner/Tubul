@@ -2,12 +2,12 @@
 // Created by Carlos Acosta on 27-01-23.
 //
 
-#include <utility>
 #include <vector>
 #include <string>
 #include <chrono>
 #include <cassert>
 #include "tubul_blocks.h"
+#include "tubul_logger.h"
 
 
 namespace TU
@@ -29,14 +29,14 @@ std::vector<BlockDescription>& getBlockContainer()
 	return block_container;
 }
 
-ProcessBlock::ProcessBlock(const std::string &name)
+Block::Block(const std::string &name)
 {
 	auto& blocks = getBlockContainer();
 	index_ = blocks.size();
 	blocks.emplace_back( name, std::chrono::high_resolution_clock::now() );
 }
 
-ProcessBlock::~ProcessBlock()
+Block::~Block()
 {
 	auto& blocks = getBlockContainer();
 	//If somehow the blocks are empty and we got here, that means somethign really
@@ -50,7 +50,7 @@ ProcessBlock::~ProcessBlock()
 	Duration block_duration =  std::chrono::high_resolution_clock::now() - closingBlock.start_time ;
 	//We should do something about the duration, like logging it for now just avoid
 	//warnings for variables not used.
-	(void) block_duration;
+    TU::logInfo() << "Block " << closingBlock.name << " took " << block_duration.count() << " seconds.";
 	blocks.pop_back();
 	//Just to be safe, let's check the number of blocks is ok
 	assert(index_ == blocks.size());

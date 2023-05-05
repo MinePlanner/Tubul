@@ -8,10 +8,10 @@
 namespace TU
 {
 
-struct ProcessBlock
+struct Block
 {
-	explicit ProcessBlock(const std::string& name);
-	~ProcessBlock();
+	explicit Block(const std::string& name);
+	~Block();
 
 private:
 	size_t index_;
