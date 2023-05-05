@@ -32,11 +32,18 @@ TEST(TUBULHash, BasicTupleHash3) {
     P3i v1{10,20,500};
     auto val = hasher(v1);
     P3i v2{10,20, 100};
-    val = hasher(v2);
+    auto val2 = hasher(v2);
+    EXPECT_NE(val, val2);
+    val2 = hasher(v1);
+    EXPECT_EQ(val, val2);
     P3i v3{20,20,20};
-    val = hasher(v3);
+    auto val3 = hasher(v3);
+    EXPECT_NE(val3, val2);
     P3i v4{20,10, 10};
-    val = hasher(v4);
+    auto val4 = hasher(v4);
+    EXPECT_NE(val3, val4);
+    val4 = hasher(v3);
+    EXPECT_EQ(val3, val4);
 }
 
 TEST(TUBULHash, BasicTupleHash3_float) {
@@ -44,13 +51,17 @@ TEST(TUBULHash, BasicTupleHash3_float) {
     TU::hash<P3f> hasher;
 
     P3f v1{10,20,500};
-    auto val = hasher(v1);
+    auto val1 = hasher(v1);
     P3f v2{10,20, 100};
-    val = hasher(v2);
+    auto val2 = hasher(v2);
     P3f v3{20,20,20};
-    val = hasher(v3);
+    auto val3 = hasher(v3);
     P3f v4{20,10, 10};
-    val = hasher(v4);
+    auto val4 = hasher(v4);
+    EXPECT_NE(val1,val2); EXPECT_NE(val1,val3); EXPECT_NE(val1,val4);
+    EXPECT_NE(val2,val3); EXPECT_NE(val2,val4); EXPECT_NE(val3,val4);
+    val4 = hasher(std::make_tuple(10,20,500));
+    EXPECT_EQ(val1, val4);
 }
 
 TEST(TUBULHash, TupleHash3_misc) {
@@ -58,13 +69,20 @@ TEST(TUBULHash, TupleHash3_misc) {
     TU::hash<P3h> hasher;
 
     P3h v1{10.0,"Pepito",500};
-    auto val = hasher(v1);
+    auto val1 = hasher(v1);
     P3h v2{3.1415,"Juanito", 100};
-    val = hasher(v2);
+    auto val2 = hasher(v2);
     P3h v3{20,"Pedrito",20};
-    val = hasher(v3);
+    auto val3 = hasher(v3);
     P3h v4{20,"Juanelo", 10};
-    val = hasher(v4);
+    auto val4 = hasher(v4);
+
+    EXPECT_NE(val1,val2); EXPECT_NE(val1,val3); EXPECT_NE(val1,val4);
+    EXPECT_NE(val2,val3); EXPECT_NE(val2,val4); EXPECT_NE(val3,val4);
+    val2 = hasher(v1);
+    EXPECT_EQ(val1, val2);
+    val3 = hasher(std::make_tuple(20,"Juanelo", 10));
+    EXPECT_EQ(val3, val4);
 }
 
 TEST(TUBULHash, TupleHash3_umaps) {
@@ -75,9 +93,20 @@ TEST(TUBULHash, TupleHash3_umaps) {
     P3h v1{10.0, "Pepito", 500};
     auto val = hasher(v1);
     container[v1] = 10;
+    EXPECT_EQ(container[v1], 10);
 
     P3h other{ 10.0, "Pepito", 500};
     auto val2 = hasher(other);
+    container[other] = 20;
     EXPECT_EQ(val,val2);
+    EXPECT_EQ(container[v1],20);
+
+    P3h other2{ 10.0, "Superman", 500};
+    auto val3 = hasher(other2);
+    EXPECT_NE(val3,val2);
+    container[other2] = 50;
+
+    EXPECT_EQ(container[other2],50);
+    EXPECT_EQ(container.size(),2);
 }
 
