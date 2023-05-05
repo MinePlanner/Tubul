@@ -13,9 +13,9 @@ namespace TU
 
 struct Exception : public std::runtime_error
 {
-	Exception(const std::string& msg);
+	explicit Exception(const std::string& msg);
 	Exception& operator<<(const std::string& extra_info);
-	std::string to_string() const;
+	[[nodiscard]] std::string to_string() const;
 
 private:
 	std::vector<std::string> msgs_;

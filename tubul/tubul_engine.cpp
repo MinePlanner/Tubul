@@ -26,8 +26,7 @@ namespace TU {
 
     TubulEngine::~TubulEngine() {
         // close managed files
-        while (not managedFiles_.empty())
-            managedFiles_.pop_back();
+        managedFiles_.clear();
     }
 
     std::ostream &TubulEngine::openFile(std::string const &fileName) {
@@ -88,17 +87,13 @@ namespace TU {
         time_t tnow = std::chrono::system_clock::to_time_t(now);
         tm *utc = localtime(&tnow);
 
-        logStream << std::setfill('0');
-        logStream << std::setw(4) << utc->tm_year + 1900; // Year
-        logStream << '-';
-        logStream << std::setw(2) << utc->tm_mon + 1; // Month
-        logStream << '-';
-        logStream << std::setw(2) << utc->tm_mday; // Day
-        logStream << ' ';
-        logStream << std::setw(2) << utc->tm_hour << ':'; // Hours
-        logStream << std::setw(2) << utc->tm_min << ':';  // Minutes
-        logStream << std::setw(2) << utc->tm_sec;         // Seconds
-        logStream << " - ";
+        logStream << std::setfill('0')
+                  << std::setw(4) << utc->tm_year + 1900 << '-' << std::setw(2) << utc->tm_mon + 1 << '-'
+                  << std::setw(2) << utc->tm_mday
+                  << ' '
+                  << std::setw(2) << utc->tm_hour << ':' << std::setw(2) << utc->tm_min << ':' << std::setw(2)
+                  << utc->tm_sec
+                  << " - ";
     }
 
 } // namespace TU

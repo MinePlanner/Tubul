@@ -32,7 +32,7 @@ bool isRegularFile(const std::string_view& name) {
 //this function wraps that task concisely.
 size_t countCharInFile( const std::string_view& filename, char c)
 {
-    std::ifstream ifile(filename.data());
+    std::ifstream ifile(filename.data(), std::ios::in);
     auto start = std::istreambuf_iterator<char>(ifile);
     auto end = std::istreambuf_iterator<char>();
 
