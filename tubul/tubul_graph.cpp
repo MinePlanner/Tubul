@@ -19,12 +19,12 @@
 
 namespace TU::Graph {
 
-    bool equal( const DAG::Edge& l, const DAG::Edge& r)
+    bool equal(const SparseWeightDirected::Edge& l, const SparseWeightDirected::Edge& r)
     {
         return l.dest_ == r.dest_ and l.cost_ == r.cost_;
     }
 
-    bool equal( const DAG& l, const DAG& r)
+    bool equal(const SparseWeightDirected& l, const SparseWeightDirected& r)
     {
         if ( l.nodeCount() != r.nodeCount())
             return false;
@@ -36,7 +36,7 @@ namespace TU::Graph {
             if (lside.size() != rside.size())
                 return false;
             for ( auto item: lside) {
-                auto comp = [=](const DAG::Edge& d)->bool { return equal(d,item);};
+                auto comp = [=](const SparseWeightDirected::Edge& d)->bool { return equal(d, item);};
                 auto found = std::find_if(rside.begin(), rside.end(),comp);
                 if( found == rside.end() )
                     return false;
@@ -94,12 +94,12 @@ namespace TU::Graph {
             o << GraphHeader  << '\n';
         }
 
-        void writeDescription(std::ostream& o, const TU::Graph::DAG& g){
-            auto id = ::TU::Graph::GraphDescriptionInfo<::TU::Graph::DAG >::typeId;
+        void writeDescription(std::ostream& o, const TU::Graph::SparseWeightDirected& g){
+            auto id = ::TU::Graph::GraphDescriptionInfo<::TU::Graph::SparseWeightDirected >::typeId;
             o << id << ' ' << g.nodeCount() << '\n';
         }
 
-        void writeEdge(std::ostream& o, const DAG::Edge& e) {
+        void writeEdge(std::ostream& o, const SparseWeightDirected::Edge& e) {
             o << e.dest_ << ' ' << e.cost_;
         }
 
@@ -120,7 +120,7 @@ namespace TU::Graph {
             }
         }
 
-        void write(const DAG& g, const std::string& filename)
+        void write(const SparseWeightDirected& g, const std::string& filename)
         {
 
             //#nodes? graph type? offset adj table? //Quizas al final? es mas facil..
@@ -150,14 +150,14 @@ namespace TU::Graph {
                 throw TU::Exception("[Graph] There's a difference in the header, file may be corrupt!");
         }
 
-        void readDescription(std::istream& i, TU::Graph::DAG& g) {
+        void readDescription(std::istream& i, TU::Graph::SparseWeightDirected& g) {
             std::string descr;
             std::getline(i, descr);
             std::istringstream line(descr);
             char id;
             line >> id;
 
-            auto expected = ::TU::Graph::GraphDescriptionInfo<::TU::Graph::DAG>::typeId;
+            auto expected = ::TU::Graph::GraphDescriptionInfo<::TU::Graph::SparseWeightDirected>::typeId;
             if ( id != expected ) {
                 std::string error;
                 error += "Expected graph with id '" + std::to_string(expected) +
@@ -170,23 +170,23 @@ namespace TU::Graph {
             g.adj_.resize(n);
         }
 
-        DAG::EdgeList readEdgeList(std::istream& in) {
+        SparseWeightDirected::EdgeList readEdgeList(std::istream& in) {
             size_t nEdges;
             in >> nEdges;
-            DAG::EdgeList edgeList;
+            SparseWeightDirected::EdgeList edgeList;
             for ( int i = 0; i < nEdges; ++i) {
                 NodeId nid;
                 CostType cost;
                 in >> nid;
                 in >> cost;
-                edgeList.push_back( DAG::Edge{nid,cost} );
+                edgeList.push_back(SparseWeightDirected::Edge{nid, cost} );
             }
             return edgeList;
         }
 
-        DAG read(const std::string& filename)
+        SparseWeightDirected read(const std::string& filename)
         {
-            DAG g;
+            SparseWeightDirected g;
             std::ifstream in(filename);
             //Header-signature
             readHeader(in);
@@ -207,14 +207,14 @@ namespace TU::Graph {
             o.write(GraphHeader, sizeof(GraphHeader));
         }
 
-        void writeDescription(std::ostream& o, const TU::Graph::DAG& g){
-            auto id = ::TU::Graph::GraphDescriptionInfo<::TU::Graph::DAG >::typeId;
+        void writeDescription(std::ostream& o, const TU::Graph::SparseWeightDirected& g){
+            auto id = ::TU::Graph::GraphDescriptionInfo<::TU::Graph::SparseWeightDirected >::typeId;
             writePod( o, id);
             auto n = g.nodeCount();
             writePod( o, n);
         }
 
-        void writeEdge(std::ostream& o, const DAG::Edge& e) {
+        void writeEdge(std::ostream& o, const SparseWeightDirected::Edge& e) {
             writePod(o,e);
         }
 
@@ -230,7 +230,7 @@ namespace TU::Graph {
             }
         }
 
-        void write(const DAG& g, const std::string& filename)
+        void write(const SparseWeightDirected& g, const std::string& filename)
         {
 
             //#nodes? graph type? offset adj table? //Quizas al final? es mas facil..
@@ -260,10 +260,10 @@ namespace TU::Graph {
                 throw TU::Exception("[Graph] There's a difference in the header, file may be corrupt!");
         }
 
-        void readDescription(std::istream& i, TU::Graph::DAG& g) {
+        void readDescription(std::istream& i, TU::Graph::SparseWeightDirected& g) {
             std::string descr;
-            auto expected = ::TU::Graph::GraphDescriptionInfo<::TU::Graph::DAG>::typeId;
-            auto id = ::TU::Graph::GraphDescriptionInfo<::TU::Graph::DAG>::typeId;
+            auto expected = ::TU::Graph::GraphDescriptionInfo<::TU::Graph::SparseWeightDirected>::typeId;
+            auto id = ::TU::Graph::GraphDescriptionInfo<::TU::Graph::SparseWeightDirected>::typeId;
             readPod(i, id);
 
             if ( id != expected ) {
@@ -278,21 +278,21 @@ namespace TU::Graph {
             g.adj_.resize(n);
         }
 
-        DAG::EdgeList readEdgeList(std::istream& in) {
+        SparseWeightDirected::EdgeList readEdgeList(std::istream& in) {
             size_t nEdges=0;
             readPod(in, nEdges);
-            DAG::EdgeList edgeList;
+            SparseWeightDirected::EdgeList edgeList;
             for ( int i = 0; i < nEdges; ++i) {
-                DAG::Edge e{0,0};
+                SparseWeightDirected::Edge e{0, 0};
                 readPod(in,e);
                 edgeList.push_back( e );
             }
             return edgeList;
         }
 
-        DAG read(const std::string& filename)
+        SparseWeightDirected read(const std::string& filename)
         {
-            DAG g;
+            SparseWeightDirected g;
             std::ifstream in(filename);
             //Header-signature
             readHeader(in);
@@ -320,29 +320,29 @@ namespace TU::Graph {
             o.write(GraphHeader, sizeof(GraphHeader));
         }
 
-        void writeDescription(std::ostream& o, const TU::Graph::DAG& g){
-            auto id = ::TU::Graph::GraphDescriptionInfo<::TU::Graph::DAG >::typeId;
+        void writeDescription(std::ostream& o, const TU::Graph::SparseWeightDirected& g){
+            auto id = ::TU::Graph::GraphDescriptionInfo<::TU::Graph::SparseWeightDirected >::typeId;
             writePod( o, id);
             auto n = g.nodeCount();
             auto encodedN = toVarint(n);
             writeVarInt( o, encodedN);
         }
 
-        void writeEdge(std::ostream& o, const DAG::Edge& e) {
+        void writeEdge(std::ostream& o, const SparseWeightDirected::Edge& e) {
             writeVarInt(o, toVarint(e.dest_));
             writeVarInt(o, toVarint(e.cost_));
         }
 
         template <typename ContainerType>
-        std::unordered_map<CostType, DAG::NodeIdList > bucketCosts(const ContainerType& c)  {
-            std::unordered_map<CostType, DAG::NodeIdList > costs;
+        std::unordered_map<CostType, SparseWeightDirected::NodeIdList > bucketCosts(const ContainerType& c)  {
+            std::unordered_map<CostType, SparseWeightDirected::NodeIdList > costs;
             for (const auto& item: c) {
                 costs[item.cost_].push_back( item.dest_ );
             }
             return costs;
         }
 
-        void writeExpandedEdgeList(std::ostream& o, const DAG::EdgeList& c){
+        void writeExpandedEdgeList(std::ostream& o, const SparseWeightDirected::EdgeList& c){
             auto mask = toNumber( EdgeListDescriptionMask::UniqueCosts );
             writePod(o, mask);
             for ( const auto& edge: c) {
@@ -350,7 +350,7 @@ namespace TU::Graph {
             }
         }
 
-        bool bucketMinSize(const std::unordered_map<CostType, DAG::NodeIdList >& buckets, size_t min){
+        bool bucketMinSize(const std::unordered_map<CostType, SparseWeightDirected::NodeIdList >& buckets, size_t min){
             return std::all_of( buckets.begin(), buckets.end(),
                                 [=](const auto& item) -> bool
                                          { return (item.second.size() >= min); }
@@ -430,7 +430,7 @@ namespace TU::Graph {
 
         }
 
-        void write(const DAG& g, const std::string& filename) {
+        void write(const SparseWeightDirected& g, const std::string& filename) {
             //#nodes? graph type? offset adj table? //Quizas al final? es mas facil..
             //Tabla de nodos - (id implicito) Nombre - otros params? Num edges?
             //..
@@ -458,10 +458,10 @@ namespace TU::Graph {
                 throw TU::Exception("[Graph] There's a difference in the header, file may be corrupt!");
         }
 
-        void readDescription(std::istream& i, TU::Graph::DAG& g) {
+        void readDescription(std::istream& i, TU::Graph::SparseWeightDirected& g) {
             std::string descr;
-            auto expected = ::TU::Graph::GraphDescriptionInfo<::TU::Graph::DAG>::typeId;
-            auto id = ::TU::Graph::GraphDescriptionInfo<::TU::Graph::DAG>::typeId;
+            auto expected = ::TU::Graph::GraphDescriptionInfo<::TU::Graph::SparseWeightDirected>::typeId;
+            auto id = ::TU::Graph::GraphDescriptionInfo<::TU::Graph::SparseWeightDirected>::typeId;
             readPod(i, id);
 
             if ( id != expected ) {
@@ -476,9 +476,9 @@ namespace TU::Graph {
             g.adj_.resize(n);
         }
 
-        DAG::EdgeList readEdgeList(std::istream& in) {
+        SparseWeightDirected::EdgeList readEdgeList(std::istream& in) {
             size_t nEdges= readVarInt(in);
-            DAG::EdgeList edgeList;
+            SparseWeightDirected::EdgeList edgeList;
             if ( nEdges == 0 )
                 return edgeList;
 
@@ -503,7 +503,7 @@ namespace TU::Graph {
                         throw TU::Exception("Reading list with subgroups decoded something invalid");
 
                     for (int i = 0; i < subListEdges; ++i) {
-                        DAG::Edge e{0, 0};
+                        SparseWeightDirected::Edge e{0, 0};
                         e.dest_ = static_cast<NodeId >( readVarInt(in));
                         e.cost_ = commonCost;
                         edgeList.push_back(e);
@@ -515,7 +515,7 @@ namespace TU::Graph {
             }
             else if ( descr == EdgeListDescriptionMask::UniqueCosts ) {
                 for (int i = 0; i < nEdges; ++i) {
-                    DAG::Edge e{0, 0};
+                    SparseWeightDirected::Edge e{0, 0};
                     e.dest_ = static_cast<NodeId >( readVarInt(in));
                     e.cost_ = static_cast<CostType>( readVarInt(in));
                     edgeList.push_back(e);
@@ -529,7 +529,7 @@ namespace TU::Graph {
             }
             //else EdgeListDescriptionMask::NoCost -> nothing to do
             for (int i = 0; i < nEdges; ++i) {
-                DAG::Edge e{0, 0};
+                SparseWeightDirected::Edge e{0, 0};
                 e.dest_ = static_cast<NodeId >( readVarInt(in));
                 e.cost_ = commonCost;
                 edgeList.push_back(e);
@@ -538,9 +538,9 @@ namespace TU::Graph {
 
         }
 
-        DAG read(const std::string& filename)
+        SparseWeightDirected read(const std::string& filename)
         {
-            DAG g;
+            SparseWeightDirected g;
             std::ifstream in(filename);
             //Header-signature
             readHeader(in);
@@ -555,14 +555,14 @@ namespace TU::Graph {
     }//namespace IO::Encoded
 
     namespace IO::Prec {
-        std::string buildPrecString(const DAG::Edge& e){
+        std::string buildPrecString(const SparseWeightDirected::Edge& e){
             if (e.cost_ == 0)
                 return std::to_string(e.dest_);
             else
                 return std::to_string(e.dest_) + ":" + std::to_string(e.cost_);
         }
 
-        std::string buildPrecLine(NodeId nId, const DAG::EdgeList& edges){
+        std::string buildPrecLine(NodeId nId, const SparseWeightDirected::EdgeList& edges){
             std::ostringstream precLine;
             precLine << nId << ' ' << edges.size();
             if (edges.empty())
@@ -578,14 +578,14 @@ namespace TU::Graph {
             return precLine.str();
         }
 
-        std::string buildPrecString(const DAG::Edge& e, const DAG::NodeNameList& names){
+        std::string buildPrecString(const SparseWeightDirected::Edge& e, const SparseWeightDirected::NodeNameList& names){
             if (e.cost_ == 0)
                 return names[e.dest_];
             else
                 return names[e.dest_] + ":" + std::to_string(e.cost_);
         }
 
-        std::string buildPrecLine(NodeId nId, const DAG::EdgeList& edges, const DAG::NodeNameList& names){
+        std::string buildPrecLine(NodeId nId, const SparseWeightDirected::EdgeList& edges, const SparseWeightDirected::NodeNameList& names){
             std::ostringstream precLine;
             precLine << names[nId] << ' ' << edges.size();
             if (edges.empty())
@@ -601,7 +601,7 @@ namespace TU::Graph {
             return precLine.str();
         }
 
-        void write(const DAG& g, const std::string& filename){
+        void write(const SparseWeightDirected& g, const std::string& filename){
             std::ofstream o(filename);
             if (g.nameTable_.empty()){
                 for (std::integral auto nId: TU::irange(g.nodeCount())) {
@@ -657,10 +657,10 @@ namespace TU::Graph {
         }
 
 
-         DAG read(const std::string& filename){
-            DAG graph;
-            DAG::NodeNameList & nameTable = graph.nameTable_;
-            DAG::NodeNameIndex & nameIndex = graph.nameIndex_;
+         SparseWeightDirected read(const std::string& filename){
+            SparseWeightDirected graph;
+            SparseWeightDirected::NodeNameList & nameTable = graph.nameTable_;
+            SparseWeightDirected::NodeNameIndex & nameIndex = graph.nameIndex_;
 
             auto getNameId = [&](std::string_view nodeName) -> size_t {
                 auto headFound = nameIndex.find( nodeName );
@@ -676,7 +676,7 @@ namespace TU::Graph {
                 return newId;
             };
 
-            auto safeNeighbors = [&](size_t n) -> DAG::EdgeList& {
+            auto safeNeighbors = [&](size_t n) -> SparseWeightDirected::EdgeList& {
                 if ( graph.nodeCount() <= n)
                     graph.adj_.resize(n+1);
                 return graph.neighbors(n);
@@ -706,7 +706,7 @@ namespace TU::Graph {
                 ++it;
 
                     size_t headId = getNameId(headName);
-                    DAG::EdgeList &nodeEdges = safeNeighbors(headId);
+                    SparseWeightDirected::EdgeList &nodeEdges = safeNeighbors(headId);
                     nodeEdges.reserve(count);
 
 
@@ -717,7 +717,7 @@ namespace TU::Graph {
                     for (; it != tokens.end(); ++it) {
                         auto [name, lag] = readPrecEdge(*it);
                         auto precNameId = getNameId(name);
-                        nodeEdges.emplace_back(DAG::Edge{static_cast<NodeId>(precNameId), static_cast<CostType>(lag)});
+                        nodeEdges.emplace_back(SparseWeightDirected::Edge{static_cast<NodeId>(precNameId), static_cast<CostType>(lag)});
                     }
 
                 ++lineNumber;

@@ -17,7 +17,7 @@ namespace TU::Graph {
     using NodeId = std::int32_t;
     using CostType = std::int32_t;
 
-    struct DAG {
+    struct SparseWeightDirected {
         struct Edge {
             NodeId dest_;
             CostType cost_;
@@ -54,37 +54,37 @@ namespace TU::Graph {
 
 
     template<>
-    struct GraphDescriptionInfo<DAG>
+    struct GraphDescriptionInfo<SparseWeightDirected>
     {
         static const int8_t typeId = '1';
     };
 
-    bool equal( const DAG& l, const DAG& r);
-    bool equal( const DAG::Edge& l, const DAG::Edge& r);
+    bool equal(const SparseWeightDirected& l, const SparseWeightDirected& r);
+    bool equal(const SparseWeightDirected::Edge& l, const SparseWeightDirected::Edge& r);
 
 
     namespace IO::Text {
-        void write(const DAG& g, const std::string& filename);
+        void write(const SparseWeightDirected& g, const std::string& filename);
 
-        DAG read(const std::string& filename);
+        SparseWeightDirected read(const std::string& filename);
     }// namespace IO::Text
 
     namespace IO::Binary {
-        void write(const DAG& g, const std::string& filename);
+        void write(const SparseWeightDirected& g, const std::string& filename);
 
-        DAG read(const std::string& filename);
+        SparseWeightDirected read(const std::string& filename);
     }
 
     namespace IO::Encoded{
-        void write(const DAG& g, const std::string& filename);
+        void write(const SparseWeightDirected& g, const std::string& filename);
 
-        DAG read(const std::string& filename);
+        SparseWeightDirected read(const std::string& filename);
     }
 
     namespace IO::Prec {
-        void write(const DAG& g, const std::string& filename);
+        void write(const SparseWeightDirected& g, const std::string& filename);
 
-        DAG read(const std::string& filename);
+        SparseWeightDirected read(const std::string& filename);
     }
 
 } // TU::Graph
