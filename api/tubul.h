@@ -409,4 +409,14 @@ namespace TU {
     int strToInt(const std::string_view& p);
 	std::string readToString( const std::string& filename);
 
+
+
+    /////////
+    // Params
+    /////////
+    /** Set of functions related to read parameter files so users of the application
+     * can provide certain parameters that will affect some behavior.
+     */
+
+
 }

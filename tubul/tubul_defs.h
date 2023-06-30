@@ -22,6 +22,7 @@
 #include "tubul_exception.h"
 #include "tubul_file_utils.h"
 #include "tubul_parse_csv.h"
+#include "tubul_params.h"
 #include "tubul_logger.h"
 #include "tubul_engine.h"
 #include "tubul_thread_pool.h"
