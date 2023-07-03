@@ -28,6 +28,9 @@ namespace TU
         [[maybe_unused]] [[nodiscard]]
         size_t threadCount() const;
 
+        [[maybe_unused]] [[nodiscard]]
+        std::vector<std::thread::id> getPoolWorkerIds() const;
+
         /**
          * @brief Push a function with zero or more arguments, but no return value, into the task queue.
          * Does not return a future, so the user must use waitForTasks() or some other method to ensure

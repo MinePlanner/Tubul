@@ -5,6 +5,7 @@
 #include <gtest/gtest.h>
 #include "tubul.h"
 #include <array>
+#include <thread>
 
 std::atomic_size_t g_counter;
 std::array<char, 1024> g_buffer;
@@ -174,4 +175,42 @@ TEST(TUBULThread, testFuture) {
         std::string res(g_buffer.data(), g_counter.load());
         std::cout << "thread log: " << res << std::endl;
     }
+}
+
+TEST(TUBULThread, testWorkerId) {
+
+    using ThreadPerString = std::unordered_map< std::thread::id, std::string>;
+
+    TU::ThreadPool pool(2);
+    auto workersId = pool.getPoolWorkerIds();
+
+    //Create a map per worker, containing a string unique to that worker.
+    ThreadPerString threadCache;
+    std::hash<std::thread::id> hasher;
+    for (auto const& worker: workersId) {
+        threadCache[worker] = "Worker" + std::to_string(hasher(worker));
+    }
+
+    //Inside the worker function, we will rebuild what the name should be,
+    //and when we check the shared cache for the name it should be the same.
+    auto work = []( ThreadPerString* cache ){
+        std::hash<std::thread::id> hasher;
+        //Rebuild the name of the worker
+        std::string myName = "Worker"+std::to_string(hasher(std::this_thread::get_id()));
+
+        //Retrieve the cache value
+        auto cacheValue = cache->at(std::this_thread::get_id());
+        EXPECT_EQ(myName, cacheValue);
+    };
+
+    for (std::integral auto i: TU::irange(10000)){
+        pool.pushTask(work, &threadCache);
+    }
+
+    //Wait for all workers. Funnily, if you don't, the shared map
+    //gets destroyed before the workers finish, and you should get a sigsegv
+    //when trying to retrieve the thread name
+    pool.waitForTasks();
+
+
 }
