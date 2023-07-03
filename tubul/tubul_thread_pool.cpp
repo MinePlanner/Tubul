@@ -39,6 +39,14 @@ namespace TU
         return thread_count_;
     }
 
+    std::vector<std::thread::id> ThreadPool::getPoolWorkerIds() const{
+        std::vector<std::thread::id> res;
+        for (size_t i = 0; i < thread_count_; ++i) {
+            res.push_back( threads_[i].get_id() );
+        }
+        return res;
+    }
+
     void ThreadPool::workerFn() {
         while (running_.test())
         {
