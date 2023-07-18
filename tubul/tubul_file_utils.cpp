@@ -12,7 +12,9 @@
 #include <charconv>
 #include <fast_float/fast_float.h>
 
-#ifndef TUBUL_WINDOWS
+#ifdef TUBUL_WINDOWS
+#include <windows.h>
+#else
 #include <unistd.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
@@ -75,8 +77,49 @@ int strToInt(const std::string_view& p){
     return doCharConv<int>(p);
 }
 
-#ifndef TUBUL_WINDOWS
-	MappedFile::MappedFile(const char* filename) {
+#ifdef TUBUL_WINDOWS
+
+    struct MappedFile::Internals{
+     HANDLE fd_;
+     HANDLE mapping_;
+    };
+
+    MappedFile::MappedFile(const char* name):
+        impl_( new MappedFile::Internals) {
+        auto& fd = impl_->fd_;
+        auto& mapping = impl_->mapping_;
+
+        fd = CreateFile(name, GENERIC_READ, FILE_SHARE_READ , 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+        if(fd == INVALID_HANDLE_VALUE) {
+            throw TU::Exception(std::string("Could not open file:") + name);
+        };
+
+        size_t len  = GetFileSize(fd, 0);
+
+        mapping = CreateFileMapping(fd, 0, PAGE_READONLY, 0, 0, 0);
+        if(mapping == 0) {
+            throw TU::Exception(std::string("Could not open file:") + name);
+        }
+
+        data_ = static_cast<const char*>( MapViewOfFile(mapping, FILE_MAP_READ, 0, 0, 0) );
+    }
+
+    MappedFile::~MappedFile() {
+        auto& fd = impl_->fd_;
+        auto& mapping = impl_->mapping_;
+        UnmapViewOfFile(data_);
+        CloseHandle(mapping);
+        CloseHandle(fd);
+    }
+#else
+
+    struct MappedFile::Internals{
+    int fd_;
+    };
+
+	MappedFile::MappedFile(const char* filename):
+        impl_( new MappedFile::Internals) {
+        auto& fd_ = impl_->fd_;
 		fd_ = open(filename, O_RDONLY );
 		struct stat file_stats{0};
 		if (fstat(fd_, &file_stats) == -1)
@@ -85,7 +128,7 @@ int strToInt(const std::string_view& p){
 		size_ = file_stats.st_size;
 		data_ = static_cast<char*>(  mmap(nullptr, size_, PROT_READ, MAP_PRIVATE, fd_, 0) );
 		//We expect to read the file sequentially.
-		madvise(data_, size_, MADV_WILLNEED | MADV_SEQUENTIAL);
+		madvise((void*)data_, size_, MADV_WILLNEED | MADV_SEQUENTIAL);
 	}
 
 
@@ -94,16 +137,16 @@ int strToInt(const std::string_view& p){
             {}
 
   MappedFile::~MappedFile() {
-		if (munmap(data_, size_) == -1)
+		if (munmap( (void*)data_, size_) == -1)
 		{
       //throw TU::Exception( "CAUTION!! I could not unmap the file properly");
       //We need to let the user know there was SOME error, but can't throw.
 		}
 
 		// Un-mmaping doesn't close the file, so we still need to do that.
-		close(fd_);
+		close(impl_->fd_);
 
 	}
-#endif 
 
-}
+#endif
+}//end namespace TU

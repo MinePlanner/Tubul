@@ -6,6 +6,7 @@
 #include <string_view>
 #include <cstdlib>
 #include <tuple>
+#include <memory>
 
 namespace TU{
 /** Set of simple functions to perform tasks that are common
@@ -33,19 +34,21 @@ namespace TU{
 //of the normal c++ stream view.
 struct MappedFile
 {
+    struct Internals;
+
 	explicit MappedFile(const char* filename);
     explicit MappedFile(const std::string& filename);
 
 	[[nodiscard]]
-	char* data() const { return data_;}
+	const char* data() const { return data_;}
 	[[nodiscard]]
 	size_t size() const { return size_;}
 
 	~MappedFile();
 
-	int fd_;
-	char* data_;
+	const char* data_;
 	size_t size_;
+    std::unique_ptr<Internals> impl_;
 };
 
 
