@@ -104,6 +104,9 @@ namespace TU {
             explicit string_line_range(const std::string &s) :
                     source_(s) {}
 
+            explicit string_line_range(const std::string_view s) :
+                    source_(s) {}
+
             iter begin() { return iter(source_); }
 
             iter end() { return iter(source_, std::string::npos); }
