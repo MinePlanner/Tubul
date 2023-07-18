@@ -13,56 +13,11 @@
 #include "tubul_parse_csv.h"
 #include "tubul_logger.h"
 
-#ifndef TUBUL_WINDOWS
-#include <unistd.h>
-#include <sys/mman.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#endif
 
 
 namespace TU
 {
-#ifndef TUBUL_WINDOWS
-//Structure to hold a Memory map of a file. For some cases,
-//it's very useful to have access to a file a memory map instead
-//of the normal c++ stream view.
-struct MappedFile
-{
-	explicit MappedFile(const char* filename)
-	{
-		fd_ = open(filename, O_RDONLY );
-		struct stat file_stats{0};
-		if (fstat(fd_, &file_stats) == -1)
-            throw TU::throwError(std::string("Could not open file:") + filename);
-
-		size_ = file_stats.st_size;
-		data_ = static_cast<char*>(  mmap(nullptr, size_, PROT_READ, MAP_PRIVATE, fd_, 0) );
-		//We expect to read the file sequentially.
-		madvise(data_, size_, MADV_WILLNEED | MADV_SEQUENTIAL);
-	}
-
-	[[nodiscard]]
-	char* data() const { return data_;}
-	[[nodiscard]]
-	std::streamsize size() const { return size_;}
-
-	~MappedFile()
-	{
-		if (munmap(data_, size_) == -1)
-		{
-			TU::logWarning() << "CAUTION!! I could not unmap the file properly";
-		}
-
-		// Un-mmaping doesn't close the file, so we still need to do that.
-		close(fd_);
-
-	}
-	int fd_;
-	char* data_;
-	std::streamsize size_;
-};
-#endif 
+  //
 //Simple structure to hide the rapidcsv document from the headers.
 struct CSVContents::CSVRawData
 {

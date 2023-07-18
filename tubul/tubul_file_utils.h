@@ -25,4 +25,28 @@ namespace TU{
     constexpr auto strview_range(std::string_view s) noexcept {
         return std::make_tuple(s.data(), s.data() + s.size());
     }
+
+
+
+//Structure to hold a Memory map of a file. For some cases,
+//it's very useful to have access to a file a memory map instead
+//of the normal c++ stream view.
+struct MappedFile
+{
+	explicit MappedFile(const char* filename);
+    explicit MappedFile(const std::string& filename);
+
+	[[nodiscard]]
+	char* data() const { return data_;}
+	[[nodiscard]]
+	size_t size() const { return size_;}
+
+	~MappedFile();
+
+	int fd_;
+	char* data_;
+	size_t size_;
+};
+
+
 }

@@ -2,6 +2,7 @@
 // Created by Carlos Acosta on 30-03-23.
 //
 #include "tubul_file_utils.h"
+#include "tubul_exception.h"
 #include <filesystem>
 #include <string>
 #include <string_view>
@@ -10,6 +11,13 @@
 #include <algorithm>
 #include <charconv>
 #include <fast_float/fast_float.h>
+
+#ifndef TUBUL_WINDOWS
+#include <unistd.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#endif
 
 namespace TU
 {
@@ -66,5 +74,36 @@ double strToDouble(const std::string_view& p){
 int strToInt(const std::string_view& p){
     return doCharConv<int>(p);
 }
+
+#ifndef TUBUL_WINDOWS
+	MappedFile::MappedFile(const char* filename) {
+		fd_ = open(filename, O_RDONLY );
+		struct stat file_stats{0};
+		if (fstat(fd_, &file_stats) == -1)
+            throw TU::Exception(std::string("Could not open file:") + filename);
+
+		size_ = file_stats.st_size;
+		data_ = static_cast<char*>(  mmap(nullptr, size_, PROT_READ, MAP_PRIVATE, fd_, 0) );
+		//We expect to read the file sequentially.
+		madvise(data_, size_, MADV_WILLNEED | MADV_SEQUENTIAL);
+	}
+
+
+  MappedFile::MappedFile(const std::string& filename) :
+            MappedFile(filename.c_str())
+            {}
+
+  MappedFile::~MappedFile() {
+		if (munmap(data_, size_) == -1)
+		{
+      //throw TU::Exception( "CAUTION!! I could not unmap the file properly");
+      //We need to let the user know there was SOME error, but can't throw.
+		}
+
+		// Un-mmaping doesn't close the file, so we still need to do that.
+		close(fd_);
+
+	}
+#endif 
 
 }
