@@ -62,7 +62,8 @@ namespace TU {
                 }
 
                 bool operator!=(iter const &other) const {
-                    return source_ != other.source_ ||
+                    return source_.data() != other.source_.data() ||
+                           source_.size() != other.source_.size() ||
                            start_ != other.start_ ||
                            finish_ != other.finish_;
                 }
