@@ -43,6 +43,8 @@ struct MappedFile
 	const char* data() const { return data_;}
 	[[nodiscard]]
 	size_t size() const { return size_;}
+    [[nodiscard]]
+    std::string_view string_view() const { return {data_, size_};}
 
 	~MappedFile();
 
