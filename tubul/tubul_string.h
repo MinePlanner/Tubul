@@ -117,5 +117,6 @@ namespace TU {
     }//namespace details
 
     details::string_line_range slinerange(const std::string& s);
+    details::string_line_range slinerange(const std::string_view s);
     using StringLineRange = details::string_line_range;
 }
