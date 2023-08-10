@@ -221,4 +221,9 @@ details::string_line_range slinerange(const std::string& s)
     return details::string_line_range(s);
 }
 
+details::string_line_range slinerange(const std::string_view s)
+{
+    return details::string_line_range(s);
+}
+
 }

@@ -95,6 +95,7 @@ namespace TU {
      *
      */
     StringLineRange slinerange(const std::string& s);
+    StringLineRange slinerange(const std::string_view s);
 	////////////
 	// Logger
 	////////////

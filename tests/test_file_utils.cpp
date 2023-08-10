@@ -4,7 +4,18 @@
 
 #include "tubul.h"
 #include <gtest/gtest.h>
+#include <fstream>
+#include <iterator>
 
+const char* FILE_TO_CREATE_CONTENTS = R"(This is the first line
+and this is the second
+some numbers here
+12
+13
+14
+and a goodbye
+)";
+const char* TEST_FILENAME = "test_file.txt";
 
 
 TEST(TUBULFileUtils, testParseInt) {
@@ -67,4 +78,66 @@ TEST(TUBULFileUtils, testParseDouble) {
     EXPECT_ANY_THROW( auto fail = TU::strToDouble("314#"));
     EXPECT_ANY_THROW( auto fail = TU::strToDouble(" 314#@"));
     EXPECT_ANY_THROW( auto fail = TU::strToDouble("31/3"));
+}
+
+void createFile(){
+    std::ofstream testFile(TEST_FILENAME);
+    testFile << FILE_TO_CREATE_CONTENTS;
+    testFile.close();
+}
+
+TEST(TUBULFileUtils, testReadWithLineIterator){
+    createFile();
+    std::ifstream input(TEST_FILENAME);
+    auto begin = std::istreambuf_iterator<char>(input);
+    auto end = std::istreambuf_iterator<char>();
+
+    std::string file_contents( begin, end );
+    EXPECT_EQ(file_contents, FILE_TO_CREATE_CONTENTS);
+
+    {///From a string
+        std::stringstream resultByLine;
+        for (const auto &line: TU::slinerange(file_contents)) {
+            resultByLine << line << "\n";
+        }
+        EXPECT_EQ(resultByLine.str(), FILE_TO_CREATE_CONTENTS);
+    }
+    {///From a string_view
+        std::string_view sview = file_contents;
+        std::stringstream resultByLine;
+        for (const auto &line: TU::slinerange(sview)) {
+            resultByLine << line << "\n";
+        }
+        EXPECT_EQ(resultByLine.str(), FILE_TO_CREATE_CONTENTS);
+    }
+
+
+}
+
+TEST(TUBULFileUtils, testMMapFile){
+    createFile();
+
+    TU::MappedFile input(TEST_FILENAME);
+    auto file_contents = input.string_view();
+    EXPECT_EQ(file_contents, FILE_TO_CREATE_CONTENTS);
+
+
+    {///From a string
+        std::string copied_string(file_contents.data(), file_contents.size());
+        std::stringstream resultByLine;
+        for (const auto &line: TU::slinerange(copied_string)) {
+            resultByLine << line << "\n";
+        }
+        EXPECT_EQ(resultByLine.str(), FILE_TO_CREATE_CONTENTS);
+    }
+    {///From a string_view
+        std::string_view sview = file_contents;
+        std::stringstream resultByLine;
+        for (const auto &line: TU::slinerange(sview)) {
+            resultByLine << line << "\n";
+        }
+        EXPECT_EQ(resultByLine.str(), FILE_TO_CREATE_CONTENTS);
+    }
+
+
 }
