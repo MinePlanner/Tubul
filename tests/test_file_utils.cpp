@@ -81,8 +81,8 @@ TEST(TUBULFileUtils, testParseDouble) {
 }
 
 void createFile(){
-    std::ofstream testFile(TEST_FILENAME);
-    testFile << FILE_TO_CREATE_CONTENTS;
+    std::ofstream testFile(TEST_FILENAME, std::ios::binary);
+    testFile.write(FILE_TO_CREATE_CONTENTS, strnlen(FILE_TO_CREATE_CONTENTS, 2048));
     testFile.close();
 }
 
