@@ -51,6 +51,8 @@ namespace TU {
                     } else {
                         start_ = 0;
                         finish_ = source_.find_first_of('\n', start_);
+                        if (finish_ >= 1 && source_[finish_-1] == '\r')
+                            finish_ -= 1;
                     }
 
                 }
@@ -80,20 +82,34 @@ namespace TU {
 
             private:
                 void find_next_line() {
+                    //If we were already past the end of the source in the current
+                    //iteration, there's no next line possible.
                     if (finish_ == std::string::npos) {
                         start_ = std::string::npos;
                         return;
                     }
 
-                    start_ = finish_ + 1;
+                    //If we had a finish_ pointing to a \r or \n, we move past it
+                    //for the next iteration, but we have to also check if the \r and
+                    //or \n were the last characters from the source.
+                    size_t fwd = 1;
+                    if ( finish_ < source_.size() and source_[finish_] == '\r' )
+                        ++fwd;
+                    start_ = finish_ + fwd;
                     if ( start_ >= source_.size() ) {
                         start_ = std::string::npos;
                         finish_ = std::string::npos;
                         return;
                     }
+
+                    //We know there are more characters after the start_ index, so we look
+                    //for the next \n available (and check if it is preceded by a \r just in
+                    // case)
                     finish_ = source_.find_first_of('\n', start_);
                     if (finish_ == std::string::npos)
                         finish_ = source_.size();
+                    else if ( source_[finish_-1] == '\r' )
+                        finish_ -= 1;
                 }
 
                 std::string_view source_;
