@@ -66,7 +66,17 @@ inline T doCharConv(std::string_view s)
             return val;
         }
     }
-    throw std::invalid_argument{"Couldn't parse text correctly"};
+    //If something failed, I don't care too much about the performance
+    //of the error reporting :(
+    std::string toType;
+    if constexpr (std::is_integral_v<T>)
+        toType = "integer";
+    else if constexpr (std::is_floating_point_v<T>)
+        toType = "floating point";
+    else
+        toType = "unknown type";
+    std::string error = std::string("Couldn't parse '") + std::string(s) + "' as a " + toType + " correctly";
+    throw TU::Exception{error};
 }
 
 double strToDouble(const std::string_view& p){
