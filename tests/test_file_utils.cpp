@@ -17,6 +17,8 @@ and a goodbye
 )";
 const char* TEST_FILENAME = "test_file.txt";
 
+const char* FILE_TO_CREATE_CONTENTSCRLF = "This is the first line\r\nand this is the second\r\nsome numbers here\r\n12\r\n13\r\n14\r\nand a goodbye\r\n";
+const char* TEST_FILENAMECRLF = "test_file_crlf.txt";
 
 TEST(TUBULFileUtils, testParseInt) {
     const char* val1 = "452";
@@ -111,6 +113,56 @@ TEST(TUBULFileUtils, testReadWithLineIterator){
         EXPECT_EQ(resultByLine.str(), FILE_TO_CREATE_CONTENTS);
     }
 
+
+}
+
+void createFileCRLF(){
+    std::ofstream testFile(TEST_FILENAMECRLF, std::ios::binary);
+    testFile.write(FILE_TO_CREATE_CONTENTSCRLF, strnlen(FILE_TO_CREATE_CONTENTSCRLF, 2048));
+    testFile.close();
+}
+
+TEST(TUBULFileUtils, testReadWithLineIteratorCRLF){
+    createFileCRLF();
+
+    std::ifstream input(TEST_FILENAMECRLF);
+    auto begin = std::istreambuf_iterator<char>(input);
+    auto end = std::istreambuf_iterator<char>();
+
+    //string containing the "raw characters"
+    std::string file_contents( begin, end );
+
+    //Reading in a c++ stream-like way.
+    std::stringstream toRead(file_contents);
+    std::vector<std::string> toCompare;
+    while (not toRead.eof()) {
+        std::string stdline;
+        std::getline(toRead, stdline);
+        if ( stdline.empty() )
+            break;
+        if ( stdline.ends_with('\r') )
+            stdline.resize( stdline.size() - 1);
+        toCompare.emplace_back( stdline );
+    }
+    {///From a string
+        std::vector<std::string> resultByLine;
+        for (const auto &line: TU::slinerange(file_contents)) {
+            resultByLine.emplace_back( line.data(), line.size() );
+        }
+        for (size_t i = 0; i < toCompare.size(); ++i) {
+            EXPECT_EQ(toCompare[i], resultByLine[i]);
+        }
+    }
+    {///From a string_view
+        std::vector<std::string> resultByLine;
+        std::string_view sview = file_contents;
+        for (const auto &line: TU::slinerange(sview)) {
+            resultByLine.emplace_back( line.data(), line.size() );
+        }
+        for (size_t i = 0; i < toCompare.size(); ++i) {
+            EXPECT_EQ(toCompare[i], resultByLine[i]);
+        }
+    }
 
 }
 
