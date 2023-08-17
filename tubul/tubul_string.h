@@ -5,8 +5,10 @@
 
 #pragma once
 #include <vector>
+#include <string>
 #include <string_view>
 #include <algorithm>
+#include "tubul_exception.h"
 
 ////////////
 // Strings
@@ -37,6 +39,39 @@ namespace TU {
 
     template<typename IteratorType>
     std::string join(IteratorType begin, IteratorType end, std::string const &joiner);
+
+    /** Commonly used functions to remove the trailing whitespace of strings
+     * Do note, these only work on string views so be aware if passing strings!
+     */
+    namespace details {
+        static const std::string WHITESPACE = " \n\r\t\f\v";
+    }
+
+    inline
+    std::string_view ltrim(const std::string_view s) {
+        size_t start = s.find_first_not_of(details::WHITESPACE);
+        return (start == std::string::npos) ? std::string_view{} : s.substr(start);
+    }
+
+    inline
+    std::string_view rtrim(const std::string_view s) {
+        size_t end = s.find_last_not_of(details::WHITESPACE);
+        return (end == std::string::npos) ? std::string_view{} : s.substr(0, end + 1);
+    }
+
+    inline
+    std::string_view trim(const std::string_view &s) {
+        std::string_view toTrim(s);
+        return rtrim(ltrim(toTrim));
+    }
+    inline
+    std::string_view ltrim(std::string&& s) { throw Exception("trim functions can't be used with lvalue strings");}
+
+    inline
+    std::string_view rtrim(std::string&& s) { throw Exception("trim functions can't be used with lvalue strings");}
+
+    inline
+    std::string_view trim(std::string&& s) { throw Exception("trim functions can't be used with lvalue strings");}
 
 
     namespace details {
