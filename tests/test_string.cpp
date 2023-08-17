@@ -268,3 +268,40 @@ TEST(TUBULString, testLineIterator) {
     }
 
 }
+
+TEST(TUBULString, testTrim) {
+    using TU::trim, TU::ltrim, TU::rtrim;
+    std::string hello = "hello";
+    std::string hello_l = "\n hello";
+    //ltrim and trim should affect hell_l, but rtrim shoudn't change. For
+    //things without spaces, nothing should happen
+    EXPECT_EQ(ltrim(hello_l), hello);
+    EXPECT_EQ(trim(hello_l), hello);
+    EXPECT_EQ(rtrim(hello_l), hello_l);
+    EXPECT_EQ(rtrim(hello), hello);
+    EXPECT_EQ(ltrim(hello), hello);
+    EXPECT_EQ(trim(hello), hello);
+
+    //Opposite test
+    std::string hello_r = "hello  \r";
+    EXPECT_EQ(rtrim(hello_r), hello);
+    EXPECT_EQ(trim(hello_r), hello);
+    EXPECT_EQ(ltrim(hello_r), hello_r);
+
+    //With strings requiring trim on both sides
+    std::string hello_lr = " hello  \r";
+    EXPECT_EQ(rtrim(hello_lr), hello_lr.substr(0,hello_lr.size()-3));
+    EXPECT_EQ(ltrim(hello_lr), hello_lr.substr(1));
+
+    //With whitespaces in the middle
+    std::string hello_world = "hello world";
+    std::string hello_world_lr = "\n hello world \r";
+    EXPECT_EQ(trim(hello_world_lr), hello_world);
+    EXPECT_EQ(rtrim(hello_world_lr), hello_world_lr.substr(0, hello_world_lr.size()-2));
+    EXPECT_EQ(ltrim(hello_world_lr), hello_world_lr.substr(2));
+
+
+    EXPECT_ANY_THROW(rtrim(hello.substr(0)));
+    EXPECT_ANY_THROW(ltrim(hello.substr(0)));
+    EXPECT_ANY_THROW(trim(hello.substr(0)));
+}

@@ -96,6 +96,24 @@ namespace TU {
      */
     StringLineRange slinerange(const std::string& s);
     StringLineRange slinerange(const std::string_view s);
+
+
+
+    /** Commonly used functions to remove the trailing whitespace of strings
+  * Do note, these only work on string views so be aware if passing strings!
+  */
+    inline
+    std::string_view ltrim(const std::string_view s);
+    inline
+    std::string_view rtrim(const std::string_view s);
+    inline
+    std::string_view trim(const std::string_view &s);
+    /** Don't use these functions!!!! These will fail and are here just to
+     * ensure theres no funny business pasing temporary strings
+     */
+    inline std::string_view ltrim(std::string&& s);
+    inline std::string_view rtrim(std::string&& s);
+    inline std::string_view trim(std::string&& s);
 	////////////
 	// Logger
 	////////////
