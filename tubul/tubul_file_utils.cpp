@@ -141,11 +141,6 @@ int strToInt(const std::string_view& p){
 		madvise((void*)data_, size_, MADV_WILLNEED | MADV_SEQUENTIAL);
 	}
 
-
-  MappedFile::MappedFile(const std::string& filename) :
-            MappedFile(filename.c_str())
-            {}
-
   MappedFile::~MappedFile() {
 		if (munmap( (void*)data_, size_) == -1)
 		{
@@ -159,4 +154,9 @@ int strToInt(const std::string_view& p){
 	}
 
 #endif
+
+  MappedFile::MappedFile(const std::string& filename) :
+            MappedFile(filename.c_str())
+            {}
+
 }//end namespace TU
