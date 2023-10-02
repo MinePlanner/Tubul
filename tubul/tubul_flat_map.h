@@ -143,7 +143,7 @@ namespace TU {
         void reserve(size_type new_cap){ Base::reserve(new_cap); }
         size_type capacity() const { return Base::capacity(); }
 
-        // 23.3.1.2 element access:
+        // element access:
         mapped_type &operator[](const key_type &key) {
             return insert(value_type(key, mapped_type())).first->second;
         }
@@ -206,7 +206,7 @@ namespace TU {
             return value_compare(comp);
         }
 
-        // 23.3.1.3 map operations:
+        // map operations:
         iterator find(const key_type &k) {
             iterator i(lower_bound(k));
             if (i != end() && this->operator()(k, i->first)) {
