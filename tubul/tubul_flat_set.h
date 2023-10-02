@@ -26,7 +26,7 @@ namespace TU {
         };
     }
 
-/** class template FlatMap is a class adapted from Andrei Alexandrescu's example
+/** class template FlatSet is a class adapted from Andrei Alexandrescu's example
  * implementation in his Loki Library. It is an associative vector built as a
  * syntactic drop-in replacement for std::map, but built on top of a vector to handle
  * the storage, instead of the STL common implementation of rbtrees. This makes it
@@ -34,7 +34,7 @@ namespace TU {
  * so it defers a lot of work to stl's vector, but presents an interface most commonly
  * seen in associative containers (like map/unordered_map).
  *
- * BEWARE: FlatMap doesn't respect all std::map's guarantees, the most important being:
+ * BEWARE: FlatSet doesn't respect all std::set's guarantees, the most important being:
  *  * iterators are invalidated by insert and erase operations
  *  * the complexity of insert/erase is O(N) not O(log N)
  *  * value_type is std::pair<KeyType, ValueType> not std::pair<const KeyType, ValueType>
@@ -182,7 +182,7 @@ namespace TU {
             return value_compare(comp);
         }
 
-        // 23.3.1.3 map operations:
+        // set operations:
         iterator find(const key_type &k) {
             iterator i(lower_bound(k));
             if (i != end() && this->operator()(k, *i)) {
@@ -266,7 +266,7 @@ namespace TU {
         template<class V1, class C1, class A1>
         friend bool operator<=(const FlatSet<V1, C1, A1> &lhs,
                                const FlatSet<V1, C1, A1> &rhs);
-    }; //end of class FlatMap
+    }; //end of class FlatSet
 
 
 
