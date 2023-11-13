@@ -148,6 +148,17 @@ namespace TU {
             return insert(value_type(key, mapped_type())).first->second;
         }
 
+        const mapped_type &operator[](const key_type& key) const{
+            return at(key);
+        }
+
+        const mapped_type &at(const key_type& key) const{
+            auto i = find(key);
+            if ( i == end() )
+                throw std::runtime_error("Trying to access invalid key");
+            return i->second;
+        }
+
         // modifiers:
         std::pair<iterator, bool> insert(const value_type &val) {
             bool found(true);
