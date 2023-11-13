@@ -3,6 +3,7 @@
 //
 
 #include "tubul.h"
+#include <array>
 #include <gtest/gtest.h>
 
 TEST(TUBULContainers, testFlatMapBasic) {
@@ -26,16 +27,16 @@ TEST(TUBULContainers, testFlatMapBasic) {
     EXPECT_EQ( test.capacity(), 8 );
 
     //After inserting one element
-    test.insert({1, 10});
+    test.insert({8, 20});
     EXPECT_EQ( test.size(), 1);
     EXPECT_FALSE( test.empty());
 
     //Inserting another...
-    test.insert({8, 20});
+    test.insert({12, 30});
     EXPECT_EQ( test.size(), 2);
 
     //Inserting another...
-    test.insert({12, 30});
+    test.insert({1, 10});
     EXPECT_EQ( test.size(), 3);
     EXPECT_FALSE( test.empty());
 
@@ -60,13 +61,25 @@ TEST(TUBULContainers, testFlatMapBasic) {
     EXPECT_EQ(test[8], 40);
     EXPECT_EQ( test.size(), 3);
 
-    //Also when the items stored should be ordered.
-    std::vector<int> expected = {1,8,12};
+    //Also when the items stored should be ordered. Also testing that
+    //we can also use operator[]/at even when the container is const (but the reference is const)
+    std::vector<int> expected_key = {1,8,12};
+    std::vector<int> expected_val = {10,40,30};
     size_t expectedIt = 0;
+    const auto& const_test = test;
     for ( auto& [key,val]: test ){
-        EXPECT_EQ(key, expected[expectedIt]);
+        EXPECT_EQ(key, expected_key[expectedIt]);
+        EXPECT_EQ(val, expected_val[expectedIt]);
+        EXPECT_EQ(const_test[key], expected_val[expectedIt]);
+        EXPECT_EQ(const_test.at(key), expected_val[expectedIt]);
+//        const_test.at(key) = 50;// <- Shouldn't compile
+//        const_test[key] = 50;// <- Shouldn't compile
         ++expectedIt;
     }
+    //As std maps, at should throw if you use an invalid key
+    EXPECT_THROW(test.at(420), std::runtime_error);
+    EXPECT_THROW(const_test.at(420), std::runtime_error);
+
     //Now let's insert a truly new element, but should be after 1
     auto [it2, newInsertion2] = test.insert({2, 77});
     EXPECT_TRUE(newInsertion2);
@@ -75,12 +88,22 @@ TEST(TUBULContainers, testFlatMapBasic) {
     EXPECT_EQ( test.capacity(), 8);
     EXPECT_EQ( test[2], 77);
 
-    std::vector<int> expected2 = {1,2,8,12};
+    std::array expected_key2 = {1,2,8,12};
+    std::array expected_val2 = {10,77,40,30};
     expectedIt = 0;
     for ( auto& [key,val]: test ){
-        EXPECT_EQ(key, expected2[expectedIt]);
+        EXPECT_EQ(key, expected_key2[expectedIt]);
+        EXPECT_EQ(val, expected_val2[expectedIt]);
+        EXPECT_EQ(const_test[key], expected_val2[expectedIt]);
+        EXPECT_EQ(const_test.at(key), expected_val2[expectedIt]);
         ++expectedIt;
     }
+
+    //Using a non-existant key with operator[] should insert a new mapped object
+    EXPECT_THROW(const_test.at(420), std::runtime_error);
+    EXPECT_EQ(test[420], 0);
+    EXPECT_EQ(const_test[420], 0);
+    EXPECT_EQ(test.size(),5);
 }
 
 
