@@ -21,7 +21,12 @@ void configParams(const std::string& paramsConfig) {
 
 // load a params file (as many times as you want)
 void loadParams(const std::string& paramsFile){
-    Parameters ::load(paramsFile.data());
+    Parameters::loadFromFile(paramsFile);
+}
+
+// load a params string (as many times as you want)
+void loadParamsString(const std::string& content){
+    Parameters::loadFromString(content);
 }
 
 // return to the previous value of a param

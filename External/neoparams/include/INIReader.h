@@ -317,7 +317,7 @@ public:
 
     // Construct INIReader and parse given filename. See ini.h for more info
     // about the parsing.
-    INIReader(std::string filename);
+    INIReader(const std::string& filename);
 
     // Construct INIReader and parse given file. See ini.h for more info
     // about the parsing.
@@ -356,6 +356,10 @@ public:
     // and valid false values are "false", "no", "off", "0" (not case sensitive).
     bool GetBoolean(std::string section, std::string name, bool default_value) const;
 
+    static INIReader fromFile(const std::string& filename);
+
+    static INIReader fromString(const std::string& contents);
+
 protected:
     int _error;
     std::map<std::string, std::string> _values;
@@ -363,6 +367,14 @@ protected:
     static std::string MakeKey(std::string section, std::string name);
     static int ValueHandler(void* user, const char* section, const char* name,
                             const char* value);
+
+    struct StringHelper{
+        const std::string& s_;
+        size_t cur_;
+    };
+    //An fgets-like function, but handles strings (wrapped in a thin layer) instead of plain char*
+    //typedef char* (*ini_reader)(char* str, int num, void* stream);
+    static char* stringReader(char* str, int max, void* string);
 };
 
 #endif  // __INIREADER_H__
@@ -375,7 +387,7 @@ protected:
 #include <cctype>
 #include <cstdlib>
 
-inline INIReader::INIReader(std::string filename)
+inline INIReader::INIReader(const std::string& filename)
 {
     _error = ini_parse(filename.c_str(), ValueHandler, this);
 }
@@ -383,6 +395,51 @@ inline INIReader::INIReader(std::string filename)
 inline INIReader::INIReader(FILE *file)
 {
     _error = ini_parse_file(file, ValueHandler, this);
+}
+
+inline
+INIReader INIReader::fromFile(const std::string& filename){
+   return {filename};
+}
+
+inline
+char* INIReader::stringReader(char* str, int max, void* helper)
+{
+    auto &[in, cur] = *(static_cast<INIReader::StringHelper*>( helper ) );
+
+    if ( cur >= in.size())
+        return nullptr;
+
+    const auto start =  cur;
+    const auto end = std::min( in.size(), cur+max-1);
+
+    auto out = str;
+    auto it = start;
+
+    //We iterate until the end of the string, or the maximum we can store.
+    while ( it < end){
+        //pointer to current char (should always be valid due previous checks)
+        auto this_char = *(in.data()+it);
+        //Copy to output and move the output pointer
+        *out = this_char;
+        ++out;
+        ++it;
+        //If it was a newline, break
+        if(  this_char == '\n' )
+            break;
+    }
+    //update current pointer and write the null termintator.
+    cur = it;
+    *out = '\0';
+    return str;
+}
+
+inline
+INIReader INIReader::fromString(const std::string& contents){
+    INIReader res;
+    StringHelper helper{contents, 0};
+    res._error = ini_parse_stream((ini_reader)INIReader::stringReader, (void *) std::addressof(helper), INIReader::ValueHandler, std::addressof(res) );
+    return res;
 }
 
 inline int INIReader::ParseError() const

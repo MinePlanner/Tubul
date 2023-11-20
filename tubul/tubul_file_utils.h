@@ -4,7 +4,6 @@
 
 #pragma once
 #include <string_view>
-#include <cstdlib>
 #include <tuple>
 #include <memory>
 #include <streambuf>
@@ -24,7 +23,6 @@ namespace TU{
 
 
 //Simple wrapper for common task when using str_views to convert to types.
-    inline
     constexpr auto strview_range(std::string_view s) noexcept {
         return std::make_tuple(s.data(), s.data() + s.size());
     }

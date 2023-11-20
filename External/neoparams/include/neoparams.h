@@ -86,7 +86,8 @@ void init(const std::string& input);
 
 NeoParamsData &getInstance();
 
-void load(const char *string);
+void loadFromFile(const std::string& filename);
+void loadFromString(const std::string& contents);
 
 template<typename T>
 T get(const std::string &key)

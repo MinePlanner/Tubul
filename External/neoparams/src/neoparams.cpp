@@ -67,11 +67,11 @@ void NeoParamsData::startup()
 }
 
 
-void load(const char *paramFile)
+void loadFromFile(const std::string& paramFile)
 {
 	NeoParamsData &params = NeoParams::getInstance();
 
-	INIReader reader(paramFile);
+	auto reader = INIReader::fromFile(paramFile);
 
 	for(auto &value: reader.Values())
 	{
@@ -85,6 +85,26 @@ void load(const char *paramFile)
 
 		params.setFromString(keyName, value.second);
 	}
+}
+
+void loadFromString(const std::string& paramString)
+{
+    NeoParamsData &params = NeoParams::getInstance();
+
+    auto reader = INIReader::fromString(paramString);
+
+    for(auto &value: reader.Values())
+    {
+        std::string keyName(value.first);
+
+        // replace INIReader keys (section=key) with local format (section.key)
+        std::size_t posEqual = keyName.find_first_of('=');
+        if (posEqual==std::string::npos)
+            throw std::runtime_error("param oddly defined: " + keyName + "\n");
+        keyName[posEqual] = '.';
+
+        params.setFromString(keyName, value.second);
+    }
 }
 
 //////////////////////////////////////////////////////////////////////

@@ -189,7 +189,7 @@ TEST(TUBULNeoParams, pushSingleParamPopSeveral) {
     }
 }
 
-TEST(TUBULNeoParams, readFromIni) {
+TEST(TUBULNeoParams, readFromIniFile) {
     //Configure params
     std::string iniFileName = "test_file.ini";
     TU::configParams( TEST_PARAMDEF );
@@ -200,6 +200,22 @@ TEST(TUBULNeoParams, readFromIni) {
 
     //Loading ini file that contains several keys.
     TU::loadParams(iniFileName);
+
+    //The keys should be what the file said.
+    EXPECT_EQ( TU::getParam<int>("Global.timeout"), 21 );
+    EXPECT_EQ( TU::getParam<std::string>("Global.solver"), "Gurobi" );
+    EXPECT_EQ( TU::getParam<double>("Zoo.MagicValue"), 420 );
+    EXPECT_EQ( TU::getParam<bool>("Zoo.LionShowAvailable"), false );
+    std::vector<int> expected = { 30,10,50,120,70};
+    EXPECT_EQ( TU::getParam<std::vector<int>>("Zoo.MagicSequence"), expected);
+
+}
+
+TEST(TUBULNeoParams, readFromIniString) {
+
+    TU::configParams( TEST_PARAMDEF );
+    //Loading ini data from string that contains several keys.
+    TU::loadParamsString(TEST_INIFILE);
 
     //The keys should be what the file said.
     EXPECT_EQ( TU::getParam<int>("Global.timeout"), 21 );

@@ -61,25 +61,24 @@ std::string tolower(std::string const &word)
 
 struct ParamValuePrinter{
     template<typename T>
-    std::string simpleToString(T pv){ return std::to_string(pv);}
+    std::string simpleToString(T pv) const { return std::to_string(pv);}
 
     template<typename T>
-    std::string vectorToString(const std::vector<T>& pv){
+    std::string vectorToString(const std::vector<T>& pv) const{
         if (pv.empty()) return "[ ]";
         std::stringstream ss;
         ss << "[";
-        copy(pv.begin(), pv.end() - 1, std::ostream_iterator<int>(ss, ", "));
+        copy(pv.begin(), pv.end() - 1, std::ostream_iterator<T>(ss, ", "));
         ss << pv.back() << "]";
         return ss.str();
     }
 
-    std::string operator()(int pv) { return simpleToString(pv);}
-    std::string operator()(double pv) { return simpleToString(pv);}
-    std::string operator()(bool pv) { return simpleToString(pv);}
-    std::string operator()(const std::string& pv) { return pv;}
-
-    std::string operator()(const std::vector<int>& pv) { return vectorToString(pv); }
-    std::string operator()(const std::vector<double>& pv) { return vectorToString(pv); }
+    std::string operator()(const int pv) const{ return simpleToString(pv);}
+    std::string operator()(const double pv) const { return simpleToString(pv);}
+    std::string operator()(const bool pv) const { return simpleToString(pv);}
+    std::string operator()(const std::string& pv) const { return pv;}
+    std::string operator()(const std::vector<int>& pv) const { return vectorToString(pv); }
+    std::string operator()(const std::vector<double>& pv) const { return vectorToString(pv); }
 
 };
 
