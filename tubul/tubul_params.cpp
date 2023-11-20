@@ -20,7 +20,7 @@ void configParams(const std::string& paramsConfig) {
 
 
 // load a params file (as many times as you want)
-void loadParams(std::string_view paramsFile){
+void loadParams(const std::string& paramsFile){
     Parameters ::load(paramsFile.data());
 }
 
