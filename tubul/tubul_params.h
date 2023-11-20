@@ -16,6 +16,9 @@ namespace TU
     // load a params file (as many times as you want)
     void loadParams(const std::string&  paramsFile);
 
+    // load a params file (as many times as you want)
+    void loadParamsString(const std::string& content);
+
     // get the current value of a param
     template <typename T>
     T getParam(const std::string& param);
