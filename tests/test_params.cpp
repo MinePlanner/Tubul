@@ -2,6 +2,7 @@
 // Created by Carlos Acosta on 06-11-23.
 //
 
+#include <fstream>
 #include "tubul.h"
 #include <gtest/gtest.h>
 
@@ -41,6 +42,18 @@ const char *TEST_PARAMDEF = R"###(
     }
     ]
 }
+)###";
+
+
+const char* TEST_INIFILE = R"###(
+[Global]
+; A comment
+timeout = 21
+solver= Gurobi ; another comment
+[Zoo]
+LionShowAvailable =false
+MagicValue=420 # and a third for good measure
+MagicSequence = [30,10,50,120,70]
 )###";
 
 TEST(TUBULNeoParams, definitions) {
@@ -174,4 +187,26 @@ TEST(TUBULNeoParams, pushSingleParamPopSeveral) {
         std::vector<int> expected = {1,1,1,2,2,4,8};
         EXPECT_EQ( TU::getParam<std::vector<int>>("Zoo.MagicSequence"), expected);
     }
+}
+
+TEST(TUBULNeoParams, readFromIni) {
+    //Configure params
+    std::string iniFileName = "test_file.ini";
+    TU::configParams( TEST_PARAMDEF );
+    {
+        std::ofstream iniFile(iniFileName);
+        iniFile << TEST_INIFILE;
+    }
+
+    //Loading ini file that contains several keys.
+    TU::loadParams(iniFileName);
+
+    //The keys should be what the file said.
+    EXPECT_EQ( TU::getParam<int>("Global.timeout"), 21 );
+    EXPECT_EQ( TU::getParam<std::string>("Global.solver"), "Gurobi" );
+    EXPECT_EQ( TU::getParam<double>("Zoo.MagicValue"), 420 );
+    EXPECT_EQ( TU::getParam<bool>("Zoo.LionShowAvailable"), false );
+    std::vector<int> expected = { 30,10,50,120,70};
+    EXPECT_EQ( TU::getParam<std::vector<int>>("Zoo.MagicSequence"), expected);
+
 }
