@@ -368,8 +368,18 @@ namespace TU {
     // Memory
     /////////
 
+	/** Self-explanatory functions*/
     std::string memCurrentRSS();
 	std::string memPeakRSS();
+	/** This structure provides an easy way to maintain a memory monitoring system.
+	 * It will create a thread that will wake up every 0.5s and write to a file the
+	 * current rss and peakrss at that point. The filename is provided.
+	 * The memory monitor will auto-clean after itself, meaning that as soon as the
+	 * object goes out of scope, it will close the file and wait for the thread
+	 * to properly exit. Do note this may cause a delay given the way the thread
+	 * communicates that it has finished.
+	 */
+	struct MemoryMonitor;
 
     /////////
     // File Utils
@@ -382,6 +392,9 @@ namespace TU {
      */
     bool isRegularFile(const std::string_view& name);
     size_t countCharInFile( const std::string_view& filename, char c);
+
     double strToDouble(const std::string_view& p);
     int strToInt(const std::string_view& p);
+	std::string readToString( const std::string& filename);
+
 }

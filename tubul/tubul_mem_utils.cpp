@@ -8,6 +8,10 @@
 #include <vector>
 #include <iomanip>
 #include <iostream>
+#include <thread>
+#include <chrono>
+#include "tubul_file_utils.h"
+#include "tubul_mem_utils.h"
 
 #if defined(TUBUL_MACOS)
 #include <mach/mach.h>
@@ -21,13 +25,7 @@
 
 namespace TU{
 
-std::string read_file_to_string(const std::string& filename)
-{
-	std::ifstream proc_file( filename );
-	std::string str((std::istreambuf_iterator<char>(proc_file)),
-                    std::istreambuf_iterator<char>());
-	return str;
-}
+
 
 std::string bytes_to_string(size_t value_in_bytes)
 {
@@ -66,7 +64,7 @@ size_t getLinuxRSS()
 {
 	//The statsm proc file contains the memory as page counts, so
 	//we need the page size to accurately measure this as bytes
-	auto stats = read_file_to_string("/proc/self/statm");
+	auto stats = readToString("/proc/self/statm");
 	auto page_size = sysconf(_SC_PAGE_SIZE);
 
 	auto first_spc = stats.find_first_of(' ');
@@ -85,7 +83,7 @@ size_t getLinuxRSS()
 
 size_t getLinuxPeakRSS()
 {
-	auto status_procfile = read_file_to_string("/proc/self/status");
+	auto status_procfile = readToString("/proc/self/status");
 	//Get the line containing "VmHWM:"
 	std::istringstream file_contents( std::move(status_procfile) );
 	std::string line;
@@ -168,5 +166,61 @@ std::string memCurrentRSS()
 #endif
 
 }
+
+
+/**
+ * This is the private implementation of the memory monitoring thread.
+ * It's actually quite simple using std::thread ability to run a given
+ * object's method on a thread. We create an outputfile, and Impl
+ * has an atomic flag (just to be sure there's no funny optimizations
+ * if we were to use a naked bool).
+ * The memReportWorker function will keep writing a new line
+ * containing the rss and peak rss at that point and then sleeping 0.5s until
+ * the exit flag is marked.
+ * The exit flag is marked when Impl goes out of scope. Then the destructor
+ * waits for the thread to join and life continues. The file should close
+ * automatically too.
+ */
+struct MemoryMonitor::Impl{
+
+	explicit Impl(const std::string& f ):
+		report_(f)
+	{
+		th_ = std::thread(&Impl::memReportWorker, this);
+	}
+
+	void memReportWorker() {
+		//Create the file and start logging every so many millisecs
+		while ( !threadExitFlag_.test() )
+		{
+			using namespace std::chrono_literals;
+			std::this_thread::sleep_for( 500ms );
+			report_ << memCurrentRSS() << "," << memPeakRSS() << '\n';
+		}
+	}
+
+	~Impl() {
+		threadExitFlag_.test_and_set();
+		if(th_.joinable()) {
+			th_.join(); // join() in destructor
+		}
+	}
+
+private:
+	std::atomic_flag threadExitFlag_ = ATOMIC_FLAG_INIT;
+	std::thread th_;
+	std::ofstream report_;
+};
+
+/**
+ * The construct or of memory monitor pretty much just creates the private implementation.
+ */
+MemoryMonitor::MemoryMonitor(const std::string& reportFileName):
+	impl_(std::make_unique<Impl>(reportFileName))
+	{}
+
+MemoryMonitor::~MemoryMonitor() = default;
+
+
 
 }
