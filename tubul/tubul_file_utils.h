@@ -7,6 +7,8 @@
 #include <cstdlib>
 #include <tuple>
 #include <memory>
+#include <streambuf>
+#include <fstream>
 
 namespace TU{
 /** Set of simple functions to perform tasks that are common
@@ -53,5 +55,15 @@ struct MappedFile
     std::unique_ptr<Internals> impl_;
 };
 
+//This is just a simple wrapper for the cumbersome way to read
+//the contents of a file into a string.
+inline
+std::string readToString(const std::string& filename)
+{
+	std::ifstream ifile( filename );
+	std::string str((std::istreambuf_iterator<char>(ifile)),
+					 std::istreambuf_iterator<char>());
+	return str;
+}
 
 }

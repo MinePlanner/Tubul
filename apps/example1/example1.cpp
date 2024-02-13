@@ -141,6 +141,10 @@ int main(int argc, const char** argv){
 
     // start by setting up loggers
     exampleLogging();
+	//Start the simple memory monitoring. This will output periodic memory reports
+	//to the file "example.mem". It will automatically shut down when the object
+	//monitor goes out of scope.
+	TU::MemoryMonitor monitor("example.mem");
 
 	TU::ProcessBlock b("exampleApp");
 	TU::AutoStopWatch exampleTimer("Example app elapsed:");
