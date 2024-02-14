@@ -7,13 +7,15 @@
 #include <chrono>
 #include <cassert>
 #include "tubul_blocks.h"
+#include "tubul_time.h"
+#include "tubul_mem_utils.h"
+#include "tubul_logger.h"
 
 
 namespace TU
 {
 struct BlockDescription
 {
-	using TimePoint = decltype(std::chrono::high_resolution_clock::now());
 	BlockDescription(const std::string& n, TimePoint tp):
 		name(n), start_time(tp)
 	{}
@@ -28,14 +30,40 @@ std::vector<BlockDescription>& getBlockContainer()
 	return block_container;
 }
 
-ProcessBlock::ProcessBlock(const std::string &name)
+void logBlockOnOpen(const BlockDescription& b) {
+	logDevel() << "Starting block " << b.name
+		<< " mem rss/peak: [" << memCurrentRSS() << "/" << memPeakRSS() << "]";
+}
+
+void logBlockOnClose( const BlockDescription& b) {
+	//To store the amount of seconds as a double.
+	using Duration = std::chrono::duration<double, std::ratio<1>>;
+	Duration block_duration =  now() - b.start_time ;
+	logDevel() << "Closing block " << b.name
+		<< " rss/peak: [" << memCurrentRSS() << "/" << memPeakRSS()
+		<<  "] elapsed: " << block_duration.count() << "s";
+}
+
+Block::Block(const std::string &name):
+	whenToLog_(LogType::ALL)
 {
 	auto& blocks = getBlockContainer();
 	index_ = blocks.size();
-	blocks.emplace_back( name, std::chrono::high_resolution_clock::now() );
+	blocks.emplace_back( name, now() );
+	logBlockOnOpen(blocks.back());
 }
 
-ProcessBlock::~ProcessBlock()
+Block::Block(const std::string &name, LogType l):
+	whenToLog_(l)
+{
+	auto& blocks = getBlockContainer();
+	index_ = blocks.size();
+	blocks.emplace_back( name, now() );
+	if ( l == LogType::ALL or l == LogType::ON_START)
+		logBlockOnOpen(blocks.back());
+}
+
+Block::~Block()
 {
 	auto& blocks = getBlockContainer();
 	//If somehow the blocks are empty and we got here, that means somethign really
@@ -44,12 +72,8 @@ ProcessBlock::~ProcessBlock()
 	//We always just drop the last block in the stack given the way blocks
 	//are supposed to be created.
 	auto& closingBlock = blocks.back();
-	//To store the amount of seconds as a double.
-	using Duration = std::chrono::duration<double, std::ratio<1>>;
-	Duration block_duration =  std::chrono::high_resolution_clock::now() - closingBlock.start_time ;
-	//We should do something about the duration, like logging it for now just avoid
-	//warnings for variables not used.
-	(void) block_duration;
+	if ( whenToLog_ == LogType::ALL or whenToLog_ == LogType::ON_END)
+		logBlockOnClose( closingBlock );
 	blocks.pop_back();
 	//Just to be safe, let's check the number of blocks is the.
 	assert(index_ == blocks.size());
