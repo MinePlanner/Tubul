@@ -287,7 +287,7 @@ namespace TU {
 	 * }
 	 *
 	 */
-	struct ProcessBlock;
+	struct Block;
 	std::string getCurrentBlockLocation();
 
     /////////////

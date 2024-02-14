@@ -87,7 +87,7 @@ void exampleLogging()
 	// from now on, logReport and up will go to screen and
 	// logInfo and up will go to a file example1.log
 	TU::addLoggerDefinition(std::cout, TU::LogLevel::REPORT, TU::LogOptions::NOTIMESTAMP);
-	TU::addLoggerDefinition("example1.log", TU::LogLevel::INFO);
+	TU::addLoggerDefinition("example1.log", TU::LogLevel::DEVEL);
 
 	TU::logReport("This message should go to screen and example1.log");
 	TU::logInfo("This message should go only to example1.log");
@@ -130,7 +130,7 @@ void exampleTimers(TU::Timer &alarm3s)
 		std::this_thread::sleep_for(std::chrono::seconds(3));
 	}
 	TU::logReport() << "I slept for " << exampleElapsed.count() << " seconds";
-	TU::logReport() <<"\tTuner: Is the alarm up?" << ( (alarm3s.alive())?"YES":"NO" ) << "  remaining: " << alarm3s.remaining();
+	TU::logReport() <<"\tTimer: Is the alarm up?" << ( (alarm3s.alive())?"YES":"NO" ) << "  remaining: " << alarm3s.remaining();
 }
 
 int main(int argc, const char** argv){
@@ -146,14 +146,14 @@ int main(int argc, const char** argv){
 	//monitor goes out of scope.
 	TU::MemoryMonitor monitor("example.mem");
 
-	TU::ProcessBlock b("exampleApp");
+	TU::Block b("exampleApp");
 	TU::AutoStopWatch exampleTimer("Example app elapsed:");
 
 	//Cool trick to use "3s" instead of std::chrono::seconds(3)
 	using namespace std::chrono_literals;
 	TU::Timer alarm3s(3s);
 	{
-		TU::ProcessBlock parsing("Parsing");
+		TU::Block parsing("Parsing");
 		TU::AutoStopWatch t(std::string("Tubul example timer for parse arguments:"));
 		parseArguments(argc, argv);
         TU::logReport() << TU::getCurrentBlockLocation();
@@ -165,31 +165,24 @@ int main(int argc, const char** argv){
 	exampleRangeAndJoin();
 	exampleTimers(alarm3s);
 
-    TU::logReport()  <<"\tTimer: Is the alarm up?" << ((alarm3s.alive())?"YES":"NO") << "  remaining: " << alarm3s.remaining();
-
-	TU::TimeDuration exampleElapsed;
-	{
-		TU::ProcessBlock ps("sleeping");
-		TU::StopWatch st(exampleElapsed);
-		std::this_thread::sleep_for(std::chrono::seconds(3));
-		TU::logReport() << TU::getCurrentBlockLocation();
-	}
-	try
-	{
+	try {
+		TU::Block ps("sleeping");
+		TU::TimeDuration exampleElapsed;
+		{
+			TU::StopWatch st(exampleElapsed);
+			std::this_thread::sleep_for(2s);
+		}
+		TU::logReport() << "Inside block " <<  TU::getCurrentBlockLocation();
 		TU::logReport() << "I slept for " << exampleElapsed.count() << " seconds";
-		TU::logReport() << "\tTimer: Is the alarm up?" << ((alarm3s.alive()) ? "YES" : "NO") << "  remaining: " << alarm3s.remaining();
-		TU::logReport() << TU::getCurrentBlockLocation();
 		throw TU::Exception("a nefarious error")  << "And it can receive more danger!" << TU::getCurrentBlockLocation();
 	}
 	catch (TU::Exception& r)
 	{
-		TU::logReport() << "catched a new exception" << r.to_string();
+		TU::logReport() << "catched a new exception! Contents: " << r.to_string();
 		TU::logReport() << "And the what also works: '" << r.what() << "'" ;
 
 	}
-	TU::logReport() << "I slept for " << exampleElapsed.count() << " seconds";
-	TU::logReport() <<"\tTuner: Is the alarm up?" << ( (alarm3s.alive())?"YES":"NO" ) << "  remaining: " << alarm3s.remaining();
-	TU::logReport() << TU::getCurrentBlockLocation();
+
 
 	TU::logReport() << "With Tubul I can easily read CSV files (Mem before reading csv:" << getTubulMem() << ")";
 	std::optional<TU::CSVContents> csv_reading_result;

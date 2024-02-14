@@ -26,4 +26,6 @@ namespace TU
         std::unique_ptr<Impl> impl_;
     };
 
+	std::string memCurrentRSS();
+	std::string memPeakRSS();
 }
