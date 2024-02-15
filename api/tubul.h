@@ -369,8 +369,11 @@ namespace TU {
     /////////
 
 	/** Self-explanatory functions*/
-    std::string memCurrentRSS();
-	std::string memPeakRSS();
+	std::string bytesToStr(size_t bytes);
+    size_t memCurrentRSS();
+	size_t memPeakRSS();
+	size_t memAlive();
+	size_t memLifetime();
 	/** This structure provides an easy way to maintain a memory monitoring system.
 	 * It will create a thread that will wake up every 0.5s and write to a file the
 	 * current rss and peakrss at that point. The filename is provided.

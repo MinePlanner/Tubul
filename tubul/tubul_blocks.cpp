@@ -7,6 +7,9 @@
 #include <chrono>
 #include <cassert>
 #include "tubul_blocks.h"
+
+#include <tubul.h>
+
 #include "tubul_time.h"
 #include "tubul_mem_utils.h"
 #include "tubul_logger.h"
@@ -16,11 +19,15 @@ namespace TU
 {
 struct BlockDescription
 {
-	BlockDescription(const std::string& n, TimePoint tp):
-		name(n), start_time(tp)
+	explicit
+	BlockDescription(const std::string& n):
+		name(n),
+		allocAtStart(memLifetime()),
+		start_time(now())
 	{}
 
 	std::string name;
+	size_t allocAtStart;
 	TimePoint start_time;
 };
 
@@ -31,17 +38,20 @@ std::vector<BlockDescription>& getBlockContainer()
 }
 
 void logBlockOnOpen(const BlockDescription& b) {
-	logDevel() << "Starting block " << b.name
-		<< " mem rss/peak: [" << memCurrentRSS() << "/" << memPeakRSS() << "]";
+	logDevel() << "Starting " << getCurrentBlockLocation() << " | "
+		<< " mem rss/peak/alive: [" << bytesToStr(memCurrentRSS()) << "/" << bytesToStr(memPeakRSS())
+		<< "/" << bytesToStr(memAlive()) << "]";
 }
 
 void logBlockOnClose( const BlockDescription& b) {
 	//To store the amount of seconds as a double.
 	using Duration = std::chrono::duration<double, std::ratio<1>>;
 	Duration block_duration =  now() - b.start_time ;
-	logDevel() << "Closing block " << b.name
-		<< " rss/peak: [" << memCurrentRSS() << "/" << memPeakRSS()
-		<<  "] elapsed: " << block_duration.count() << "s";
+	auto allocations = memLifetime() - b.allocAtStart;
+	logDevel() << "Closing " << getCurrentBlockLocation() << " | "
+		<< " rss/peak/alive/allocated: [" << bytesToStr(memCurrentRSS()) << "/" << bytesToStr(memPeakRSS())
+		<< "/" << bytesToStr(memAlive()) << "/" << bytesToStr(allocations)
+		<<  "] e: " << block_duration.count() << "s";
 }
 
 Block::Block(const std::string &name):
@@ -49,7 +59,7 @@ Block::Block(const std::string &name):
 {
 	auto& blocks = getBlockContainer();
 	index_ = blocks.size();
-	blocks.emplace_back( name, now() );
+	blocks.emplace_back( name );
 	logBlockOnOpen(blocks.back());
 }
 
@@ -58,7 +68,7 @@ Block::Block(const std::string &name, LogType l):
 {
 	auto& blocks = getBlockContainer();
 	index_ = blocks.size();
-	blocks.emplace_back( name, now() );
+	blocks.emplace_back( name );
 	if ( l == LogType::ALL or l == LogType::ON_START)
 		logBlockOnOpen(blocks.back());
 }

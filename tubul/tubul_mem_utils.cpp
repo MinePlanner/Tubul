@@ -10,6 +10,7 @@
 #include <iostream>
 #include <thread>
 #include <chrono>
+#include <atomic>
 #include "tubul_file_utils.h"
 #include "tubul_mem_utils.h"
 
@@ -23,11 +24,14 @@
 #include <psapi.h>
 #endif
 
+#include <cstdio>
+#include <cstdlib>
+
+
+
 namespace TU{
 
-
-
-std::string bytes_to_string(size_t value_in_bytes)
+std::string bytesToStr(size_t value_in_bytes)
 {
 	std::vector<std::string> units ={"b", "kb", "mb", "gb"};
 	std::stringstream buffer;
@@ -144,29 +148,49 @@ size_t getWindowsRSS( )
 
 #endif
 
-std::string memPeakRSS()
+
+size_t memPeakRSS()
 {
 #if defined(TUBUL_MACOS)
-	return bytes_to_string( getApplePeakRSS() );
+	return getApplePeakRSS();
 #elif defined(TUBUL_LINUX)
-	return bytes_to_string( getLinuxPeakRSS() );
+	return getLinuxPeakRSS();
 #elif defined(TUBUL_WINDOWS)
-	return bytes_to_string( getWindowsPeakRSS() );
+	return getWindowsPeakRSS();
 #endif
 }
 
-std::string memCurrentRSS()
+size_t memCurrentRSS()
 {
 #if defined(TUBUL_MACOS)
-	return bytes_to_string( getAppleRSS() );
+	return getAppleRSS();
 #elif defined(TUBUL_LINUX)
-	return bytes_to_string( getLinuxRSS() );
+	return getLinuxRSS();
 #elif defined(TUBUL_WINDOWS)
-	return bytes_to_string( getWindowsRSS() );
+	return getWindowsRSS();
 #endif
 
 }
 
+struct MemoryStats {
+	std::atomic_size_t allocated;
+	std::atomic_size_t alive;
+};
+
+MemoryStats& getTubulStats() {
+	static MemoryStats stats;
+	return stats;
+}
+
+size_t memAlive() {
+	const auto&[ lifetime, alive] = getTubulStats();
+	return alive.load();
+}
+
+size_t memLifetime() {
+	const auto&[ lifetime, alive] = getTubulStats();
+	return lifetime.load();
+}
 
 /**
  * This is the private implementation of the memory monitoring thread.
@@ -223,4 +247,54 @@ MemoryMonitor::~MemoryMonitor() = default;
 
 
 
+}
+
+
+
+// no inline, required by [replacement.functions]/3
+void* operator new(std::size_t sz)
+{
+	if (sz == 0)
+		++sz; // avoid std::malloc(0) which may return nullptr on success
+
+	auto& stats = TU::getTubulStats();
+	auto total = stats.allocated.fetch_add(sz);
+	auto cur = stats.alive.fetch_add(sz);
+	// std::printf("1) new(size_t), size = %zu alive = %zu total alloc'd= %zu\n", sz, cur+sz, total+sz);
+	if (void *ptr = std::malloc(sz))
+		return ptr;
+
+	throw std::bad_alloc{}; // required by [new.delete.single]/3
+}
+
+// no inline, required by [replacement.functions]/3
+void* operator new[](std::size_t sz)
+{
+	if (sz == 0)
+		++sz; // avoid std::malloc(0) which may return nullptr on success
+	auto& stats = TU::getTubulStats();
+	auto total = stats.allocated.fetch_add(sz);
+	auto cur = stats.alive.fetch_add(sz);
+	// std::printf("2) new[](size_t), size = %zu alive = %zu total alloc'd= %zu\n", sz, cur+sz, total+sz);
+
+	if (void *ptr = std::malloc(sz))
+		return ptr;
+
+	throw std::bad_alloc{}; // required by [new.delete.single]/3
+}
+
+void operator delete(void* ptr, std::size_t size) noexcept
+{
+	auto& stats = TU::getTubulStats();
+	auto cur = stats.alive.fetch_sub(size);
+	// std::printf("4) delete(void*, size_t), size = %zu alive = %zu\n", size, cur -size);
+	std::free(ptr);
+}
+
+void operator delete[](void* ptr, std::size_t size) noexcept
+{
+	auto& stats = TU::getTubulStats();
+	auto cur = stats.alive.fetch_sub(size);
+	// std::printf("6) delete[](void*, size_t), size = %zu alive = %zu\n", size, cur-size);
+	std::free(ptr);
 }
