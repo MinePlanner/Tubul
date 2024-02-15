@@ -26,6 +26,9 @@ namespace TU
         std::unique_ptr<Impl> impl_;
     };
 
-	std::string memCurrentRSS();
-	std::string memPeakRSS();
+	size_t memCurrentRSS();
+	size_t memPeakRSS();
+	std::string bytesToStr(size_t value_in_bytes);
+	size_t memAlive();
+	size_t memLifetime();
 }

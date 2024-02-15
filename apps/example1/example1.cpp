@@ -3,6 +3,7 @@
 //
 
 #include <iostream>
+#include <sstream>
 #include <vector>
 #include <thread>
 
@@ -28,7 +29,12 @@ Purple,#800080,50,0,50)";
 
 std::string getTubulMem()
 {
-	return std::string("Memory (current/max): ") + TU::memCurrentRSS() + " / " + TU::memPeakRSS() ;
+	using namespace TU;
+	std::stringstream msg;
+	msg << "Memory (current/max/alive/lifetime): " << bytesToStr(memCurrentRSS())
+	<< " / " << bytesToStr(memPeakRSS()) << " / " << bytesToStr(memAlive())
+	<< " / " << bytesToStr(memLifetime());
+	return msg.str();
 }
 
 void parseArguments(int argc, const char** argv)
@@ -103,6 +109,7 @@ void exampleLogging()
 
 void exampleStrings()
 {
+	TU::Block bs("strings");
 	std::string hello("Hello world 1 2 3");
 	auto tokens = TU::split(hello );
 	TU::logReport() << "I can split and join strings: " << hello << " -> '" << TU::join(tokens,"->") << "'";
@@ -122,6 +129,7 @@ void exampleRangeAndJoin()
 
 void exampleTimers(TU::Timer &alarm3s)
 {
+	TU::Block bs("Timers");
 	TU::logReport() <<"\tTimer: Is the alarm up?" << ((alarm3s.alive())?"YES":"NO") << "  remaining: " << alarm3s.remaining();
 
 	TU::TimeDuration exampleElapsed;
@@ -132,39 +140,13 @@ void exampleTimers(TU::Timer &alarm3s)
 	TU::logReport() << "I slept for " << exampleElapsed.count() << " seconds";
 	TU::logReport() <<"\tTimer: Is the alarm up?" << ( (alarm3s.alive())?"YES":"NO" ) << "  remaining: " << alarm3s.remaining();
 }
-
-int main(int argc, const char** argv){
-
-	// the main program should create a Tubul.
-	// Sub-libraries are free to use this one!
-	std::cout << "Hello Tubul version: " << TU::getVersion() << ".\n";
-
-    // start by setting up loggers
-    exampleLogging();
-	//Start the simple memory monitoring. This will output periodic memory reports
-	//to the file "example.mem". It will automatically shut down when the object
-	//monitor goes out of scope.
-	TU::MemoryMonitor monitor("example.mem");
-
-	TU::Block b("exampleApp");
-	TU::AutoStopWatch exampleTimer("Example app elapsed:");
-
-	//Cool trick to use "3s" instead of std::chrono::seconds(3)
+void exampleException()
+{
 	using namespace std::chrono_literals;
-	TU::Timer alarm3s(3s);
-	{
-		TU::Block parsing("Parsing");
-		TU::AutoStopWatch t(std::string("Tubul example timer for parse arguments:"));
-		parseArguments(argc, argv);
-        TU::logReport() << TU::getCurrentBlockLocation();
-	}
-
-    TU::logReport() << "I can check some arguments! explicit and default values! (use -h for help, or -c for a flag and -p for a name)";
-
-	exampleStrings();
-	exampleRangeAndJoin();
-	exampleTimers(alarm3s);
-
+	TU::Block be("Exceptions");
+	//We can create a time duration that will accumulate time spent
+	//by different Stopwatches, even if they are bound to scopes that
+	//could dissapear (in this case, is nto really due exceptions, but can be).
 	try {
 		TU::Block ps("sleeping");
 		TU::TimeDuration exampleElapsed;
@@ -174,6 +156,8 @@ int main(int argc, const char** argv){
 		}
 		TU::logReport() << "Inside block " <<  TU::getCurrentBlockLocation();
 		TU::logReport() << "I slept for " << exampleElapsed.count() << " seconds";
+		//For whatever reason, we detect an error and throw an exception.
+		//We can add the current block and other strings if we want!
 		throw TU::Exception("a nefarious error")  << "And it can receive more danger!" << TU::getCurrentBlockLocation();
 	}
 	catch (TU::Exception& r)
@@ -182,9 +166,14 @@ int main(int argc, const char** argv){
 		TU::logReport() << "And the what also works: '" << r.what() << "'" ;
 
 	}
+}
 
+void exampleCsv()
+{
+	TU::Block bcsv("CSV");
+	TU::logReport() << "With Tubul I can easily read CSV files";
+	TU::logReport() << "Mem before reading csv:" << getTubulMem();
 
-	TU::logReport() << "With Tubul I can easily read CSV files (Mem before reading csv:" << getTubulMem() << ")";
 	std::optional<TU::CSVContents> csv_reading_result;
 	{
 		TU::AutoStopWatch st("Time reading CSV file: ");
@@ -195,7 +184,6 @@ int main(int argc, const char** argv){
 			TU::logReport() << "Couldn't read sample file ";
 		else
 			csv_reading_result.swap(res);
-
 	}
 
 	TU::logReport() << "Mem after reading csv:" << getTubulMem();
@@ -224,6 +212,7 @@ int main(int argc, const char** argv){
 
 	//Clearing the cached column data (at this point it still exists!!)
 	csv_reading_result.reset();
+	TU::logReport() << "After freeing the raw csv:" << getTubulMem();
 	//But now we want to treate all as column based data, i.e. a dataframe, with
 	//the RGB columns as int, and hex as string.
 	{
@@ -233,6 +222,7 @@ int main(int argc, const char** argv){
 							   {"R", DataType::INTEGER},
 							   {"G", DataType::INTEGER},
 							   {"B", DataType::INTEGER}});
+		TU::logReport() << "Mem before requesting specific columns:" << getTubulMem();
 		auto df = TU::dataFrameFromCSVString(CSVSample, req);
 		TU::logReport() << "Rows detected: " << df.getRowCount();
 		TU::logReport() << "Columns detected: " << df.getColCount();
@@ -241,7 +231,49 @@ int main(int argc, const char** argv){
 		TU::logReport() << "Mem after requesting ALL data columns:" << getTubulMem();
 	}
 
-	TU::logReport() << "Current RSS: " << TU::memCurrentRSS();
-	TU::logReport() << "PeakRSS: " << TU::memPeakRSS();
+}
+
+int main(int argc, const char** argv){
+
+	TU::Block b("exampleApp");
+	// the main program should create a Tubul.
+	// Sub-libraries are free to use this one!
+	std::cout << "Hello Tubul version: " << TU::getVersion() << ".\n";
+
+    // start by setting up loggers
+    exampleLogging();
+	//Start the simple memory monitoring. This will output periodic memory reports
+	//to the file "example.mem". It will automatically shut down when the object
+	//monitor goes out of scope.
+	TU::MemoryMonitor monitor("example.mem");
+
+	//This stopwatch will report how much time has passed since its creation (this line)
+	//and whenever it goes out of scope. It will automatically report its duration
+	TU::AutoStopWatch exampleTimer("Example app elapsed:");
+
+	//Cool trick to use "3s" instead of std::chrono::seconds(3)
+	using namespace std::chrono_literals;
+	TU::Timer alarm3s(3s);
+	{
+		TU::Block parsing("Parsing args");
+		TU::AutoStopWatch t(std::string("Tubul example timer for parse arguments:"));
+		parseArguments(argc, argv);
+        TU::logReport() << "Tubul keeps track of my current block location: " << TU::getCurrentBlockLocation();
+	}
+
+    TU::logReport() << "I can check some arguments! explicit and default values! (use -h for help, or -c for a flag and -p for a name)";
+
+
+	TU::logReport() << getTubulMem();
+	exampleStrings();
+	TU::logReport() << getTubulMem();
+	exampleRangeAndJoin();
+	TU::logReport() << getTubulMem();
+	exampleTimers(alarm3s);
+	TU::logReport() << getTubulMem();
+	exampleException();
+	TU::logReport() << getTubulMem();
+	exampleCsv();
+	TU::logReport() << getTubulMem();
 
 }
