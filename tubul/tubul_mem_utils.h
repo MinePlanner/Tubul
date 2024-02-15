@@ -26,9 +26,18 @@ namespace TU
         std::unique_ptr<Impl> impl_;
     };
 
+	/** Self explaining functions - Do note, these are reported by the OS */
 	size_t memCurrentRSS();
 	size_t memPeakRSS();
 	std::string bytesToStr(size_t value_in_bytes);
+
+	/** These functions track memory allocated via new/delete. Tubul tries to
+	 * keep track of how many bytes have been allocated at a given time so it could
+	 * be used to detect at which point a big number of allocations happened, even
+	 * if the current rss does not change in the end, for example, succesively
+	 * allocating and then deleting those objects. Lifetime memory is always
+	 * increasing, while alive an varies.
+	 */
 	size_t memAlive();
 	size_t memLifetime();
 }

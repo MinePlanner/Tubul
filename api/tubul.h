@@ -368,12 +368,21 @@ namespace TU {
     // Memory
     /////////
 
-	/** Self-explanatory functions*/
-	std::string bytesToStr(size_t bytes);
+	/** Self-explanatory functions - Do note these are reported by the OS*/
     size_t memCurrentRSS();
 	size_t memPeakRSS();
+	std::string bytesToStr(size_t bytes);
+
+	/** These functions track memory allocated via new/delete. Tubul tries to
+	 * keep track of how many bytes have been allocated at a given time so it could
+	 * be used to detect at which point a big number of allocations happened, even
+	 * if the current rss does not change in the end, for example, succesively
+	 * allocating and then deleting those objects. Lifetime memory is always
+	 * increasing, while alive can vary over time.
+	 */
 	size_t memAlive();
 	size_t memLifetime();
+
 	/** This structure provides an easy way to maintain a memory monitoring system.
 	 * It will create a thread that will wake up every 0.5s and write to a file the
 	 * current rss and peakrss at that point. The filename is provided.

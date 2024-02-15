@@ -163,7 +163,7 @@ void exampleException()
 	catch (TU::Exception& r)
 	{
 		TU::logReport() << "catched a new exception! Contents: " << r.to_string();
-		TU::logReport() << "And the what also works: '" << r.what() << "'" ;
+		TU::logReport() << "And the what() also works: '" << r.what() << "'" ;
 
 	}
 }
@@ -212,7 +212,7 @@ void exampleCsv()
 
 	//Clearing the cached column data (at this point it still exists!!)
 	csv_reading_result.reset();
-	TU::logReport() << "After freeing the raw csv:" << getTubulMem();
+	TU::logReport() << "After freeing up the raw csv:" << getTubulMem();
 	//But now we want to treate all as column based data, i.e. a dataframe, with
 	//the RGB columns as int, and hex as string.
 	{

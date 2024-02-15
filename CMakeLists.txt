@@ -37,6 +37,13 @@ else()
 	message(STATUS "Unsupported Build Type")
 endif()
 
+if((build_type MATCHES "debug") )
+    add_compile_definitions("TUBUL_DEBUG")
+endif()
+
+if((build_type MATCHES "release") )
+    add_compile_definitions("TUBUL_RELEASE")
+endif()
 # Check if ccache is installed
 find_program(CCACHE_FOUND ccache)
 if(CCACHE_FOUND)
