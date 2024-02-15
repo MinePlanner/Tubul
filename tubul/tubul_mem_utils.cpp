@@ -11,6 +11,7 @@
 #include <thread>
 #include <chrono>
 #include <atomic>
+#include <algorithm>
 #include "tubul_file_utils.h"
 #include "tubul_mem_utils.h"
 
@@ -173,8 +174,24 @@ size_t memCurrentRSS()
 }
 
 struct MemoryStats {
-	std::atomic_size_t allocated;
+	using PtrSize = std::pair<void*,size_t>;
+	std::atomic_size_t lifetime;
 	std::atomic_size_t alive;
+	std::vector<PtrSize> sizes;
+
+	auto findArrayAlloc(void *ptr) {
+		return std::find_if(std::begin(sizes), std::end(sizes),
+		                    [ptr](auto sizeItem) {
+			                    const auto &[p,s] = sizeItem;
+			                    return (p == ptr);
+		                    });
+	}
+
+	void removeArrayAlloc(std::vector<PtrSize>::iterator it) {
+		//Move the iterator to the last position and drop it.
+		std::iter_swap(it, sizes.end() - 1);
+		sizes.pop_back();
+	}
 };
 
 MemoryStats& getTubulStats() {
@@ -183,13 +200,13 @@ MemoryStats& getTubulStats() {
 }
 
 size_t memAlive() {
-	const auto&[ lifetime, alive] = getTubulStats();
-	return alive.load();
+	const auto& stat = getTubulStats();
+	return stat.alive.load();
 }
 
 size_t memLifetime() {
-	const auto&[ lifetime, alive] = getTubulStats();
-	return lifetime.load();
+	const auto& stat = getTubulStats();
+	return stat.lifetime.load();
 }
 
 /**
@@ -250,17 +267,47 @@ MemoryMonitor::~MemoryMonitor() = default;
 }
 
 
+/** Here are Tubul's custom implementations of new and delete to try to
+ * keep track of the allocated memory. Even though this looked relatively simple
+ * it turns out there's a lot of small details to keep in mind
+ * 1) First of all, in clang the sized deallocation are not the default! Add
+ * -fsized-deallocations when using this.
+ * 2) Imho, the array deallocation is kind of broken in clang and gcc. When you
+ * allocate an array of N elements you know the size (and underlying knowledge remains too!),
+ * but there's a caveat if the elements are trivial pods... in that case the compiler
+ * is free to call the non-sized deallocator!!! That is quite a pain because to properly
+ * get back the size of that allocation would require either risky assumptions (basically
+ * that we can use the trick of looking at position -1 and retrieve the size) or a lot of
+ * extra work to keep knowledge of this. I did a small solution here for completeness-sake
+ * but i am not very happy with it.
+ * 3) new and sized delete for single objects seems to work as expected. In particular,
+ * std::vector saves the day here as it doesn't use new[], because it has to work which
+ * elements are "alive" and which are not.
+ *
+ * If you need to keep track of allocations going in the program, you can uncomment this
+ * define and it will uncomment the log-to-console lines. Also can do it through compile defs.
+ */
+//#define TUBUL_ALLOCATIONS_PRINT
+#ifdef TUBUL_ALLOCATIONS_PRINT
+static constexpr bool TUBUL_LOG_ALLOCATIONS = true;
+#else
+static constexpr bool TUBUL_LOG_ALLOCATIONS = false;
+#endif
+
 
 // no inline, required by [replacement.functions]/3
 void* operator new(std::size_t sz)
 {
+	// avoid std::malloc(0) which may return nullptr on success
 	if (sz == 0)
-		++sz; // avoid std::malloc(0) which may return nullptr on success
-
+		++sz;
+	//get the stats and add the allocation.
 	auto& stats = TU::getTubulStats();
-	auto total = stats.allocated.fetch_add(sz);
+	auto total = stats.lifetime.fetch_add(sz);
 	auto cur = stats.alive.fetch_add(sz);
-	// std::printf("1) new(size_t), size = %zu alive = %zu total alloc'd= %zu\n", sz, cur+sz, total+sz);
+	if constexpr (TUBUL_LOG_ALLOCATIONS)
+		std::printf("1) new(size_t), size = %zu alive = %zu total alloc'd= %zu\n", sz, cur+sz, total+sz);
+	//return the allocated memory
 	if (void *ptr = std::malloc(sz))
 		return ptr;
 
@@ -270,31 +317,70 @@ void* operator new(std::size_t sz)
 // no inline, required by [replacement.functions]/3
 void* operator new[](std::size_t sz)
 {
+	// avoid std::malloc(0) which may return nullptr on success
 	if (sz == 0)
-		++sz; // avoid std::malloc(0) which may return nullptr on success
+		++sz;
+	//get the stats and add the allocation.
 	auto& stats = TU::getTubulStats();
-	auto total = stats.allocated.fetch_add(sz);
+	auto total = stats.lifetime.fetch_add(sz);
 	auto cur = stats.alive.fetch_add(sz);
-	// std::printf("2) new[](size_t), size = %zu alive = %zu total alloc'd= %zu\n", sz, cur+sz, total+sz);
+	if constexpr (TUBUL_LOG_ALLOCATIONS)
+		std::printf("2) new[](size_t), size = %zu alive = %zu total alloc'd= %zu\n", sz, cur+sz, total+sz);
 
-	if (void *ptr = std::malloc(sz))
+	//Return the ptr allocated, but just in case (because this route sucks) store the size of this ptr.
+	if (void *ptr = std::malloc(sz)) {
+		if ( not stats.sizes.capacity())
+			stats.sizes.reserve(512);
+		stats.sizes.emplace_back(ptr, sz);
 		return ptr;
+	}
 
 	throw std::bad_alloc{}; // required by [new.delete.single]/3
 }
 
 void operator delete(void* ptr, std::size_t size) noexcept
 {
+	//Simply record the we are freen size amount of bytes.
 	auto& stats = TU::getTubulStats();
 	auto cur = stats.alive.fetch_sub(size);
-	// std::printf("4) delete(void*, size_t), size = %zu alive = %zu\n", size, cur -size);
+	if constexpr (TUBUL_LOG_ALLOCATIONS)
+		std::printf("4) delete(void*, size_t), size = %zu alive = %zu  ptr = %p\n", size, cur -size, ptr);
+	//Call the real deallocation.
 	std::free(ptr);
+}
+
+void operator delete[](void* ptr) noexcept {
+	//Now, because the array handling sucks, we have to try to retrieve the size of this
+	//pointer for accurate bookkeeping.
+	auto& stats = TU::getTubulStats();
+	auto ptrInfo = stats.findArrayAlloc(ptr);
+	//If for some reason, we don't have information for this ptr, we panic a little and go on with life.
+	if ( ptrInfo == stats.sizes.end() ) {
+		std::printf("Deleting pointer for which no size information is recorded!");
+		std::free(ptr);
+		return;
+	}
+	//We can get the size of this ptr to properly track it.
+	const auto& [p,s] = *ptrInfo;
+	auto cur = stats.alive.fetch_sub(s);
+	if constexpr (TUBUL_LOG_ALLOCATIONS)
+		std::printf("****) delete[](void*), alive = %zu \n", cur-s);
+	std::free(ptr);
+
+	//now we remove this ptr from the list of pointers we keep track of.
+	stats.removeArrayAlloc(ptrInfo);
 }
 
 void operator delete[](void* ptr, std::size_t size) noexcept
 {
 	auto& stats = TU::getTubulStats();
 	auto cur = stats.alive.fetch_sub(size);
-	// std::printf("6) delete[](void*, size_t), size = %zu alive = %zu\n", size, cur-size);
+	if constexpr (TUBUL_LOG_ALLOCATIONS)
+		std::printf("6) delete[](void*, size_t), size = %zu alive = %zu\n", size, cur-size);
 	std::free(ptr);
+
+	//remove the array data if it was recorded
+	auto ptrInfo = stats.findArrayAlloc(ptr);
+	if ( ptrInfo != stats.sizes.end())
+		stats.removeArrayAlloc(ptrInfo);
 }
