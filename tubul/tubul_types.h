@@ -54,7 +54,7 @@ struct hash
     }
 };
 
-namespace {
+namespace HashImpl {
 
     // Code from boost
     // Reciprocal of the golden ratio helps spread entropy
@@ -62,7 +62,7 @@ namespace {
     // See Mike Seymour in magic-numbers-in-boosthash-combine:
     //     http://stackoverflow.com/questions/4948780
     template<class T>
-    inline void hash_combine(size_t &seed, T const &v) {
+    void hash_combine(size_t &seed, T const &v) {
         seed ^= TU::hash<T>()(v) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
     }
 
@@ -102,7 +102,7 @@ template<typename ... TT>
 struct hash<std::tuple<TT...>> {
     size_t
     operator()(std::tuple<TT...> const &tt) const {
-        return hashTupleImpl(tt);
+        return HashImpl::hashTupleImpl(tt);
     }
 };
 
