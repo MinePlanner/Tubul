@@ -1,4 +1,4 @@
-project(RAPIDCSV)
+project(TEXT_FORMAT_UTILS)
 
 message( "Preparing ${PROJECT_NAME}")
 

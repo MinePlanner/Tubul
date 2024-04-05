@@ -305,3 +305,37 @@ TEST(TUBULString, testTrim) {
     EXPECT_ANY_THROW(ltrim(hello.substr(0)));
     EXPECT_ANY_THROW(trim(hello.substr(0)));
 }
+
+TEST(TUBULString, testToLower) {
+	auto doTest = []( const std::string& in, const std::string& expected) {
+		auto res = TU::tolower(in);
+		EXPECT_EQ(res, expected);
+	};
+	doTest("", "");
+	doTest("a", "a");
+	doTest("n", "n");
+	doTest("fancy words", "fancy words");
+	doTest("A", "a");
+	doTest("N", "n");
+	doTest("Fancy Words", "fancy words");
+	doTest( "aTeSt", "atest");
+	doTest( "L337 C0d3", "l337 c0d3");
+}
+
+TEST(TUBULString, testToUpper) {
+	auto doTest = []( const std::string& in, const std::string& expected) {
+		auto res = TU::toupper(in);
+		EXPECT_EQ(res, expected);
+	};
+
+
+	doTest("", "");
+	doTest("A", "A");
+	doTest("N", "N");
+	doTest("FANCY WORDS", "FANCY WORDS");
+	doTest("a", "A");
+	doTest("n", "N");
+	doTest("Fancy Words", "FANCY WORDS");
+	doTest( "aTeSt", "ATEST");
+	doTest( "L337 C0d3", "L337 C0D3");
+}
