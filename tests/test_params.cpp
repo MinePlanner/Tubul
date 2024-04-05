@@ -56,7 +56,7 @@ MagicValue=420 # and a third for good measure
 MagicSequence = [30,10,50,120,70]
 )###";
 
-TEST(TUBULNeoParams, definitions) {
+TEST(TUBULParams, definitions) {
     //Configure params
     TU::configParams( TEST_PARAMDEF );
 
@@ -71,7 +71,7 @@ TEST(TUBULNeoParams, definitions) {
 
 }
 
-TEST(TUBULNeoParams, settingParams) {
+TEST(TUBULParams, settingParams) {
     //Configure params
     TU::configParams( TEST_PARAMDEF );
 
@@ -100,7 +100,7 @@ TEST(TUBULNeoParams, settingParams) {
 }
 
 
-TEST(TUBULNeoParams, pushPopSingleParam) {
+TEST(TUBULParams, pushPopSingleParam) {
     //Configure params
     TU::configParams( TEST_PARAMDEF );
 
@@ -129,7 +129,7 @@ TEST(TUBULNeoParams, pushPopSingleParam) {
     paramPushPopChecker("Zoo.MagicSequence", expectedDefault, expectedNew );
 }
 
-TEST(TUBULNeoParams, pushSingleParamPopSeveral) {
+TEST(TUBULParams, pushSingleParamPopSeveral) {
     //Configure params
     TU::configParams( TEST_PARAMDEF );
 
@@ -189,7 +189,7 @@ TEST(TUBULNeoParams, pushSingleParamPopSeveral) {
     }
 }
 
-TEST(TUBULNeoParams, readFromIniFile) {
+TEST(TUBULParams, readFromIniFile) {
     //Configure params
     std::string iniFileName = "test_file.ini";
     TU::configParams( TEST_PARAMDEF );
@@ -211,7 +211,7 @@ TEST(TUBULNeoParams, readFromIniFile) {
 
 }
 
-TEST(TUBULNeoParams, readFromIniString) {
+TEST(TUBULParams, readFromIniString) {
 
     TU::configParams( TEST_PARAMDEF );
     //Loading ini data from string that contains several keys.

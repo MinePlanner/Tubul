@@ -2,13 +2,11 @@
 // Created by Carlos Acosta on 30-06-23.
 //
 
-#include <neoparams.h>
 #include <vector>
 #include "tubul_params.h"
+#include "tubul_params_impl.h"
 namespace TU
 {
-
-namespace Parameters = ::NeoParams;
 
 void configParams(std::istream& paramsConfig) {
     Parameters::init(paramsConfig);

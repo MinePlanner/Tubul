@@ -4,28 +4,53 @@
 
 #pragma once
 
-#include <memory>
 #include <unordered_map>
 #include <vector>
 #include <string>
-#include "neoparams_types.h"
+#include <variant>
+#include "tubul_string.h"
 #include "INIReader.h"
+#include "json.hpp"
 
 
-namespace NeoParams{
+namespace TU::Parameters{
 
+//Entry points to the params functionality from the outside.
+//We either initialize the engine from a stream(likely a file)
+//or directly from a string.
+void init(std::istream& input);
+void init(const std::string& input);
 
-class NeoParamsData {
+enum ParamType {
+	INT,
+	FLOAT,
+	STRING,
+	BOOL,
+	LIST_INT,
+	LIST_FLOAT
+};
+
+// possible values to store on neoparams engine
+using ParamValue = std::variant<
+	int,
+	double,
+	bool,
+	std::string,
+	std::vector<int>,
+	std::vector<double>
+	>;
+
+class ParamsData {
 
 public:
-	explicit NeoParamsData(std::istream& input);
-    explicit NeoParamsData(const std::string& input);
+	explicit ParamsData(std::istream& input);
+    explicit ParamsData(const std::string& input);
 
 	// set a value for a param key
 	template<typename T>
 	void set(const std::string &key, const T value)
 	{
-		std::string lowerkey = tolower(key);
+		std::string lowerkey = TU::tolower(key);
 		m_paramQueues[lowerkey].back() = ParamValue(value);
 	}
 
@@ -36,7 +61,7 @@ public:
 	template<typename T>
 	T get(const std::string &anykey)
 	{
-		std::string key = tolower(anykey);
+		std::string key = TU::tolower(anykey);
 
 		if (not m_paramQueues.count(key))
 			throw std::runtime_error("Trying to get a nonexisting parameter " + anykey);
@@ -52,7 +77,7 @@ public:
 	template<typename T>
 	void push(const std::string &anykey, const T &value)
 	{
-		std::string key = tolower(anykey);
+		std::string key = TU::tolower(anykey);
 		m_paramQueues[key].push_back(ParamValue(value));
 	}
 
@@ -73,7 +98,7 @@ private:
 	nlohmann::json m_paramDef;
 
 	// type for each param, from paramdef
-	std::unordered_map<std::string, NeoParamsType> m_paramType;
+	std::unordered_map<std::string, ParamType> m_paramType;
 
 	// Primary set of queues
 	std::unordered_map<std::string, std::vector<ParamValue>> m_paramQueues;
@@ -81,10 +106,8 @@ private:
 };
 
 
-void init(std::istream& input);
-void init(const std::string& input);
 
-NeoParamsData &getInstance();
+ParamsData &getInstance();
 
 void loadFromFile(const std::string& filename);
 void loadFromString(const std::string& contents);

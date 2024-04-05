@@ -74,6 +74,26 @@ namespace TU {
     std::string_view trim(std::string&& s) { throw Exception("trim functions can't be used with lvalue strings");}
 
 
+    /** String manipulating functions
+     * It's very common to need the "tolower"/"toupper" functions to strings, so let's
+     * write them just once.
+     */
+    inline
+    auto tolower(std::string const &word) -> std::string {
+        std::string data(word);
+        std::transform(data.begin(), data.end(), data.begin(),
+                       [](const unsigned char c) { return std::tolower(c); });
+        return data;
+    }
+
+    inline
+    auto toupper(std::string const &word) -> std::string {
+        std::string data(word);
+        std::transform(data.begin(), data.end(), data.begin(),
+                       [](const unsigned char c) { return std::toupper(c); });
+        return data;
+    }
+
     namespace details {
         class string_line_range {
         private:
