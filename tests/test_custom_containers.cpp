@@ -257,3 +257,272 @@ TEST(TUBULContainers, testFlatSetFind) {
 
 
 }
+
+TEST(TUBULContainers, testFlatSetAddAtEnd) {
+    std::vector<int> toAdd1 = { 1, 2 ,3 ,4};
+    {
+        //Test empty set
+        TU::FlatSet<int> test;
+        test.add_sorted_range_at_tail(toAdd1.begin(), toAdd1.end());
+        std::vector<int> expected = toAdd1;
+        EXPECT_EQ( expected.size(), test.size());
+        auto expectedIt = expected.begin();
+        for (auto v: test )
+            EXPECT_EQ(v, *expectedIt++);
+    }
+    {
+        //Test empty set with 1 elem
+        TU::FlatSet<int> test = { 0 };
+        test.add_sorted_range_at_tail(toAdd1.begin(), toAdd1.end());
+        std::vector<int> expected = {0,1,2,3,4};
+        EXPECT_EQ( expected.size(), test.size());
+        auto expectedIt = expected.begin();
+        for (auto v: test )
+            EXPECT_EQ(v, *expectedIt++);
+    }
+
+    {
+        //Test empty set with 2+ elem
+        TU::FlatSet<int> test = { 0, -1, -10 };
+        test.add_sorted_range_at_tail(toAdd1.begin(), toAdd1.end());
+        std::vector<int> expected = {-10, -1, 0, 1, 2, 3, 4};
+        EXPECT_EQ( expected.size(), test.size());
+        auto expectedIt = expected.begin();
+        for (auto v: test )
+            EXPECT_EQ(v, *expectedIt++);
+    }
+
+    //Test if added range is not fully sorted
+    std::vector<int> toAdd2 = { 1, 4, 2, 3};
+    {
+        TU::FlatSet<int> test;
+        test.add_sorted_range_at_tail(toAdd2.begin(), toAdd2.end());
+        std::vector<int> expected = { 1, 4};
+        EXPECT_EQ( expected.size(), test.size());
+        auto expectedIt = expected.begin();
+        for (auto v: test )
+            EXPECT_EQ(v, *expectedIt++);
+    }
+    {
+        TU::FlatSet<int> test = { 0 };
+        test.add_sorted_range_at_tail(toAdd2.begin(), toAdd2.end());
+        std::vector<int> expected = { 0, 1, 4};
+        EXPECT_EQ( expected.size(), test.size());
+        auto expectedIt = expected.begin();
+        for (auto v: test )
+            EXPECT_EQ(v, *expectedIt++);
+    }
+    {
+        TU::FlatSet<int> test = { 2 };
+        test.add_sorted_range_at_tail(toAdd2.begin(), toAdd2.end());
+        std::vector<int> expected = { 2, 4};
+        EXPECT_EQ( expected.size(), test.size());
+        auto expectedIt = expected.begin();
+        for (auto v: test )
+            EXPECT_EQ(v, *expectedIt++);
+    }
+}
+
+TEST(TUBULContainers, testFlatSetAddAtHead) {
+    std::vector<int> toAdd1 = { 1, 2 ,3 ,4};
+    {
+        //Test empty set
+        TU::FlatSet<int> test;
+        test.add_sorted_range_at_head(toAdd1.begin(), toAdd1.end());
+        std::vector<int> expected = {1,2,3,4};
+        EXPECT_EQ( expected.size(), test.size());
+        auto expectedIt = expected.begin();
+        for (auto v: test )
+            EXPECT_EQ(v, *expectedIt++);
+    }
+    {
+        //Test set with 1 elem
+        TU::FlatSet<int> test = { 10 };
+        test.add_sorted_range_at_head(toAdd1.begin(), toAdd1.end());
+        std::vector<int> expected = {1,2,3,4,10};
+        EXPECT_EQ( expected.size(), test.size());
+        auto expectedIt = expected.begin();
+        for (auto v: test )
+            EXPECT_EQ(v, *expectedIt++);
+    }
+
+    {
+        //Test set with 2+ elem
+        TU::FlatSet<int> test = { 5, 7, 10 };
+        test.add_sorted_range_at_head(toAdd1.begin(), toAdd1.end());
+        std::vector<int> expected = {1,2,3,4,5,7,10};
+        EXPECT_EQ( expected.size(), test.size());
+        auto expectedIt = expected.begin();
+        for (auto v: test )
+            EXPECT_EQ(v, *expectedIt++);
+    }
+
+    //Test if source range is not fully sorted
+    std::vector<int> toAdd2 = { 1, 4, 2, 3};
+    {
+        TU::FlatSet<int> test;
+        test.add_sorted_range_at_head(toAdd2.begin(), toAdd2.end());
+        std::vector<int> expected = {1,4};
+        EXPECT_EQ( expected.size(), test.size());
+        auto expectedIt = expected.begin();
+        for (auto v: test )
+            EXPECT_EQ(v, *expectedIt++);
+    }
+    {
+        TU::FlatSet<int> test = { 10 };
+        test.add_sorted_range_at_head(toAdd2.begin(), toAdd2.end());
+        std::vector<int> expected = {1,4,10};
+        EXPECT_EQ( expected.size(), test.size());
+        auto expectedIt = expected.begin();
+        for (auto v: test )
+            EXPECT_EQ(v, *expectedIt++);
+    }
+}
+
+TEST(TUBULContainers, testFlatSetAddOverlapped) {
+    std::vector<int> toAdd1 = {4, 10, 15};
+    {
+        TU::FlatSet<int> test;
+        test.add_sorted_range_overlapped(toAdd1.begin(), toAdd1.end());
+        std::vector<int> expected = {4, 10, 15};
+        EXPECT_EQ( expected.size(), test.size());
+        auto expectedIt = expected.begin();
+        for (auto v: test )
+            EXPECT_EQ(v, *expectedIt++);
+    }
+    {
+        TU::FlatSet<int> test = { 7 };
+        test.add_sorted_range_overlapped(toAdd1.begin(), toAdd1.end());
+        std::vector<int> expected = {4, 7, 10, 15};
+        EXPECT_EQ( expected.size(), test.size());
+        auto expectedIt = expected.begin();
+        for (auto v: test )
+            EXPECT_EQ(v, *expectedIt++);
+    }
+    {
+        //Works if original elements are entwined with those being added
+        TU::FlatSet<int> test = { 7, 11 };
+        test.add_sorted_range_overlapped(toAdd1.begin(), toAdd1.end());
+        std::vector<int> expected = {4, 7, 10, 11, 15};
+        EXPECT_EQ( expected.size(), test.size());
+        auto expectedIt = expected.begin();
+        for (auto v: test )
+            EXPECT_EQ(v, *expectedIt++);
+    }
+    {
+        //Works if all original elements are BEFORE those being added
+        TU::FlatSet<int> test = { 1, 2 };
+        test.add_sorted_range_overlapped(toAdd1.begin(), toAdd1.end());
+        std::vector<int> expected = { 1, 2, 4, 10, 15};
+        EXPECT_EQ( expected.size(), test.size());
+        auto expectedIt = expected.begin();
+        for (auto v: test )
+            EXPECT_EQ(v, *expectedIt++);
+    }
+    {
+        //Works if all original elements are AFTER those being added
+        TU::FlatSet<int> test = { 20, 24 };
+        test.add_sorted_range_overlapped(toAdd1.begin(), toAdd1.end());
+        std::vector<int> expected = { 4, 10, 15, 20 ,24};
+        EXPECT_EQ( expected.size(), test.size());
+        auto expectedIt = expected.begin();
+        for (auto v: test )
+            EXPECT_EQ(v, *expectedIt++);
+    }
+}
+
+TEST(TUBULContainers, testFlatSetAddRange) {
+
+    std::vector<int> toAdd1 = {4, 10, 15};
+    {
+        TU::FlatSet<int> test;
+        test.add_sorted_range(toAdd1.begin(), toAdd1.end());
+        std::vector<int> expected = { 4, 10, 15};
+        EXPECT_EQ( expected.size(), test.size());
+        auto expectedIt = expected.begin();
+        for (auto v: test )
+            EXPECT_EQ(v, *expectedIt++);
+
+    }
+    {
+        TU::FlatSet<int> test = { 0 };
+        test.add_sorted_range(toAdd1.begin(), toAdd1.end());
+        std::vector<int> expected = { 0, 4, 10, 15};
+        EXPECT_EQ( expected.size(), test.size());
+        auto expectedIt = expected.begin();
+        for (auto v: test )
+            EXPECT_EQ(v, *expectedIt++);
+    }
+    {
+        TU::FlatSet<int> test = { 0, 2};
+        test.add_sorted_range(toAdd1.begin(), toAdd1.end());
+        std::vector<int> expected = { 0, 2, 4, 10, 15};
+        EXPECT_EQ( expected.size(), test.size());
+        auto expectedIt = expected.begin();
+        for (auto v: test )
+            EXPECT_EQ(v, *expectedIt++);
+    }
+    {
+        TU::FlatSet<int> test = { 20, 25 };
+        test.add_sorted_range(toAdd1.begin(), toAdd1.end());
+        std::vector<int> expected = { 4, 10, 15, 20, 25};
+        EXPECT_EQ( expected.size(), test.size());
+        auto expectedIt = expected.begin();
+        for (auto v: test )
+            EXPECT_EQ(v, *expectedIt++);
+    }
+    {
+        TU::FlatSet<int> test = { 0, 20, 25 };
+        test.add_sorted_range(toAdd1.begin(), toAdd1.end());
+        std::vector<int> expected = { 0, 4, 10, 15, 20, 25};
+        EXPECT_EQ( expected.size(), test.size());
+        auto expectedIt = expected.begin();
+        for (auto v: test )
+            EXPECT_EQ(v, *expectedIt++);
+    }
+    {
+        TU::FlatSet<int> test = { 0, 7, 12 };
+        test.add_sorted_range(toAdd1.begin(), toAdd1.end());
+        std::vector<int> expected = { 0, 4, 7, 10, 12, 15};
+        EXPECT_EQ( expected.size(), test.size());
+        auto expectedIt = expected.begin();
+        for (auto v: test )
+            EXPECT_EQ(v, *expectedIt++);
+    }
+    {
+        TU::FlatSet<int> test = { 0, 4, 10 };
+        test.add_sorted_range(toAdd1.begin(), toAdd1.end());
+        std::vector<int> expected = { 0, 4, 10, 15};
+        EXPECT_EQ( expected.size(), test.size());
+        auto expectedIt = expected.begin();
+        for (auto v: test )
+            EXPECT_EQ(v, *expectedIt++);
+    }
+    {
+        TU::FlatSet<int> test = { 4, 15 };
+        test.add_sorted_range(toAdd1.begin(), toAdd1.end());
+        std::vector<int> expected = { 4, 10, 15};
+        EXPECT_EQ( expected.size(), test.size());
+        auto expectedIt = expected.begin();
+        for (auto v: test )
+            EXPECT_EQ(v, *expectedIt++);
+    }
+    {
+        TU::FlatSet<int> test = { 4, 10, 15 };
+        test.add_sorted_range(toAdd1.begin(), toAdd1.end());
+        std::vector<int> expected = { 4, 10, 15};
+        EXPECT_EQ( expected.size(), test.size());
+        auto expectedIt = expected.begin();
+        for (auto v: test )
+            EXPECT_EQ(v, *expectedIt++);
+    }
+    {
+        TU::FlatSet<int> test = { 4 };
+        test.add_sorted_range(toAdd1.begin(), toAdd1.end());
+        std::vector<int> expected = { 4, 10, 15};
+        EXPECT_EQ( expected.size(), test.size());
+        auto expectedIt = expected.begin();
+        for (auto v: test )
+            EXPECT_EQ(v, *expectedIt++);
+    }
+}

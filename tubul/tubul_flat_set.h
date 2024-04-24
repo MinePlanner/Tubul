@@ -28,11 +28,11 @@ namespace TU {
 
 /** class template FlatSet is a class adapted from Andrei Alexandrescu's example
  * implementation in his Loki Library. It is an associative vector built as a
- * syntactic drop-in replacement for std::map, but built on top of a vector to handle
+ * syntactic drop-in replacement for std::set, but built on top of a vector to handle
  * the storage, instead of the STL common implementation of rbtrees. This makes it
  * friendlier to memory cache and allocation. It is built directly on top of vector
  * so it defers a lot of work to stl's vector, but presents an interface most commonly
- * seen in associative containers (like map/unordered_map).
+ * seen in associative containers (like set/unordered_set).
  *
  * BEWARE: FlatSet doesn't respect all std::set's guarantees, the most important being:
  *  * iterators are invalidated by insert and erase operations
@@ -238,7 +238,64 @@ namespace TU {
             return std::equal_range(begin(), end(), k, me);
         }
 
+        void add_sorted_range_at_tail( iterator first, iterator last) {
+            while (first != last) {
+                const auto pos = end();
+                const auto& val = *first;
+                if ((pos == begin() || this->operator()(*(pos - 1), val)) &&
+                    (pos == end() || this->operator()(val, *pos))) {
+                    Base::push_back( val );
+                }
+                ++first;
+            }
+        }
 
+        void add_sorted_range_at_head( iterator first, iterator last) {
+            if ( first == last )
+                return;
+            //insert as many elements as needed.
+            auto orig_size = size();
+            //Add the elements at the end
+            Base::push_back(*first);
+            ++first;
+            add_sorted_range_at_tail(first, last);
+            //Rotate the elements so that the new elements are at the beginning
+            std::rotate( begin(), begin()+orig_size,end());
+        }
+
+        void add_sorted_range_overlapped( iterator first, iterator last) {
+            auto size_pre = size();
+            if ( size_pre == 0) {
+                add_sorted_range_at_tail(first, last);
+                return;
+            }
+            //store the second range at the end.
+            Base::push_back(*first);
+            ++first;
+            add_sorted_range_at_tail(first, last);
+            //use inplace_merge to correctly merge 2 sorted ranges.
+            std::inplace_merge(begin(), begin()+size_pre, end(), key_comp());
+            //Ensure elements are unique
+            auto new_end = std::unique(begin(), end() );
+            Base::erase( new_end, end());
+        }
+
+        void add_sorted_range( iterator first, iterator last) {
+            //Adding empty ranges does nothing
+            if (first == last)
+                return;
+            //If first element in the range is bigger than our current last element (or empty)
+            if (empty() || this->operator()(Base::back(), *first)) {
+                add_sorted_range_at_tail(first, last);
+                return;
+            }
+            //If our current first element is bigger than the last element we are supposed to add.
+            if ( this->operator()(*(last-1), Base::front() )) {
+                add_sorted_range_at_head(first, last);
+                return;
+            }
+            add_sorted_range_overlapped(first, last);
+        }
 
         //Operators that are extremely useful
         template<class V1, class C1, class A1>
