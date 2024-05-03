@@ -526,3 +526,118 @@ TEST(TUBULContainers, testFlatSetAddRange) {
             EXPECT_EQ(v, *expectedIt++);
     }
 }
+
+TEST(TUBULContainers, testFlatSetRemoveRange) {
+    const TU::FlatSet<int> initialSet = { 1, 2, 3, 4, 5 };
+    {//Not removing anything
+        auto test = initialSet;
+        std::vector<int> toRemove = {};
+        test.remove_sorted_range(toRemove.begin(), toRemove.end());
+        std::vector<int> expected = {1,2,3,4,5};
+        EXPECT_EQ( expected.size(), test.size());
+        auto expectedIt = expected.begin();
+        for (auto v: test )
+            EXPECT_EQ(v, *expectedIt++);
+    }
+    {//removing first
+        auto test = initialSet;
+        std::vector<int> toRemove = {1};
+        test.remove_sorted_range(toRemove.begin(), toRemove.end());
+        std::vector<int> expected = {2,3,4,5};
+        EXPECT_EQ( expected.size(), test.size());
+        auto expectedIt = expected.begin();
+        for (auto v: test )
+            EXPECT_EQ(v, *expectedIt++);
+    }
+    {//removing last
+        auto test = initialSet;
+        std::vector<int> toRemove = {5};
+        test.remove_sorted_range(toRemove.begin(), toRemove.end());
+        std::vector<int> expected = {1,2,3,4};
+        EXPECT_EQ( expected.size(), test.size());
+        auto expectedIt = expected.begin();
+        for (auto v: test )
+            EXPECT_EQ(v, *expectedIt++);
+    }
+    {//removing middle
+        auto test = initialSet;
+        std::vector<int> toRemove = {3};
+        test.remove_sorted_range(toRemove.begin(), toRemove.end());
+        std::vector<int> expected = {1,2,4,5};
+        EXPECT_EQ( expected.size(), test.size());
+        auto expectedIt = expected.begin();
+        for (auto v: test )
+            EXPECT_EQ(v, *expectedIt++);
+    }
+    {//removing a couple
+        auto test = initialSet;
+        std::vector<int> toRemove = {2,4};
+        test.remove_sorted_range(toRemove.begin(), toRemove.end());
+        std::vector<int> expected = {1,3,5};
+        EXPECT_EQ( expected.size(), test.size());
+        auto expectedIt = expected.begin();
+        for (auto v: test )
+            EXPECT_EQ(v, *expectedIt++);
+    }
+    {//removing all
+        auto test = initialSet;
+        std::vector<int> toRemove = {1,2,3,4,5};
+        test.remove_sorted_range(toRemove.begin(), toRemove.end());
+        std::vector<int> expected = {};
+        EXPECT_EQ( expected.size(), test.size());
+        auto expectedIt = expected.begin();
+        for (auto v: test )
+            EXPECT_EQ(v, *expectedIt++);
+    }
+    {//Non intersecting set.
+        auto test = initialSet;
+        std::vector<int> toRemove = {0};
+        test.remove_sorted_range(toRemove.begin(), toRemove.end());
+        std::vector<int> expected = {1,2,3,4,5};
+        EXPECT_EQ( expected.size(), test.size());
+        auto expectedIt = expected.begin();
+        for (auto v: test )
+            EXPECT_EQ(v, *expectedIt++);
+    }
+    {//Non intersecting set v2.
+        auto test = initialSet;
+        std::vector<int> toRemove = {9};
+        test.remove_sorted_range(toRemove.begin(), toRemove.end());
+        std::vector<int> expected = {1,2,3,4,5};
+        EXPECT_EQ( expected.size(), test.size());
+        auto expectedIt = expected.begin();
+        for (auto v: test )
+            EXPECT_EQ(v, *expectedIt++);
+    }
+    {//Overlapping but non intersecting set.
+        auto test = initialSet;
+        std::vector<int> toRemove = {0, 9};
+        test.remove_sorted_range(toRemove.begin(), toRemove.end());
+        std::vector<int> expected = {1,2,3,4,5};
+        EXPECT_EQ( expected.size(), test.size());
+        auto expectedIt = expected.begin();
+        for (auto v: test )
+            EXPECT_EQ(v, *expectedIt++);
+    }
+    {//removing a couple elements with some values outside the set.
+        auto test = initialSet;
+        std::vector<int> toRemove = {1,5,10};
+        test.remove_sorted_range(toRemove.begin(), toRemove.end());
+        std::vector<int> expected = {2,3,4};
+        EXPECT_EQ( expected.size(), test.size());
+        auto expectedIt = expected.begin();
+        for (auto v: test )
+            EXPECT_EQ(v, *expectedIt++);
+    }
+    {//removing a couple elements with some values outside the set.
+        auto test = initialSet;
+        std::vector<int> toRemove = {0,2,4,10};
+        test.remove_sorted_range(toRemove.begin(), toRemove.end());
+        std::vector<int> expected = {1,3,5};
+        EXPECT_EQ( expected.size(), test.size());
+        auto expectedIt = expected.begin();
+        for (auto v: test )
+            EXPECT_EQ(v, *expectedIt++);
+    }
+
+}
