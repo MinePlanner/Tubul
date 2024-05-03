@@ -297,6 +297,53 @@ namespace TU {
             add_sorted_range_overlapped(first, last);
         }
 
+        void remove_sorted_range(iterator first, iterator last) {
+            if (empty() or first == last) //Checking the easiest of cases.
+                return;
+            //Because both sets are sorted, we can try to look for the intersection range of A and B.
+            //This helps to reduce the size of B (because if B contains elements outside the range of A
+            //we dont care about them as we won't find them in A).
+
+            //We check if there's any chance of intersection between the ranges.
+            if ( *begin() > *(last-1) or *(end()-1) < *first )
+                return;
+            //We check where we may start seeing the intersection of elements.
+            auto found = std::lower_bound(begin(), end(), *first);
+            //There's no point in continue looking because elements can't intersect.
+            if (found == end())
+                return;
+            // We check the other range until which point there could be an intersection with us
+            auto endOfOtherRange = std::upper_bound(first, last, *rbegin());
+
+            auto writeIt = found;
+            auto i = found;
+            auto j = first;
+            while (i != end() and j != endOfOtherRange) {
+                //The same element from the range is in contained. We have to not store the element
+                //pointed by i, and advance both pointers
+                if (*i == *j) {
+                    ++i;
+                    ++j;
+                }
+                //Element pointed by i was smaller (i.e. not the same), so we can store it and
+                //move pointers forward.
+                else if (*i < *j) {
+                    *writeIt = *i;
+                    ++writeIt;
+                    ++i;
+                } else //element pointed by i was bigger than pointed by j
+                {
+                    ++j;
+                }
+            }
+
+            // Copy remaining elements from A if any
+            while (i < end())
+                *writeIt++ = *i++;
+
+            // Drop elements beyond what we wrote (note writeIt points to *AFTER* the last place we wrote).
+            Base::resize(std::distance(begin(), writeIt));
+        }
         //Operators that are extremely useful
         template<class V1, class C1, class A1>
         friend bool operator==(const FlatSet<V1, C1, A1> &lhs,
