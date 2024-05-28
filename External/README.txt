@@ -14,3 +14,6 @@ https://github.com/p-ranav/argparse
 rapidcsv from:
 https://github.com/d99kris/rapidcsv
 
+better_enums 0.11.3 from:
+https://github.com/aantron/better-enums
+

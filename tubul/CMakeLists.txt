@@ -1,13 +1,15 @@
 project(libtubul)
 
+#Grab all source code that must be compiled.
 file(GLOB tubul_src "*.cpp")
 add_library(libtubul STATIC ${tubul_src} )
 
-#Tubul requires the following dependencies.
-target_include_directories(libtubul PRIVATE ${ARGPARSE_INCLUDE_DIRS})
-target_include_directories(libtubul PRIVATE ${FAST_FLOAT_INCLUDE_DIRS})
-target_include_directories(libtubul PRIVATE ${TEXT_FORMAT_UTILS_INCLUDE_DIRS})
-
-
+#Tubul requires access to external libs so we add them. Also
+#note that we add the include dirs as PUBLIC so they can be inherited
+#by the user application.
+foreach(dir ${TUBUL_EXTERNAL_LIBS_INCLUDES})
+    message(STATUS "Adding include dir='${dir}'")
+    target_include_directories(libtubul PUBLIC ${dir})
+endforeach()
 
 target_compile_definitions(libtubul PUBLIC ${TUBUL_COMPILE_DEFS})

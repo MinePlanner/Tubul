@@ -13,6 +13,8 @@
 
 #pragma once
 
+//First include external lib for better enums in all tubul code
+#include <enum.h>
 #include "tubul_types.h"
 #include "tubul_varint.h"
 #include "tubul_irange.h"

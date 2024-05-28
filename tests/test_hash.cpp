@@ -50,13 +50,13 @@ TEST(TUBULHash, BasicTupleHash3_float) {
     using P3f = std::tuple<float,float, float>;
     TU::hash<P3f> hasher;
 
-    P3f v1{10,20,500};
+    P3f v1{10.0f,20.0f,500.0f};
     auto val1 = hasher(v1);
-    P3f v2{10,20, 100};
+    P3f v2{10.0f,20.0f, 100.0f};
     auto val2 = hasher(v2);
-    P3f v3{20,20,20};
+    P3f v3{20.0f,20.0f,20.0f};
     auto val3 = hasher(v3);
-    P3f v4{20,10, 10};
+    P3f v4{20.0f,10.0f, 10.0f};
     auto val4 = hasher(v4);
     EXPECT_NE(val1,val2); EXPECT_NE(val1,val3); EXPECT_NE(val1,val4);
     EXPECT_NE(val2,val3); EXPECT_NE(val2,val4); EXPECT_NE(val3,val4);
@@ -68,13 +68,13 @@ TEST(TUBULHash, TupleHash3_misc) {
     using P3h = std::tuple<float,std::string, size_t>;
     TU::hash<P3h> hasher;
 
-    P3h v1{10.0,"Pepito",500};
+    P3h v1{10.0f,"Pepito",500};
     auto val1 = hasher(v1);
-    P3h v2{3.1415,"Juanito", 100};
+    P3h v2{3.1415f,"Juanito", 100};
     auto val2 = hasher(v2);
-    P3h v3{20,"Pedrito",20};
+    P3h v3{20.0f,"Pedrito",20};
     auto val3 = hasher(v3);
-    P3h v4{20,"Juanelo", 10};
+    P3h v4{20.0f,"Juanelo", 10};
     auto val4 = hasher(v4);
 
     EXPECT_NE(val1,val2); EXPECT_NE(val1,val3); EXPECT_NE(val1,val4);

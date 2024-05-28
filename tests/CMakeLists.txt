@@ -19,5 +19,5 @@ file(GLOB tubul_tests_src "*.cpp")
 
 add_executable(testtubul ${tubul_tests_src})
 target_link_libraries(testtubul GTest::gtest_main libtubul)
-target_include_directories(testtubul PRIVATE libtubul)
+
 gtest_discover_tests(testtubul)
