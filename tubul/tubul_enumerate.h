@@ -11,17 +11,21 @@
 
 namespace TU {
 
+    /** This is basically the same std concept to check that something is an actual
+     * range that can be iterated with begin() and end().
+     */
+    template<typename C>
+    concept TubulIterable = std::ranges::range<C>;
     /** This templated function receives an standard iterable container (via begin/end)
      * and returns a simple wrapper that will return tuples (i,item), where i is the index
      * of item inside the container. This follows the same idea as Python's enumerate.
-     * The template type T is the container to be iterated. The second and third are in big
-     * part to ensure that T actually contains a begin/end function.
+     * The template type T is the container to be iterated.
      */
-    template <typename T,
-            typename TIter = decltype(std::begin(std::declval<T>())),
-            typename = decltype(std::end(std::declval<T>()))>
+    template <TubulIterable T>
     constexpr auto enumerate(T && iterable)
     {
+        using TIter = decltype(std::begin(std::declval<T>()));
+
         struct iterator
         {
             size_t i;
