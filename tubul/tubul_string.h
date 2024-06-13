@@ -79,19 +79,28 @@ namespace TU {
      * write them just once.
      */
     inline
-    auto tolower(std::string const &word) -> std::string {
+    auto tolower(std::string_view word) -> std::string {
         std::string data(word);
         std::transform(data.begin(), data.end(), data.begin(),
                        [](const unsigned char c) { return std::tolower(c); });
         return data;
     }
+    inline
+    auto tolower(const std::string& word) -> std::string {
+        return tolower(std::string_view(word) );
+    }
 
     inline
-    auto toupper(std::string const &word) -> std::string {
+    auto toupper(std::string_view word) -> std::string {
         std::string data(word);
         std::transform(data.begin(), data.end(), data.begin(),
                        [](const unsigned char c) { return std::toupper(c); });
         return data;
+    }
+
+    inline
+    auto toupper(const std::string& word) -> std::string {
+        return toupper(std::string_view(word) );
     }
 
     namespace details {

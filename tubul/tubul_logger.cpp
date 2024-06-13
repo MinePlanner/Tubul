@@ -2,8 +2,7 @@
 // Created by Nicolas Loira on 1/11/23.
 //
 
-#include "tubul_engine_factory.h"
-#include "tubul_engine.h"
+#include "tubul_log_engine.h"
 #include "tubul_logger.h"
 #include "tubul_exception.h"
 #include "tubul_string.h"
@@ -21,44 +20,71 @@ namespace TU {
 
 
     void addLoggerDefinition(std::ostream &out, TU::LogLevel level, TU::LogOptions options) {
-        getInstance().addLoggerDefinition(out, level, options);
+        getLogEngineInstance().addLoggerDefinition(out, level, options);
     }
 
     void addLoggerDefinition(std::string const &logfile, TU::LogLevel level, TU::LogOptions options) {
-        std::ostream &outStream = getInstance().openFile(logfile);
-        addLoggerDefinition(outStream, level, options);
+        getLogEngineInstance().addLoggerDefinition(logfile, level, options);
     }
 
     void clearLoggerDefinitions(){
-        getInstance().clearLoggerDefinitions();
+        getLogEngineInstance().clearLoggerDefinitions();
     }
 
     void logInfo(std::string const &msg) {
-        getInstance().log(LogLevel::INFO, msg);
+        getLogEngineInstance().log(LogLevel::INFO, msg);
     }
 
     void logReport(std::string const &msg) {
-        getInstance().log(LogLevel::REPORT, msg);
+        getLogEngineInstance().log(LogLevel::REPORT, msg);
     }
 
     void logWarning(std::string const &msg) {
-        getInstance().log(LogLevel::WARNING, "WARNING: " + msg);
+        getLogEngineInstance().log(LogLevel::WARNING, "WARNING: " + msg);
     }
 
     void logError(std::string const &msg) {
-        getInstance().log(LogLevel::ERROR, "ERROR: " + msg);
+        getLogEngineInstance().log(LogLevel::ERROR, "ERROR: " + msg);
     }
 
     void logDebug(std::string const &msg) {
-        getInstance().log(LogLevel::DEBUG, "DEBUG: " + msg);
+        getLogEngineInstance().log(LogLevel::DEBUG, "DEBUG: " + msg);
     }
 
     void logDevel(std::string const &msg) {
-        getInstance().log(LogLevel::DEVEL, "DEVEL: " + msg);
+        getLogEngineInstance().log(LogLevel::DEVEL, "DEVEL: " + msg);
     }
 
     void logStat(std::string const &msg) {
-        getInstance().log(LogLevel::STATS, "STATS: " + msg);
+        getLogEngineInstance().log(LogLevel::STATS, "STATS: " + msg);
+    }
+
+    void safelogInfo(std::string const &msg) {
+        getLogEngineInstance().safelog(LogLevel::INFO, msg);
+    }
+
+    void safelogReport(std::string const &msg) {
+        getLogEngineInstance().safelog(LogLevel::REPORT, msg);
+    }
+
+    void safelogWarning(std::string const &msg) {
+        getLogEngineInstance().safelog(LogLevel::WARNING, "WARNING: " + msg);
+    }
+
+    void safelogError(std::string const &msg) {
+        getLogEngineInstance().safelog(LogLevel::ERROR, "ERROR: " + msg);
+    }
+
+    void safelogDebug(std::string const &msg) {
+        getLogEngineInstance().safelog(LogLevel::DEBUG, "DEBUG: " + msg);
+    }
+
+    void safelogDevel(std::string const &msg) {
+        getLogEngineInstance().safelog(LogLevel::DEVEL, "DEVEL: " + msg);
+    }
+
+    void safelogStat(std::string const &msg) {
+        getLogEngineInstance().safelog(LogLevel::STATS, "STATS: " + msg);
     }
 
 #ifdef TUBUL_MACOS
@@ -81,64 +107,62 @@ namespace TU {
 }
 #endif
 
-    LogStream::LogStream(LogLevel level) : level_(level) {};
 
-    LogStream::~LogStream() {
-        getInstance().log(level_, join(std::as_const(parts_), ""));
-    };
 
-    LogStream &LogStream::operator<<(std::string const &msg) {
-        parts_.push_back(msg);
-        return *this;
+    LogStreamU logInfo() {
+        return LogStreamU(LogLevel::INFO);
     }
 
-    LogStream &LogStream::operator<<(std::string_view const &msg) {
-        parts_.emplace_back(msg);
-        return *this;
+    LogStreamU logReport() {
+        return LogStreamU(LogLevel::REPORT);
     }
 
-    LogStream &LogStream::operator<<(char const *msg){
-        parts_.emplace_back(msg);
-        return *this;
+    LogStreamU logWarning() {
+        return LogStreamU(LogLevel::WARNING);
     }
 
-    LogStream &LogStream::operator<<(int const &msg) {
-        parts_.push_back(std::to_string(msg));
-        return *this;
+    LogStreamU logError() {
+        return LogStreamU(LogLevel::ERROR);
     }
 
-    LogStream &LogStream::operator<<(size_t const &msg) {
-        parts_.push_back(std::to_string(msg));
-        return *this;
+    LogStreamU logDevel() {
+        return LogStreamU(LogLevel::DEVEL);
     }
 
-    LogStream &LogStream::operator<<(double const &msg) {
-        parts_.push_back(std::to_string(msg));
-        return *this;
+    LogStreamU logStat() {
+        return LogStreamU(LogLevel::STATS);
     }
 
-    LogStream logInfo() {
-        return LogStream(LogLevel::INFO);
+    LogStreamU logDebug() {
+        return LogStreamU(LogLevel::DEBUG);
     }
 
-    LogStream logReport() {
-        return LogStream(LogLevel::REPORT);
+    LogStreamTS safelogInfo() {
+        return LogStreamTS(LogLevel::INFO);
     }
 
-    LogStream logWarning() {
-        return LogStream(LogLevel::WARNING);
+    LogStreamTS safelogReport() {
+        return LogStreamTS(LogLevel::REPORT);
     }
 
-    LogStream logError() {
-        return LogStream(LogLevel::ERROR);
+    LogStreamTS safelogWarning() {
+        return LogStreamTS(LogLevel::WARNING);
     }
 
-    LogStream logDevel() {
-        return LogStream(LogLevel::DEVEL);
+    LogStreamTS safelogError() {
+        return LogStreamTS(LogLevel::ERROR);
     }
 
-    LogStream logStats() {
-        return LogStream(LogLevel::STATS);
+    LogStreamTS safelogDevel() {
+        return LogStreamTS(LogLevel::DEVEL);
+    }
+
+    LogStreamTS safelogStat() {
+        return LogStreamTS(LogLevel::STATS);
+    }
+
+    LogStreamTS safelogDebug() {
+        return LogStreamTS(LogLevel::DEBUG);
     }
 
 }; // namespace TU

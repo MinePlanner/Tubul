@@ -94,10 +94,12 @@ void exampleLogging()
 	// logInfo and up will go to a file example1.log
 	TU::addLoggerDefinition(std::cout, TU::LogLevel::REPORT, TU::LogOptions::NOTIMESTAMP);
 	TU::addLoggerDefinition("example1.log", TU::LogLevel::DEVEL);
+	TU::addLoggerDefinition("example1.stats", TU::LogLevel::STATS, TU::LogOptions::EXCLUSIVE);
 
 	TU::logReport("This message should go to screen and example1.log");
 	TU::logInfo("This message should go only to example1.log");
     TU::logWarning("Everybody should see this warning.");
+	TU::logStat("This will appear as stat");
 
 	// without arguments, log* will behave like a stream
 	// TU::logWarning() << "Everybody should see this warning." << "Everybody!";
