@@ -163,21 +163,47 @@ namespace TU {
 	void logReport(std::string const &msg);
     void logInfo(std::string const &msg);
     void logDevel(std::string const &msg);
-    void logStats(std::string const &msg);
+    void logStat(std::string const &msg);
+
+    /** \brief log* functions, allow to send a message to all loggers that
+     * participate on the corresponding level Similar to normal log* versions
+     * but this version is thread safe.
+     * End-of-line is added atomatically.
+     * @param The message to be sent
+     */
+    void safelogError(std::string const &msg);
+    void safelogWarning(std::string const &msg);
+	void safelogReport(std::string const &msg);
+    void safelogInfo(std::string const &msg);
+    void safelogDevel(std::string const &msg);
+    void safelogStat(std::string const &msg);
 
     /** \brief log streams, which allow to send strings and numbers using
      * the "<<" operator. Example:
-     * TU::logInfo << "We have " << numCars << " cars ready to ship.";
+     * TU::logInfo() << "We have " << numCars << " cars ready to ship.";
      * End-of-line is added automatically.
      * @return
      */
-    LogStream logError();
-    LogStream logWarning();
-    LogStream logReport();
-    LogStream logInfo();
-    LogStream logDevel();
-    LogStream logStats();
+    LogStreamU logError();
+    LogStreamU logWarning();
+    LogStreamU logReport();
+    LogStreamU logInfo();
+    LogStreamU logDevel();
+    LogStreamU logStat();
 
+    /** \brief log streams, which allow to send strings and numbers using
+     * the "<<" operator. Similar to normal log*() functions but these are
+     * thread-safe.  Example:
+     * TU::logInfo() << "We have " << numCars << " cars ready to ship.";
+     * End-of-line is added automatically.
+     * @return
+     */
+    LogStreamTS safelogError();
+    LogStreamTS safelogWarning();
+    LogStreamTS safelogReport();
+    LogStreamTS safelogInfo();
+    LogStreamTS safelogDevel();
+    LogStreamTS safelogStats();
 	/////////
 	// Args
 	/////////

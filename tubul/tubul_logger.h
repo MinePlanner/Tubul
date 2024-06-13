@@ -5,42 +5,15 @@
 #pragma once
 
 #include <cstdint>
-#include "tubul_string.h"
+#include <sstream>
+#include "tubul_log_engine.h"
 #include "tubul_exception.h"
 #ifndef TUBUL_MACOS
 #include <source_location>
 #endif
 
 namespace TU {
-    enum class LogLevel : uint8_t {
-        ERROR,
-        WARNING,
-        REPORT,
-        INFO,
-        DEVEL,
-        STATS,
-        DEBUG
-    };
 
-    enum class LogOptions : uint8_t {
-        NONE = 0,
-        COLOR = 1,          // send commands for color output
-        EXCLUSIVE = 2,      // only send to specified LogLevel
-        NOTIMESTAMP = 4,    // don't prefix timestamp
-        QUIET = 8           // don't show anything
-    };
-
-    inline LogOptions operator|(LogOptions a, LogOptions b) {
-        return static_cast<LogOptions>(static_cast<uint8_t>(a) | static_cast<uint8_t>(b));
-    }
-
-    inline uint8_t operator^(LogOptions a, LogOptions b) {
-        return static_cast<uint8_t>(static_cast<uint8_t>(a) ^ static_cast<uint8_t>(b));
-    }
-
-    inline uint8_t operator&(LogOptions a, LogOptions b) {
-        return static_cast<uint8_t>(static_cast<uint8_t>(a) & static_cast<uint8_t>(b));
-    }
 
 
 /** log* functions, allow to send a message to all loggers that
@@ -55,33 +28,65 @@ namespace TU {
     void logStat(std::string const &msg);
     void logDebug(std::string const &msg);
 
-// ostream handler objects
+    void safelogError(std::string const &msg);
+    void safelogWarning(std::string const &msg);
+    void safelogReport(std::string const &msg);
+    void safelogInfo(std::string const &msg);
+    void safelogDevel(std::string const &msg);
+    void safelogStat(std::string const &msg);
+    void safelogDebug(std::string const &msg);
 
+// ostream-like handler objects
+
+    struct LogStreamNormalTag;
+    struct LogStreamThreadSafeTag;
+
+    template <typename Tag>
+    concept LogStreamTag =
+        std::is_same_v<Tag, LogStreamNormalTag> or
+        std::is_same_v<Tag, LogStreamThreadSafeTag>;
+
+    template <LogStreamTag TagType>
     class LogStream {
     public:
-        explicit LogStream(LogLevel level);
+        explicit LogStream(LogLevel level): level_(level) {}
 
-        ~LogStream();
+        ~LogStream() {
+            if constexpr (std::is_same_v<TagType, LogStreamNormalTag> )
+                getLogEngineInstance().log(level_, parts_.str());
+            else if constexpr ( std::is_same_v<TagType, LogStreamThreadSafeTag> )
+                getLogEngineInstance().safelog(level_, parts_.str());
 
-        LogStream &operator<<(std::string const &msg);
-        LogStream &operator<<(std::string_view const &msg);
-        LogStream &operator<<(char const *msg);
-        LogStream &operator<<(int const &msg);
-        LogStream &operator<<(size_t const &msg);
-        LogStream &operator<<(double const &msg);
+        };
+
+        template<typename TypeToLog>
+        LogStream& operator<<(TypeToLog&& msg ) {
+            parts_ << msg;
+           return *this;
+        }
 
     private:
-        std::vector<std::string> parts_;
+        std::stringstream parts_;
+
         LogLevel level_;
     };
+    using LogStreamU = LogStream<LogStreamNormalTag>;
+    using LogStreamTS = LogStream<LogStreamThreadSafeTag>;
 
-    LogStream logError();
-    LogStream logWarning();
-    LogStream logReport();
-    LogStream logInfo();
-    LogStream logDevel();
-    LogStream logStat();
-    LogStream logDebug();
+    LogStreamU logError();
+    LogStreamU logWarning();
+    LogStreamU logReport();
+    LogStreamU logInfo();
+    LogStreamU logDevel();
+    LogStreamU logStat();
+    LogStreamU logDebug();
+    LogStreamTS safelogError();
+    LogStreamTS safelogWarning();
+    LogStreamTS safelogReport();
+    LogStreamTS safelogInfo();
+    LogStreamTS safelogDevel();
+    LogStreamTS safelogStat();
+    LogStreamTS safelogDebug();
 
 #ifdef TUBUL_MACOS
     [[nodiscard]] TU::Exception throwError(const std::string &msg, int line = __builtin_LINE(),
