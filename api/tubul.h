@@ -165,6 +165,19 @@ namespace TU {
     void logDevel(std::string const &msg);
     void logStat(std::string const &msg);
 
+	// extended logStat
+	template<typename T>
+	void logStat(std::string const &msg, T value)
+	{
+		logStat(msg + " " + std::to_string(value));
+	}
+
+	inline void logStat(std::string const &msg, std::string const &value)
+	{
+		logStat(msg + " " + value);
+	}
+
+
     /** \brief log* functions, allow to send a message to all loggers that
      * participate on the corresponding level Similar to normal log* versions
      * but this version is thread safe.
