@@ -169,6 +169,7 @@ namespace TU {
 	template<typename T>
 	void logStat(std::string const &msg, T value)
 	{
+		static_assert(std::is_arithmetic_v<T>, "LogStat can only log numbers or strings.");
 		logStat(msg + " " + std::to_string(value));
 	}
 
