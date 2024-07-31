@@ -22,10 +22,10 @@ namespace TU
 struct CSVContents::CSVRawData
 {
 	explicit CSVRawData(std::string const& filename):
-		doc(filename,rapidcsv::LabelParams(0,0) ){}
+		doc(filename,rapidcsv::LabelParams(0,-1) ){}
 
 	explicit CSVRawData(std::istream& file_stream):
-		doc(file_stream,rapidcsv::LabelParams(0,0)){}
+		doc(file_stream,rapidcsv::LabelParams(0,-1)){}
 
 	CSVRawData(std::istream& file_stream, rapidcsv::LabelParams labels, rapidcsv::SeparatorParams sep):
 		doc(file_stream, labels, sep){}
