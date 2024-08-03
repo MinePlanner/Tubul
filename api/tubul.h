@@ -165,15 +165,20 @@ namespace TU {
     void logDevel(std::string const &msg);
     void logStat(std::string const &msg);
 
-	// extended logStat
+	/** \brief Extended logStat functions, that support the most common use case:
+	 * log a known stat (eg: STAT_TOTAL_TIME), plus a value (eg: 45).
+	 * End-of-line is added atomatically.
+	 * @param msg The message to be sent
+	 * @param value A number (int, float, etc), or a std::string
+	 */
 	template<typename T>
-	void logStat(std::string const &msg, T value)
+	void logStat(std::string const &stat, T value)
 	{
 		static_assert(std::is_arithmetic_v<T>, "LogStat can only log numbers or strings.");
-		logStat(msg + " " + std::to_string(value));
+		logStat(stat + " " + std::to_string(value));
 	}
 
-	inline void logStat(std::string const &msg, std::string const &value)
+	inline void logStat(std::string const &stat, std::string const &value)
 	{
 		logStat(msg + " " + value);
 	}
