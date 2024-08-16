@@ -104,7 +104,7 @@ int strToInt(const std::string_view& p){
             throw TU::Exception(std::string("Could not open file:") + name);
         };
 
-        size_  = GetFileSize(fd, 0);
+        size_  = std::filesystem::file_size(name);
 
         mapping = CreateFileMapping(fd, 0, PAGE_READONLY, 0, 0, 0);
         if(mapping == 0) {
