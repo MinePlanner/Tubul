@@ -54,10 +54,17 @@ if(CCACHE_FOUND)
     set_property(GLOBAL PROPERTY RULE_LAUNCH_LINK ccache)
 endif(CCACHE_FOUND)
 
-# colors for ninja
-if (APPLE)
+# Colors in errors if possible
+include(CheckCXXCompilerFlag)
+check_cxx_compiler_flag( -fcolor-diagnostics COLOR_DIAGNOSTICS_FLAG_SUPPORTED)
+if (COLOR_DIAGNOSTICS_FLAG_SUPPORTED)
     add_compile_options (-fcolor-diagnostics)
-endif ()
+else()
+    check_cxx_compiler_flag( -fdiagnostics-color COLOR_DIAGNOSTICS_FLAG_SUPPORTED2)
+    if (COLOR_DIAGNOSTICS_FLAG_SUPPORTED2)
+        add_compile_options (-fdiagnostics-color)
+    endif()
+endif()
 
 #Adding external dependencies.
 add_subdirectory(External)
