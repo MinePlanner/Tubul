@@ -117,6 +117,10 @@ namespace TU {
         reverse_iterator rend() { return Base::rend(); }
         const_reverse_iterator rend() const { return Base::rend(); }
 
+        // accessor:
+        // This breaks the illusion of being a true set, but is so useful that is worth it.
+        const value_type& item(size_type pos = 0) const { return Base::at(pos); }
+
         // capacity:
         bool empty() const { return Base::empty(); }
         size_type size() const { return Base::size(); }
