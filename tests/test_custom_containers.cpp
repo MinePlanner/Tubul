@@ -199,6 +199,16 @@ TEST(TUBULContainers, testFlatSetBasic) {
         EXPECT_EQ(val, expected2[expectedIt]);
         ++expectedIt;
     }
+
+    //We can access the set items by index as a vector
+    expectedIt = 0;
+    for (size_t it = 0; it < test.size(); ++it ){
+        EXPECT_EQ(test.item(it), expected2[expectedIt]);
+        ++expectedIt;
+    }
+    //Accessing a non-existant index will throw
+    EXPECT_THROW( test.item(100), std::exception);
+
 }
 TEST(TUBULContainers, testFlatSetConstructorList) {
 
