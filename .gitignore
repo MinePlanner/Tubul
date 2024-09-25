@@ -7,3 +7,5 @@ cmake-build-*
 build.conf
 
 .cache/
+.vscode/
+.idea/
