@@ -8,6 +8,7 @@
 #include <string_view>
 #include <deque>
 #include <unordered_map>
+#include <cstdint>
 
 namespace TU::Graph {
 
