@@ -103,3 +103,25 @@ TEST(TUBULZip, vector_set3)
         ++index_deque;
     }
 }
+
+TEST(TUBULZip, std_algorithm)
+{
+
+    std::vector<int> test_vector  = { 1,2,3,4,5,6};
+    std::set<std::string> test_set= { "first", "second", "third", "fourth"};
+    std::deque<char> test_deque= { 'a', 'b', 'c', 'd', 'e'};
+
+    //Do note we have to change the order of the elements in the set because
+    //it's a set, so they will look re-ordered when iterating from begin() to end().
+    std::vector<std::tuple<int, std::string, char>> expected = {
+            { 1, "first", 'a'},
+            { 2, "fourth", 'b'},
+            { 3, "second", 'c'},
+            { 4, "third", 'd'}
+        };
+
+    auto zipped = TU::zip(test_vector, test_set, test_deque);
+    //Use std::equal between the zip-view and the actual container with the expected results
+    auto equal_result = std::equal(expected.begin(), expected.end(), zipped.begin());
+    EXPECT_TRUE(equal_result);
+}
