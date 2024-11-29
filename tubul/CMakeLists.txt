@@ -13,3 +13,4 @@ foreach(dir ${TUBUL_EXTERNAL_LIBS_INCLUDES})
 endforeach()
 
 target_compile_definitions(libtubul PUBLIC ${TUBUL_COMPILE_DEFS})
+set_target_properties(libtubul PROPERTIES POSITION_INDEPENDENT_CODE ON)
