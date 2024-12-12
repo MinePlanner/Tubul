@@ -79,6 +79,6 @@ add_subdirectory(tubul)
 #only the tubul lib would be compiled, wich is most likely what a user
 #would want.
 if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
-add_subdirectory(tests)
-add_subdirectory(apps)
+  add_subdirectory(tests)
+  add_subdirectory(apps)
 endif()

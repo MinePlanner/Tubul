@@ -142,13 +142,13 @@ namespace TU {
         return rtrim(ltrim(toTrim));
     }
     inline
-    std::string_view ltrim(std::string&& s) { throw Exception("trim functions can't be used with lvalue strings");}
+    std::string_view ltrim(std::string&& ) { throw Exception("trim functions can't be used with lvalue strings");}
 
     inline
-    std::string_view rtrim(std::string&& s) { throw Exception("trim functions can't be used with lvalue strings");}
+    std::string_view rtrim(std::string&& ) { throw Exception("trim functions can't be used with lvalue strings");}
 
     inline
-    std::string_view trim(std::string&& s) { throw Exception("trim functions can't be used with lvalue strings");}
+    std::string_view trim(std::string&& ) { throw Exception("trim functions can't be used with lvalue strings");}
 
 
     /** String manipulating functions
@@ -159,7 +159,7 @@ namespace TU {
     auto tolower(std::string_view word) -> std::string {
         std::string data(word);
         std::transform(data.begin(), data.end(), data.begin(),
-                       [](const unsigned char c) { return std::tolower(c); });
+                       [](const unsigned char c) { return static_cast<char>(std::tolower(c)); });
         return data;
     }
     inline
@@ -171,7 +171,7 @@ namespace TU {
     auto toupper(std::string_view word) -> std::string {
         std::string data(word);
         std::transform(data.begin(), data.end(), data.begin(),
-                       [](const unsigned char c) { return std::toupper(c); });
+                       [](const unsigned char c) { return static_cast<char>(std::toupper(c)); });
         return data;
     }
 

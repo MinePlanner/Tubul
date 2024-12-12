@@ -56,7 +56,7 @@ std::unordered_map<std::string, BlockStats>& getBlockStatsContainer()
 	return stat_container;
 }
 
-void logBlockOnOpen(const BlockDescription& b) {
+void logBlockOnOpen(const BlockDescription& ) {
 	logDevel() << "Starting " << getCurrentBlockLocation() << " | "
 		<< " mem rss/peak/alive: [" << bytesToStr(memCurrentRSS()) << "/" << bytesToStr(memPeakRSS())
 		<< "/" << bytesToStr(memAlive()) << "]";
@@ -131,7 +131,8 @@ std::string getCurrentBlockLocation()
 		return current + b.name.size();
 	};
 	//Get the length of all names
-	const size_t final_length = std::accumulate(blocks.begin(), blocks.end(),0 , sizeAcc);
+	constexpr size_t zero = 0UL;
+	const size_t final_length = std::accumulate(blocks.begin(), blocks.end(), zero, sizeAcc);
 
 	//We will start with an empty string that will hold the final concatenated location.
 	//This strings needs a total space of the sum of all block name's length plus the number

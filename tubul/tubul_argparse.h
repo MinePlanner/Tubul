@@ -9,7 +9,7 @@ namespace TU
 {
 
 
-class Argument
+struct Argument
 {
 public:
 	struct ArgImpl;

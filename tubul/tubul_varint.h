@@ -4,6 +4,7 @@
 
 #pragma once
 #include <array>
+#include <concepts>
 #include <cstdint>
 #include <cstddef>
 #include <cassert>
@@ -141,18 +142,19 @@ namespace TU
         if (x == 0 ){
             return VarIntBuffer::zero();
         }
+        static constexpr uint8_t val128 = (uint8_t)128;
         //This function tells us how many bytes are required to encode the value x
         //And then drop 1 because we will always do at least the first loop over the number.
-        auto i = bytesAsVarint(x) - 1;
+        const auto i = static_cast<uint8_t>(bytesAsVarint(x) - 1);
 
         //We grab 7 bits of the number, and turn on the bit 8 to
         //signal the continuation of the number and store that byte.
         VarIntBuffer out;
-        for (int j = 0; j <= i; j++) {
+        for (size_t j = 0; j <= i; j++) {
             out.push_back(((x >> ((i - j) * 7)) & 127) | 128);
         }
         //Turn off the continuation bit of the last byte.
-        out.at(i) ^= 128;
+        out.at(i) ^= val128;
         return out;
     }
 
