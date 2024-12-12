@@ -131,7 +131,7 @@ int strToInt(const std::string_view& p){
         impl_( new MappedFile::Internals) {
         auto& fd_ = impl_->fd_;
 		fd_ = open(filename, O_RDONLY );
-		struct stat file_stats{0};
+		struct stat file_stats;
 		if (fstat(fd_, &file_stats) == -1)
             throw TU::Exception(std::string("Could not open file:") + filename);
 

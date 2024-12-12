@@ -38,7 +38,7 @@ std::string bytesToStr(size_t value_in_bytes)
 	std::stringstream buffer;
 	buffer << std::setprecision(2) << std::fixed;
 	//This starts in bytes;
-	double value = value_in_bytes;
+	double value = static_cast<double>(value_in_bytes);
 	for (auto const& unit: units)
 	{
 		if (value < 1024)
@@ -339,6 +339,17 @@ void* operator new[](std::size_t sz)
 	throw std::bad_alloc{}; // required by [new.delete.single]/3
 }
 
+//We still need delete(void*) so gcc doesn't complain. The expectation is
+//this version of operator delete is not used.
+void operator delete(void* ptr) noexcept
+{
+	//Simply record the we are freen size amount of bytes.
+	if constexpr (TUBUL_LOG_ALLOCATIONS)
+		std::printf("3) delete(void*),  ptr = %p\n", ptr);
+	//Call the real deallocation.
+	std::free(ptr);
+}
+
 void operator delete(void* ptr, std::size_t size) noexcept
 {
 	//Simply record the we are freen size amount of bytes.
@@ -378,12 +389,13 @@ void operator delete[](void* ptr, std::size_t size) noexcept
 	auto cur = stats.alive.fetch_sub(size);
 	if constexpr (TUBUL_LOG_ALLOCATIONS)
 		std::printf("6) delete[](void*, size_t), size = %zu alive = %zu\n", size, cur-size);
-	std::free(ptr);
 
 	//remove the array data if it was recorded
 	auto ptrInfo = stats.findArrayAlloc(ptr);
 	if ( ptrInfo != stats.sizes.end())
 		stats.removeArrayAlloc(ptrInfo);
+
+	std::free(ptr);
 }
 
 #endif
