@@ -65,13 +65,13 @@ namespace TU {
         return rtrim(ltrim(toTrim));
     }
     inline
-    std::string_view ltrim(std::string&& s) { throw Exception("trim functions can't be used with lvalue strings");}
+    std::string_view ltrim(std::string&& ) { throw Exception("trim functions can't be used with lvalue strings");}
 
     inline
-    std::string_view rtrim(std::string&& s) { throw Exception("trim functions can't be used with lvalue strings");}
+    std::string_view rtrim(std::string&& ) { throw Exception("trim functions can't be used with lvalue strings");}
 
     inline
-    std::string_view trim(std::string&& s) { throw Exception("trim functions can't be used with lvalue strings");}
+    std::string_view trim(std::string&& ) { throw Exception("trim functions can't be used with lvalue strings");}
 
 
     /** String manipulating functions
