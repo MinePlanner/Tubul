@@ -7,9 +7,9 @@ namespace TU
 
 
     ThreadPool::ThreadPool(size_t thread_count) :
-            tasks_total_(0),
             thread_count_((thread_count > 0) ? thread_count : std::thread::hardware_concurrency()),
-            threads_(std::make_unique<std::thread[]>(thread_count_))
+            threads_(std::make_unique<std::thread[]>(thread_count_)),
+            tasks_total_(0)
     {
         running_.test_and_set();
         for (size_t i = 0; i < thread_count_; ++i)

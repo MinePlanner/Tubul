@@ -114,7 +114,14 @@ namespace TU {
     void LogEngine::streamTimestamp(std::ostream &logStream) {
         auto now = std::chrono::system_clock::now();
         time_t tnow = std::chrono::system_clock::to_time_t(now);
-        tm *utc = localtime(&tnow);
+        tm buf;
+#ifdef TUBUL_WINDOWS
+        //Windows bad people changed the api!!
+        localtime_s(&buf, &tnow);
+        const auto* utc = &buf;
+#else
+        tm *utc = localtime_r(&tnow, &buf);
+#endif
 
         logStream << std::setfill('0');
         logStream << std::setw(4) << utc->tm_year + 1900; // Year

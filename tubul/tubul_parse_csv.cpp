@@ -191,7 +191,7 @@ std::optional<CSVContents> readCsv(std::istream& input, const CSVOptions& option
 		std::optional<CSVContents> res(std::in_place, std::move(raw));
 		return res;
 	}
-	catch (std::exception& e) {
+	catch (std::exception& ) {
 		return std::nullopt;
 	}
 	catch (...) {
@@ -209,7 +209,7 @@ std::optional<CSVContents> readCsv(std::istream& input)
 		std::optional<CSVContents> res(std::in_place, input);
 		return res;
 	}
-	catch (std::exception& e) {
+	catch (std::exception& ) {
 		return std::nullopt;
 	}
 	catch (...) {
@@ -397,7 +397,7 @@ struct SelectorAllColumns
 	std::vector<size_t> operator()( const rapidcsv::Document& doc)
 	{
 		std::vector<size_t> columns;
-		for( int it=0; it < doc.GetColumnCount(); ++it)
+		for( size_t it=0; it < doc.GetColumnCount(); ++it)
 			columns.push_back(it);
 		return columns;
 	}
