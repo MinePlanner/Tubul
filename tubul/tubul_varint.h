@@ -4,6 +4,7 @@
 
 #pragma once
 #include <array>
+#include <concepts>
 #include <cstdint>
 #include <cstddef>
 #include <cassert>
