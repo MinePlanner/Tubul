@@ -2,6 +2,7 @@
 // Created by Carlos Acosta on 21-04-23.
 //
 
+#include "tubul_types.h"
 #include "tubul_graph.h"
 #include "tubul_irange.h"
 #include "tubul_exception.h"
@@ -45,15 +46,6 @@ namespace TU::Graph {
         return true;
     }
 
-    template<typename EnumType>
-    auto toNumber(EnumType val) -> std::underlying_type_t<EnumType> {
-        return static_cast< std::underlying_type_t<EnumType> > (val);
-    }
-
-    template<typename EnumType>
-    auto toEnum( std::underlying_type_t<EnumType> val) -> EnumType {
-        return static_cast< EnumType >(val);
-    }
 
     //Namespace for functions that can be used by other more specific
     //IO methods.

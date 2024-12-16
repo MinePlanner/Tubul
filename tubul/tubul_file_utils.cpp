@@ -66,7 +66,17 @@ inline T doCharConv(std::string_view s)
             return val;
         }
     }
-    throw std::invalid_argument{"Couldn't parse text correctly"};
+    //If something failed, I don't care too much about the performance
+    //of the error reporting :(
+    std::string toType;
+    if constexpr (std::is_integral_v<T>)
+        toType = "integer";
+    else if constexpr (std::is_floating_point_v<T>)
+        toType = "floating point";
+    else
+        toType = "unknown type";
+    std::string error = std::string("Couldn't parse '") + std::string(s) + "' as a " + toType + " correctly";
+    throw TU::Exception{error};
 }
 
 double strToDouble(const std::string_view& p){
@@ -94,7 +104,7 @@ int strToInt(const std::string_view& p){
             throw TU::Exception(std::string("Could not open file:") + name);
         };
 
-        size_  = GetFileSize(fd, 0);
+        size_  = std::filesystem::file_size(name);
 
         mapping = CreateFileMapping(fd, 0, PAGE_READONLY, 0, 0, 0);
         if(mapping == 0) {
@@ -131,11 +141,6 @@ int strToInt(const std::string_view& p){
 		madvise((void*)data_, size_, MADV_WILLNEED | MADV_SEQUENTIAL);
 	}
 
-
-  MappedFile::MappedFile(const std::string& filename) :
-            MappedFile(filename.c_str())
-            {}
-
   MappedFile::~MappedFile() {
 		if (munmap( (void*)data_, size_) == -1)
 		{
@@ -149,4 +154,9 @@ int strToInt(const std::string_view& p){
 	}
 
 #endif
+
+  MappedFile::MappedFile(const std::string& filename) :
+            MappedFile(filename.c_str())
+            {}
+
 }//end namespace TU

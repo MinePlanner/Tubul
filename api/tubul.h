@@ -96,6 +96,24 @@ namespace TU {
      */
     StringLineRange slinerange(const std::string& s);
     StringLineRange slinerange(const std::string_view s);
+
+
+
+    /** Commonly used functions to remove the trailing whitespace of strings
+  * Do note, these only work on string views so be aware if passing strings!
+  */
+    inline
+    std::string_view ltrim(const std::string_view s);
+    inline
+    std::string_view rtrim(const std::string_view s);
+    inline
+    std::string_view trim(const std::string_view &s);
+    /** Don't use these functions!!!! These will fail and are here just to
+     * ensure theres no funny business pasing temporary strings
+     */
+    inline std::string_view ltrim(std::string&& s);
+    inline std::string_view rtrim(std::string&& s);
+    inline std::string_view trim(std::string&& s);
 	////////////
 	// Logger
 	////////////
@@ -145,21 +163,47 @@ namespace TU {
 	void logReport(std::string const &msg);
     void logInfo(std::string const &msg);
     void logDevel(std::string const &msg);
-    void logStats(std::string const &msg);
+    void logStat(std::string const &msg);
+
+    /** \brief log* functions, allow to send a message to all loggers that
+     * participate on the corresponding level Similar to normal log* versions
+     * but this version is thread safe.
+     * End-of-line is added atomatically.
+     * @param The message to be sent
+     */
+    void safelogError(std::string const &msg);
+    void safelogWarning(std::string const &msg);
+	void safelogReport(std::string const &msg);
+    void safelogInfo(std::string const &msg);
+    void safelogDevel(std::string const &msg);
+    void safelogStat(std::string const &msg);
 
     /** \brief log streams, which allow to send strings and numbers using
      * the "<<" operator. Example:
-     * TU::logInfo << "We have " << numCars << " cars ready to ship.";
+     * TU::logInfo() << "We have " << numCars << " cars ready to ship.";
      * End-of-line is added automatically.
      * @return
      */
-    LogStream logError();
-    LogStream logWarning();
-    LogStream logReport();
-    LogStream logInfo();
-    LogStream logDevel();
-    LogStream logStats();
+    LogStreamU logError();
+    LogStreamU logWarning();
+    LogStreamU logReport();
+    LogStreamU logInfo();
+    LogStreamU logDevel();
+    LogStreamU logStat();
 
+    /** \brief log streams, which allow to send strings and numbers using
+     * the "<<" operator. Similar to normal log*() functions but these are
+     * thread-safe.  Example:
+     * TU::logInfo() << "We have " << numCars << " cars ready to ship.";
+     * End-of-line is added automatically.
+     * @return
+     */
+    LogStreamTS safelogError();
+    LogStreamTS safelogWarning();
+    LogStreamTS safelogReport();
+    LogStreamTS safelogInfo();
+    LogStreamTS safelogDevel();
+    LogStreamTS safelogStats();
 	/////////
 	// Args
 	/////////
@@ -269,7 +313,7 @@ namespace TU {
 	 * }
 	 *
 	 */
-	struct ProcessBlock;
+	struct Block;
 	std::string getCurrentBlockLocation();
 
     /////////////
@@ -350,8 +394,30 @@ namespace TU {
     // Memory
     /////////
 
-    std::string memCurrentRSS();
-	std::string memPeakRSS();
+	/** Self-explanatory functions - Do note these are reported by the OS*/
+    size_t memCurrentRSS();
+	size_t memPeakRSS();
+	std::string bytesToStr(size_t bytes);
+
+	/** These functions track memory allocated via new/delete. Tubul tries to
+	 * keep track of how many bytes have been allocated at a given time so it could
+	 * be used to detect at which point a big number of allocations happened, even
+	 * if the current rss does not change in the end, for example, succesively
+	 * allocating and then deleting those objects. Lifetime memory is always
+	 * increasing, while alive can vary over time.
+	 */
+	size_t memAlive();
+	size_t memLifetime();
+
+	/** This structure provides an easy way to maintain a memory monitoring system.
+	 * It will create a thread that will wake up every 0.5s and write to a file the
+	 * current rss and peakrss at that point. The filename is provided.
+	 * The memory monitor will auto-clean after itself, meaning that as soon as the
+	 * object goes out of scope, it will close the file and wait for the thread
+	 * to properly exit. Do note this may cause a delay given the way the thread
+	 * communicates that it has finished.
+	 */
+	struct MemoryMonitor;
 
     /////////
     // File Utils
@@ -364,6 +430,19 @@ namespace TU {
      */
     bool isRegularFile(const std::string_view& name);
     size_t countCharInFile( const std::string_view& filename, char c);
+
     double strToDouble(const std::string_view& p);
     int strToInt(const std::string_view& p);
+	std::string readToString( const std::string& filename);
+
+
+
+    /////////
+    // Params
+    /////////
+    /** Set of functions related to read parameter files so users of the application
+     * can provide certain parameters that will affect some behavior.
+     */
+
+
 }

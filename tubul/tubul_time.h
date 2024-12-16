@@ -9,9 +9,9 @@
 namespace TU
 {
 using TimeDuration = std::chrono::duration<double> ;
-using TimePoint = std::chrono::high_resolution_clock::time_point;
+using TimePoint = std::chrono::system_clock::time_point;
 
-auto constexpr now = &std::chrono::high_resolution_clock::now;
+auto constexpr now = &std::chrono::system_clock::now;
 
 double elapsed(TimePoint tp);
 double elapsed(TimePoint tp_begin, TimePoint tp_end);

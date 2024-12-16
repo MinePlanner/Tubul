@@ -8,13 +8,23 @@
 namespace TU
 {
 
-struct ProcessBlock
+struct Block
 {
-	ProcessBlock(const std::string& name);
-	~ProcessBlock();
+	enum class LogType
+	{
+		ON_START,
+		ON_END,
+		ALL,
+		NONE
+	};
+
+	explicit Block(const std::string& name);
+	Block(const std::string& name, LogType l);
+	~Block();
 
 private:
 	size_t index_;
+	LogType whenToLog_;
 };
 
 

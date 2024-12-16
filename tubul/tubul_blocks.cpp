@@ -3,23 +3,44 @@
 //
 
 #include <vector>
+#include <unordered_map>
 #include <string>
 #include <chrono>
 #include <cassert>
 #include "tubul_blocks.h"
+
+#include <numeric>
+#include <tubul.h>
+
+#include "tubul_time.h"
+#include "tubul_mem_utils.h"
+#include "tubul_logger.h"
 
 
 namespace TU
 {
 struct BlockDescription
 {
-	using TimePoint = decltype(std::chrono::high_resolution_clock::now());
-	BlockDescription(const std::string& n, TimePoint tp):
-		name(n), start_time(tp)
+	explicit
+	BlockDescription(const std::string& n):
+		name(n),
+		allocAtStart(memLifetime()),
+		start_time(now())
 	{}
 
 	std::string name;
+	size_t allocAtStart;
 	TimePoint start_time;
+};
+
+struct BlockStats {
+	BlockStats():
+		count_(0),
+		t_(TimeDuration::zero())
+	{}
+
+	size_t count_;
+	TimeDuration t_;
 };
 
 std::vector<BlockDescription>& getBlockContainer()
@@ -28,14 +49,47 @@ std::vector<BlockDescription>& getBlockContainer()
 	return block_container;
 }
 
-ProcessBlock::ProcessBlock(const std::string &name)
+std::unordered_map<std::string, BlockStats>& getBlockStatsContainer()
+{
+	static std::unordered_map<std::string, BlockStats> stat_container;
+	return stat_container;
+}
+
+void logBlockOnOpen(const BlockDescription& b) {
+	logDevel() << "Starting " << getCurrentBlockLocation() << " | "
+		<< " mem rss/peak/alive: [" << bytesToStr(memCurrentRSS()) << "/" << bytesToStr(memPeakRSS())
+		<< "/" << bytesToStr(memAlive()) << "]";
+}
+
+void logBlockOnClose( const BlockDescription& b, TimeDuration block_duration, TimeDuration accum_duration) {
+	//To store the amount of seconds as a double.
+	auto allocations = memLifetime() - b.allocAtStart;
+	logDevel() << "Closing " << getCurrentBlockLocation() << " | "
+		<< " rss/peak/alive/allocated: [" << bytesToStr(memCurrentRSS()) << "/" << bytesToStr(memPeakRSS())
+		<< "/" << bytesToStr(memAlive()) << "/" << bytesToStr(allocations)
+		<<  "] e: " << block_duration.count() << "s  accum:" << accum_duration.count() << "s";
+}
+
+Block::Block(const std::string &name):
+	whenToLog_(LogType::ALL)
 {
 	auto& blocks = getBlockContainer();
 	index_ = blocks.size();
-	blocks.emplace_back( name, std::chrono::high_resolution_clock::now() );
+	blocks.emplace_back( name );
+	logBlockOnOpen(blocks.back());
 }
 
-ProcessBlock::~ProcessBlock()
+Block::Block(const std::string &name, LogType l):
+	whenToLog_(l)
+{
+	auto& blocks = getBlockContainer();
+	index_ = blocks.size();
+	blocks.emplace_back( name );
+	if ( l == LogType::ALL or l == LogType::ON_START)
+		logBlockOnOpen(blocks.back());
+}
+
+Block::~Block()
 {
 	auto& blocks = getBlockContainer();
 	//If somehow the blocks are empty and we got here, that means somethign really
@@ -44,12 +98,16 @@ ProcessBlock::~ProcessBlock()
 	//We always just drop the last block in the stack given the way blocks
 	//are supposed to be created.
 	auto& closingBlock = blocks.back();
-	//To store the amount of seconds as a double.
-	using Duration = std::chrono::duration<double, std::ratio<1>>;
-	Duration block_duration =  std::chrono::high_resolution_clock::now() - closingBlock.start_time ;
-	//We should do something about the duration, like logging it for now just avoid
-	//warnings for variables not used.
-	(void) block_duration;
+	//We calculate how much time has passed since the creation of this block.
+	TimeDuration block_duration =  now() - closingBlock.start_time ;
+	//Add info to the mapped data of this particular block
+	auto& [ n, accum ] = getBlockStatsContainer()[closingBlock.name];
+	++n;
+	accum += block_duration;
+
+	if ( whenToLog_ == LogType::ALL or whenToLog_ == LogType::ON_END)
+		logBlockOnClose( closingBlock, block_duration, accum);
+
 	blocks.pop_back();
 	//Just to be safe, let's check the number of blocks is the.
 	assert(index_ == blocks.size());
@@ -58,14 +116,36 @@ ProcessBlock::~ProcessBlock()
 std::string getCurrentBlockLocation()
 {
 	//I'd really like to use join here...
+	//The string i will use as a joiner can be defined just once.
+	static const std::string joiner(".");
+
+	//Get the current blocks, but if we don't have anything, we can't do
+	//anything else.
 	auto const& blocks = getBlockContainer();
 	if (blocks.empty())
 		return {};
-	auto res = blocks.front().name;
+
+	//Simple lambda to accumulate length of a bunch of strings.
+	auto sizeAcc = [](size_t current, const BlockDescription& b) {
+		return current + b.name.size();
+	};
+	//Get the length of all names
+	const size_t final_length = std::accumulate(blocks.begin(), blocks.end(),0 , sizeAcc);
+
+	//We will start with an empty string that will hold the final concatenated location.
+	//This strings needs a total space of the sum of all block name's length plus the number
+	//of join charaters required. After getting the space, we store the first name. After
+	//getting the space for the final string, we store the first name.
+	std::string res;
+	res.reserve(final_length + ( joiner.size() * (blocks.size() -1) ) );
+	res.append(blocks.front().name);
+	//Then we add all the rest appending the joiner and the name
 	auto it = blocks.begin()+1;
 	auto end = blocks.end();
-	for (;it != end; ++it)
-		res.append( std::string(" > ") + it->name);
+	for (;it != end; ++it) {
+		res.append( joiner );
+		res.append( it->name );
+	}
 	return res;
 }
 

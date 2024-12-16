@@ -8,6 +8,12 @@
 #include <vector>
 #include <iomanip>
 #include <iostream>
+#include <thread>
+#include <chrono>
+#include <atomic>
+#include <algorithm>
+#include "tubul_file_utils.h"
+#include "tubul_mem_utils.h"
 
 #if defined(TUBUL_MACOS)
 #include <mach/mach.h>
@@ -19,17 +25,14 @@
 #include <psapi.h>
 #endif
 
+#include <cstdio>
+#include <cstdlib>
+
+
+
 namespace TU{
 
-std::string read_file_to_string(const std::string& filename)
-{
-	std::ifstream proc_file( filename );
-	std::string str((std::istreambuf_iterator<char>(proc_file)),
-                    std::istreambuf_iterator<char>());
-	return str;
-}
-
-std::string bytes_to_string(size_t value_in_bytes)
+std::string bytesToStr(size_t value_in_bytes)
 {
 	std::vector<std::string> units ={"b", "kb", "mb", "gb"};
 	std::stringstream buffer;
@@ -66,7 +69,7 @@ size_t getLinuxRSS()
 {
 	//The statsm proc file contains the memory as page counts, so
 	//we need the page size to accurately measure this as bytes
-	auto stats = read_file_to_string("/proc/self/statm");
+	auto stats = readToString("/proc/self/statm");
 	auto page_size = sysconf(_SC_PAGE_SIZE);
 
 	auto first_spc = stats.find_first_of(' ');
@@ -85,7 +88,7 @@ size_t getLinuxRSS()
 
 size_t getLinuxPeakRSS()
 {
-	auto status_procfile = read_file_to_string("/proc/self/status");
+	auto status_procfile = readToString("/proc/self/status");
 	//Get the line containing "VmHWM:"
 	std::istringstream file_contents( std::move(status_procfile) );
 	std::string line;
@@ -146,27 +149,238 @@ size_t getWindowsRSS( )
 
 #endif
 
-std::string memPeakRSS()
+
+size_t memPeakRSS()
 {
 #if defined(TUBUL_MACOS)
-	return bytes_to_string( getApplePeakRSS() );
+	return getApplePeakRSS();
 #elif defined(TUBUL_LINUX)
-	return bytes_to_string( getLinuxPeakRSS() );
+	return getLinuxPeakRSS();
 #elif defined(TUBUL_WINDOWS)
-	return bytes_to_string( getWindowsPeakRSS() );
+	return getWindowsPeakRSS();
 #endif
 }
 
-std::string memCurrentRSS()
+size_t memCurrentRSS()
 {
 #if defined(TUBUL_MACOS)
-	return bytes_to_string( getAppleRSS() );
+	return getAppleRSS();
 #elif defined(TUBUL_LINUX)
-	return bytes_to_string( getLinuxRSS() );
+	return getLinuxRSS();
 #elif defined(TUBUL_WINDOWS)
-	return bytes_to_string( getWindowsRSS() );
+	return getWindowsRSS();
 #endif
 
 }
 
+struct MemoryStats {
+	using PtrSize = std::pair<void*,size_t>;
+	std::atomic_size_t lifetime;
+	std::atomic_size_t alive;
+	std::vector<PtrSize> sizes;
+
+	auto findArrayAlloc(void *ptr) {
+		return std::find_if(std::begin(sizes), std::end(sizes),
+		                    [ptr](auto sizeItem) {
+			                    const auto &[p,s] = sizeItem;
+			                    return (p == ptr);
+		                    });
+	}
+
+	void removeArrayAlloc(std::vector<PtrSize>::iterator it) {
+		//Move the iterator to the last position and drop it.
+		std::iter_swap(it, sizes.end() - 1);
+		sizes.pop_back();
+	}
+};
+
+MemoryStats& getTubulStats() {
+	static MemoryStats stats;
+	return stats;
+}
+
+size_t memAlive() {
+	const auto& stat = getTubulStats();
+	return stat.alive.load();
+}
+
+size_t memLifetime() {
+	const auto& stat = getTubulStats();
+	return stat.lifetime.load();
+}
+
+/**
+ * This is the private implementation of the memory monitoring thread.
+ * It's actually quite simple using std::thread ability to run a given
+ * object's method on a thread. We create an outputfile, and Impl
+ * has an atomic flag (just to be sure there's no funny optimizations
+ * if we were to use a naked bool).
+ * The memReportWorker function will keep writing a new line
+ * containing the rss and peak rss at that point and then sleeping 0.5s until
+ * the exit flag is marked.
+ * The exit flag is marked when Impl goes out of scope. Then the destructor
+ * waits for the thread to join and life continues. The file should close
+ * automatically too.
+ */
+struct MemoryMonitor::Impl{
+
+	explicit Impl(const std::string& f ):
+		report_(f)
+	{
+		th_ = std::thread(&Impl::memReportWorker, this);
+	}
+
+	void memReportWorker() {
+		//Create the file and start logging every so many millisecs
+		while ( !threadExitFlag_.test() )
+		{
+			using namespace std::chrono_literals;
+			std::this_thread::sleep_for( 500ms );
+			report_ << memCurrentRSS() << "," << memPeakRSS() << '\n';
+		}
+	}
+
+	~Impl() {
+		threadExitFlag_.test_and_set();
+		if(th_.joinable()) {
+			th_.join(); // join() in destructor
+		}
+	}
+
+private:
+	std::atomic_flag threadExitFlag_ = ATOMIC_FLAG_INIT;
+	std::thread th_;
+	std::ofstream report_;
+};
+
+/**
+ * The construct or of memory monitor pretty much just creates the private implementation.
+ */
+MemoryMonitor::MemoryMonitor(const std::string& reportFileName):
+	impl_(std::make_unique<Impl>(reportFileName))
+	{}
+
+MemoryMonitor::~MemoryMonitor() = default;
+
+
+
+}
+
+
+/** Here are Tubul's custom implementations of new and delete to try to
+ * keep track of the allocated memory. Even though this looked relatively simple
+ * it turns out there's a lot of small details to keep in mind
+ * 1) First of all, in clang the sized deallocation are not the default! Add
+ * -fsized-deallocations when using this.
+ * 2) Imho, the array deallocation is kind of broken in clang and gcc. When you
+ * allocate an array of N elements you know the size (and underlying knowledge remains too!),
+ * but there's a caveat if the elements are trivial pods... in that case the compiler
+ * is free to call the non-sized deallocator!!! That is quite a pain because to properly
+ * get back the size of that allocation would require either risky assumptions (basically
+ * that we can use the trick of looking at position -1 and retrieve the size) or a lot of
+ * extra work to keep knowledge of this. I did a small solution here for completeness-sake
+ * but i am not very happy with it.
+ * 3) new and sized delete for single objects seems to work as expected. In particular,
+ * std::vector saves the day here as it doesn't use new[], because it has to work which
+ * elements are "alive" and which are not.
+ *
+ * If you need to keep track of allocations going in the program, you can uncomment this
+ * define and it will uncomment the log-to-console lines. Also can do it through compile defs.
+ */
+//#define TUBUL_ALLOCATIONS_PRINT
+#ifdef TUBUL_ALLOCATIONS_PRINT
+static constexpr bool TUBUL_LOG_ALLOCATIONS = true;
+#else
+static constexpr bool TUBUL_LOG_ALLOCATIONS = false;
+#endif
+
+
+// no inline, required by [replacement.functions]/3
+void* operator new(std::size_t sz)
+{
+	// avoid std::malloc(0) which may return nullptr on success
+	if (sz == 0)
+		++sz;
+	//get the stats and add the allocation.
+	auto& stats = TU::getTubulStats();
+	auto total = stats.lifetime.fetch_add(sz);
+	auto cur = stats.alive.fetch_add(sz);
+	if constexpr (TUBUL_LOG_ALLOCATIONS)
+		std::printf("1) new(size_t), size = %zu alive = %zu total alloc'd= %zu\n", sz, cur+sz, total+sz);
+	//return the allocated memory
+	if (void *ptr = std::malloc(sz))
+		return ptr;
+
+	throw std::bad_alloc{}; // required by [new.delete.single]/3
+}
+
+// no inline, required by [replacement.functions]/3
+void* operator new[](std::size_t sz)
+{
+	// avoid std::malloc(0) which may return nullptr on success
+	if (sz == 0)
+		++sz;
+	//get the stats and add the allocation.
+	auto& stats = TU::getTubulStats();
+	auto total = stats.lifetime.fetch_add(sz);
+	auto cur = stats.alive.fetch_add(sz);
+	if constexpr (TUBUL_LOG_ALLOCATIONS)
+		std::printf("2) new[](size_t), size = %zu alive = %zu total alloc'd= %zu\n", sz, cur+sz, total+sz);
+
+	//Return the ptr allocated, but just in case (because this route sucks) store the size of this ptr.
+	if (void *ptr = std::malloc(sz)) {
+		if ( not stats.sizes.capacity())
+			stats.sizes.reserve(512);
+		stats.sizes.emplace_back(ptr, sz);
+		return ptr;
+	}
+
+	throw std::bad_alloc{}; // required by [new.delete.single]/3
+}
+
+void operator delete(void* ptr, std::size_t size) noexcept
+{
+	//Simply record the we are freen size amount of bytes.
+	auto& stats = TU::getTubulStats();
+	auto cur = stats.alive.fetch_sub(size);
+	if constexpr (TUBUL_LOG_ALLOCATIONS)
+		std::printf("4) delete(void*, size_t), size = %zu alive = %zu  ptr = %p\n", size, cur -size, ptr);
+	//Call the real deallocation.
+	std::free(ptr);
+}
+
+void operator delete[](void* ptr) noexcept {
+	//Now, because the array handling sucks, we have to try to retrieve the size of this
+	//pointer for accurate bookkeeping.
+	auto& stats = TU::getTubulStats();
+	auto ptrInfo = stats.findArrayAlloc(ptr);
+	//If for some reason, we don't have information for this ptr, we panic a little and go on with life.
+	if ( ptrInfo == stats.sizes.end() ) {
+		std::printf("Deleting pointer for which no size information is recorded!");
+		std::free(ptr);
+		return;
+	}
+	//We can get the size of this ptr to properly track it.
+	const auto& [p,s] = *ptrInfo;
+	auto cur = stats.alive.fetch_sub(s);
+	if constexpr (TUBUL_LOG_ALLOCATIONS)
+		std::printf("****) delete[](void*), alive = %zu \n", cur-s);
+	std::free(ptr);
+
+	//now we remove this ptr from the list of pointers we keep track of.
+	stats.removeArrayAlloc(ptrInfo);
+}
+
+void operator delete[](void* ptr, std::size_t size) noexcept
+{
+	auto& stats = TU::getTubulStats();
+	auto cur = stats.alive.fetch_sub(size);
+	if constexpr (TUBUL_LOG_ALLOCATIONS)
+		std::printf("6) delete[](void*, size_t), size = %zu alive = %zu\n", size, cur-size);
+	std::free(ptr);
+
+	//remove the array data if it was recorded
+	auto ptrInfo = stats.findArrayAlloc(ptr);
+	if ( ptrInfo != stats.sizes.end())
+		stats.removeArrayAlloc(ptrInfo);
 }

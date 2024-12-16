@@ -4,9 +4,10 @@
 
 #pragma once
 #include <string_view>
-#include <cstdlib>
 #include <tuple>
 #include <memory>
+#include <streambuf>
+#include <fstream>
 
 namespace TU{
 /** Set of simple functions to perform tasks that are common
@@ -22,7 +23,6 @@ namespace TU{
 
 
 //Simple wrapper for common task when using str_views to convert to types.
-    inline
     constexpr auto strview_range(std::string_view s) noexcept {
         return std::make_tuple(s.data(), s.data() + s.size());
     }
@@ -53,5 +53,15 @@ struct MappedFile
     std::unique_ptr<Internals> impl_;
 };
 
+//This is just a simple wrapper for the cumbersome way to read
+//the contents of a file into a string.
+inline
+std::string readToString(const std::string& filename)
+{
+	std::ifstream ifile( filename );
+	std::string str((std::istreambuf_iterator<char>(ifile)),
+					 std::istreambuf_iterator<char>());
+	return str;
+}
 
 }

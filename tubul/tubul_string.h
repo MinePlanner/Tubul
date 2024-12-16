@@ -5,8 +5,10 @@
 
 #pragma once
 #include <vector>
+#include <string>
 #include <string_view>
 #include <algorithm>
+#include "tubul_exception.h"
 
 ////////////
 // Strings
@@ -38,6 +40,68 @@ namespace TU {
     template<typename IteratorType>
     std::string join(IteratorType begin, IteratorType end, std::string const &joiner);
 
+    /** Commonly used functions to remove the trailing whitespace of strings
+     * Do note, these only work on string views so be aware if passing strings!
+     */
+    namespace details {
+        static const std::string WHITESPACE = " \n\r\t\f\v";
+    }
+
+    inline
+    std::string_view ltrim(const std::string_view s) {
+        size_t start = s.find_first_not_of(details::WHITESPACE);
+        return (start == std::string::npos) ? std::string_view{} : s.substr(start);
+    }
+
+    inline
+    std::string_view rtrim(const std::string_view s) {
+        size_t end = s.find_last_not_of(details::WHITESPACE);
+        return (end == std::string::npos) ? std::string_view{} : s.substr(0, end + 1);
+    }
+
+    inline
+    std::string_view trim(const std::string_view &s) {
+        std::string_view toTrim(s);
+        return rtrim(ltrim(toTrim));
+    }
+    inline
+    std::string_view ltrim(std::string&& s) { throw Exception("trim functions can't be used with lvalue strings");}
+
+    inline
+    std::string_view rtrim(std::string&& s) { throw Exception("trim functions can't be used with lvalue strings");}
+
+    inline
+    std::string_view trim(std::string&& s) { throw Exception("trim functions can't be used with lvalue strings");}
+
+
+    /** String manipulating functions
+     * It's very common to need the "tolower"/"toupper" functions to strings, so let's
+     * write them just once.
+     */
+    inline
+    auto tolower(std::string_view word) -> std::string {
+        std::string data(word);
+        std::transform(data.begin(), data.end(), data.begin(),
+                       [](const unsigned char c) { return std::tolower(c); });
+        return data;
+    }
+    inline
+    auto tolower(const std::string& word) -> std::string {
+        return tolower(std::string_view(word) );
+    }
+
+    inline
+    auto toupper(std::string_view word) -> std::string {
+        std::string data(word);
+        std::transform(data.begin(), data.end(), data.begin(),
+                       [](const unsigned char c) { return std::toupper(c); });
+        return data;
+    }
+
+    inline
+    auto toupper(const std::string& word) -> std::string {
+        return toupper(std::string_view(word) );
+    }
 
     namespace details {
         class string_line_range {
@@ -51,6 +115,8 @@ namespace TU {
                     } else {
                         start_ = 0;
                         finish_ = source_.find_first_of('\n', start_);
+                        if (finish_ >= 1 && source_[finish_-1] == '\r')
+                            finish_ -= 1;
                     }
 
                 }
@@ -80,20 +146,34 @@ namespace TU {
 
             private:
                 void find_next_line() {
+                    //If we were already past the end of the source in the current
+                    //iteration, there's no next line possible.
                     if (finish_ == std::string::npos) {
                         start_ = std::string::npos;
                         return;
                     }
 
-                    start_ = finish_ + 1;
+                    //If we had a finish_ pointing to a \r or \n, we move past it
+                    //for the next iteration, but we have to also check if the \r and
+                    //or \n were the last characters from the source.
+                    size_t fwd = 1;
+                    if ( finish_ < source_.size() and source_[finish_] == '\r' )
+                        ++fwd;
+                    start_ = finish_ + fwd;
                     if ( start_ >= source_.size() ) {
                         start_ = std::string::npos;
                         finish_ = std::string::npos;
                         return;
                     }
+
+                    //We know there are more characters after the start_ index, so we look
+                    //for the next \n available (and check if it is preceded by a \r just in
+                    // case)
                     finish_ = source_.find_first_of('\n', start_);
                     if (finish_ == std::string::npos)
                         finish_ = source_.size();
+                    else if ( source_[finish_-1] == '\r' )
+                        finish_ -= 1;
                 }
 
                 std::string_view source_;

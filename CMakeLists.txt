@@ -9,6 +9,12 @@ endif()
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+#On Clang, the sized deallocation is not the default behavior!!!!
+#You have to actively ask for it.
+if(APPLE)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsized-deallocation")
+endif()
 
 project(tubul)
 
@@ -33,6 +39,13 @@ else()
 	message(STATUS "Unsupported Build Type")
 endif()
 
+if((build_type MATCHES "debug") )
+    add_compile_definitions("TUBUL_DEBUG")
+endif()
+
+if((build_type MATCHES "release") )
+    add_compile_definitions("TUBUL_RELEASE")
+endif()
 # Check if ccache is installed
 find_program(CCACHE_FOUND ccache)
 if(CCACHE_FOUND)
@@ -41,10 +54,17 @@ if(CCACHE_FOUND)
     set_property(GLOBAL PROPERTY RULE_LAUNCH_LINK ccache)
 endif(CCACHE_FOUND)
 
-# colors for ninja
-if (APPLE)
+# Colors in errors if possible
+include(CheckCXXCompilerFlag)
+check_cxx_compiler_flag( -fcolor-diagnostics COLOR_DIAGNOSTICS_FLAG_SUPPORTED)
+if (COLOR_DIAGNOSTICS_FLAG_SUPPORTED)
     add_compile_options (-fcolor-diagnostics)
-endif ()
+else()
+    check_cxx_compiler_flag( -fdiagnostics-color COLOR_DIAGNOSTICS_FLAG_SUPPORTED2)
+    if (COLOR_DIAGNOSTICS_FLAG_SUPPORTED2)
+        add_compile_options (-fdiagnostics-color)
+    endif()
+endif()
 
 #Adding external dependencies.
 add_subdirectory(External)
