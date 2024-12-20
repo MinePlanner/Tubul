@@ -12,5 +12,7 @@ foreach(dir ${TUBUL_EXTERNAL_LIBS_INCLUDES})
     target_include_directories(libtubul PUBLIC ${dir})
 endforeach()
 
+target_include_directories(libtubul INTERFACE ${CMAKE_SOURCE_DIR}/api)
 target_compile_definitions(libtubul PUBLIC ${TUBUL_COMPILE_DEFS})
 set_target_properties(libtubul PROPERTIES POSITION_INDEPENDENT_CODE ON)
+
