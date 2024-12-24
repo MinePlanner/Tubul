@@ -388,10 +388,11 @@ void operator delete[](void* ptr, std::size_t size) noexcept
 	auto cur = stats.alive.fetch_sub(size);
 	if constexpr (TUBUL_LOG_ALLOCATIONS)
 		std::printf("6) delete[](void*, size_t), size = %zu alive = %zu\n", size, cur-size);
-	std::free(ptr);
 
 	//remove the array data if it was recorded
 	auto ptrInfo = stats.findArrayAlloc(ptr);
 	if ( ptrInfo != stats.sizes.end())
 		stats.removeArrayAlloc(ptrInfo);
+
+	std::free(ptr);
 }
