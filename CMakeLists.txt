@@ -27,8 +27,16 @@ elseif(UNIX) # We should move to CMake 3.22+ where we have LINUX direct check
   set(TUBUL_COMPILE_DEFS "TUBUL_LINUX")
 endif()
 
+# Ease of use: Check if we got a CMAKE_BUILD_TYPE, and if not, default to Release instead
+# of panicking
+if (DEFINED CMAKE_BUILD_TYPE AND CMAKE_BUILD_TYPE)
+    message(STATUS "Compiling in '${CMAKE_BUILD_TYPE}' mode!")
+else()
+    set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
+    message(STATUS "Compiling in '${CMAKE_BUILD_TYPE}' mode! (default mode)")
+endif()
+
 # Setup location of the generated files, binaries and libraries.
-message(STATUS "Compiling in ${CMAKE_BUILD_TYPE} mode!")
 string( TOLOWER "${CMAKE_BUILD_TYPE}" build_type )
 if((build_type MATCHES "debug") OR (build_type MATCHES "release"))
     set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_SOURCE_DIR}/bin/${CMAKE_BUILD_TYPE}") # For the executables and, in case of Windows, the DLLs
