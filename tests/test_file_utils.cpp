@@ -7,6 +7,7 @@
 #include <fstream>
 #include <iterator>
 
+
 const char* FILE_TO_CREATE_CONTENTS = R"(This is the first line
 and this is the second
 some numbers here
@@ -173,7 +174,6 @@ TEST(TUBULFileUtils, testMMapFile){
     auto file_contents = input.string_view();
     EXPECT_EQ(file_contents, FILE_TO_CREATE_CONTENTS);
 
-
     {///From a string
         std::string copied_string(file_contents.data(), file_contents.size());
         std::stringstream resultByLine;
@@ -190,6 +190,49 @@ TEST(TUBULFileUtils, testMMapFile){
         }
         EXPECT_EQ(resultByLine.str(), FILE_TO_CREATE_CONTENTS);
     }
+}
 
+
+TEST(TUBULFileUtils, testReadFileLines)
+{
+    createFile();
+    
+    {
+    std::vector<std::string> expected = {
+        "This is the first line",
+        "and this is the second",
+        "some numbers here",
+        "12",
+        "13",
+        "14",
+        "and a goodbye"
+    };
+
+    int idx = 0;
+    TU::readFileLines(TEST_FILENAME, [&expected, &idx](const std::string_view &line){
+        EXPECT_EQ(line, expected[idx]);
+        idx++;
+    });
+    }
+
+    {
+    std::vector<std::string> expected = {
+        "and this is the second",
+        "12",
+        "14",
+    };
+
+    int idx = 0, expected_idx = 0;
+    TU::readFileLines(TEST_FILENAME, [&idx, &expected_idx, expected](const std::string_view &line){
+        // ignores even indexed lines
+        if (idx % 2 == 1)
+        {
+            EXPECT_EQ(line, expected[expected_idx]);
+            expected_idx++;
+        }
+        idx++;
+    });
+    }
 
 }
+

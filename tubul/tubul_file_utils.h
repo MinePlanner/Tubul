@@ -8,6 +8,7 @@
 #include <memory>
 #include <streambuf>
 #include <fstream>
+#include "tubul.h"
 
 namespace TU{
 /** Set of simple functions to perform tasks that are common
@@ -63,5 +64,18 @@ std::string readToString(const std::string& filename)
 					 std::istreambuf_iterator<char>());
 	return str;
 }
+
+
+template<typename Lambda_t>
+void readFileLines(const std::string_view &filename, Lambda_t lambda)
+{
+    MappedFile input(filename.data());
+    auto file_contents = input.string_view();
+
+    for (auto line : slinerange(file_contents))
+    {
+        lambda(line);
+    }
+} 
 
 }
