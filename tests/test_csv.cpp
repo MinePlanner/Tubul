@@ -79,6 +79,15 @@ TEST(TUBULCSV, testBasicFunctionality)
 	for (size_t i = 0; i < colB.size(); ++i )
 		EXPECT_EQ(expected_colB[i], colB[i]);
 
+	//Getting all rows
+	std::vector<std::vector<std::string>> expected_rows = {
+		{"1","2","3","4"},
+		{"4","3","2","1"},
+		{"3","1","2","4"}
+	};
+	size_t idx = 0;
+	for(auto const &row : csv_data.rows())
+		EXPECT_EQ(row, expected_rows[idx++]);
 }
 
 TEST(TUBULCSV, testDataframeString)
