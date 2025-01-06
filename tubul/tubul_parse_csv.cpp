@@ -92,6 +92,15 @@ std::vector<std::string> CSVContents::getRow(size_t rowIndex) const {
 	return impl_->doc.GetRow<std::string>(rowIndex);
 }
 
+std::optional <size_t> CSVContents::getColumnIndex(const std::string_view& name) const{
+	std::vector <std::string> columns = impl_ -> doc.GetColumnNames();
+	auto it = find(columns.begin(), columns.end(), name);
+	if(it != columns.end()){
+		return it - columns.begin();
+	}
+	return std::nullopt;
+}
+
 
 ColumnRequest& ColumnRequest::add(size_t columnIndex, TU::DataType type)
 {

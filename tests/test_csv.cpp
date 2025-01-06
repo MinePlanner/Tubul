@@ -88,6 +88,14 @@ TEST(TUBULCSV, testBasicFunctionality)
 	size_t idx = 0;
 	for(auto const &row : csv_data.rows())
 		EXPECT_EQ(row, expected_rows[idx++]);
+	//Get column index by name
+	std::optional <int> goodIndex = 1;
+	std::string goodTest = "B";
+	EXPECT_EQ(csv_data.getColumnIndex(goodTest), 1);
+	//Get nonexisting column
+	std::optional <int> badIndex = -1;
+	std::string badTest = "Z";
+	EXPECT_EQ(csv_data.getColumnIndex(badTest), std::nullopt);
 }
 
 TEST(TUBULCSV, testDataframeString)
