@@ -235,6 +235,41 @@ TEST(TUBULString, testJoin){
 	res = TU::join(test, "->");
 	EXPECT_EQ(res, "A->B");
 }
+TEST(TUBULString, testjoinDifferentContainers){
+	//cannot test st nor multiset since they have no order
+
+	std::deque <std::string> dequeString {"this", "is", "a", "deque"};
+	std::deque <int> dequeInt {4, 3, 2, 1};
+
+	std::string res;
+
+	res = TU::join(dequeString, "/");
+	EXPECT_EQ(res, "this/is/a/deque");
+
+	res = TU::join(dequeInt, ".");
+	EXPECT_EQ(res, "4.3.2.1");
+}
+
+TEST(TUBULString, testjoinWithLambda){
+	struct Book{
+		std::string name;
+		int pages;
+	};
+
+	Book b1 = {"C++ for Dummies", 100};
+	Book b2 = {"Hamlet", 75};
+
+	std::vector <Book> structVec = {b1, b2};
+
+	auto f = [](struct Book book){
+		return format("{} {}", book.name, book.pages);
+	};
+
+	std::string res = TU::join(structVec, ", ", f);
+	std::cout<<res<<"\n";
+	EXPECT_EQ(res, "C++ for Dummies 100, Hamlet 75");
+
+}
 
 
 TEST(TUBULString, testLineIterator) {
@@ -339,3 +374,4 @@ TEST(TUBULString, testToUpper) {
 	doTest( "aTeSt", "ATEST");
 	doTest( "L337 C0d3", "L337 C0D3");
 }
+

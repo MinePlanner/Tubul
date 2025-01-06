@@ -14,6 +14,7 @@
 #include <string_view>
 #include <optional>
 #include <tubul_defs.h>
+#include <functional>
 
 namespace TU {
 
@@ -76,11 +77,17 @@ namespace TU {
     std::vector<std::string_view> split(std::string_view const &input);
     std::vector<std::string_view> split(std::string_view const &input, std::string const &delims);
 
-    template<typename ContainerType>
+    template <typename ContainerType>
     std::string join(ContainerType const &container, std::string const &joiner);
 
-    template<typename IteratorType>
+	template <std::ranges::range ContainerType, typename funcType>
+	std::string join(ContainerType const &container, std::string const &joiner, funcType x);
+
+    template <typename IteratorType>
     std::string join(IteratorType begin, IteratorType end, std::string const &joiner);
+
+	template <typename IteratorType, typename funcType>
+    std::string join(IteratorType begin, IteratorType end, std::string const& joiner, funcType x);
 
     /** The slinerange function will return an object that can be iterated
      * with the range loop idiom (or using begin/end iterators if that's your

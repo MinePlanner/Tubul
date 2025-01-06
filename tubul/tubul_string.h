@@ -9,6 +9,8 @@
 #include <string_view>
 #include <algorithm>
 #include "tubul_exception.h"
+#include <sstream>
+#include <functional>
 
 ////////////
 // Strings
@@ -34,12 +36,85 @@ namespace TU {
 
     std::vector<std::string_view> split(std::string_view const &input, std::string const &delims);
 
-    template<typename ContainerType>
-    std::string join(ContainerType const &container, std::string const &joiner);
+    //only for strings + joiner
+    template <typename IteratorType>
+    std::string join(IteratorType begin, IteratorType end, std::string const& joiner){
+        using StringType = typename IteratorType::value_type;
+        std::string result;
+        //if we are given nothing to join, that's it.
+        if (begin == end)
+            return result;
+        //Check the total size of the input strings.
+        size_t total_size = 0;
+        size_t total_items = std::distance(begin, end);
+        std::for_each(begin,end,[&]( StringType const& it){ total_size+= it.size();});
+        //If the sum is 0, means all strings are empty. Should we really do something?
+        //I think it's debatable, but for example for CSV files, we would still want
+        // the comma separated empty strings, so I prefer to continue, although some
+        // cases are questionable.
 
-    template<typename IteratorType>
-    std::string join(IteratorType begin, IteratorType end, std::string const &joiner);
+        //If we only have one item, there's nothing more to do.
+        if (total_items == 1)
+        {
+            result = *begin;
+            return result;
+        }
+        //If the joiner is empty, we just concatenate the strings on the result
+        if (joiner.empty() )
+        {
+            result.reserve(total_size );
+            std::for_each(begin,end,[&]( StringType const& it){ result.append(it);});
+            return result;
+        }
+        //Note that we already stablished there's at least 2 elements!
+        result.reserve(total_size + total_items*joiner.size() );
+        result.append(*begin);
+        ++begin;
+        std::for_each(begin,end,[&]( StringType const& it){ result.append(joiner); result.append(it); });
 
+        return result;
+    }
+    
+    //for any other container type, x should return a string.
+    template <typename IteratorType, typename funcType>
+    std::string join(IteratorType begin, IteratorType end, std::string const& joiner, funcType x){
+        std::ostringstream buffer;
+
+        using itemType = typename IteratorType::value_type;
+
+        //if empty container
+        if(begin == end) return buffer.str();
+        
+        buffer << x(*begin);
+        begin++;
+
+        std::for_each(begin, end, [&]( itemType const& it){
+            buffer << joiner << x(it);
+        });
+
+        return buffer.str();
+    }
+
+    template <typename ContainerType>
+    std::string join(ContainerType const& container, std::string const& joiner)
+    {
+        using itemType = typename ContainerType::value_type;
+
+        //case string
+        if constexpr (std::is_same_v<typename ContainerType::value_type, std::string> || std::is_same_v<typename ContainerType::value_type, std::string_view> )
+            return join(std::begin(container), std::end(container), joiner );
+        else
+            return join(std::begin(container), std::end(container), joiner, [](const itemType& x) {return std::to_string(x);} );
+        
+    }
+
+    //for any container and to_string lambda
+    template <std::ranges::range ContainerType, typename funcType>
+	std::string join(ContainerType const &container, std::string const &joiner, funcType x){
+        return join(std::begin(container), std::end(container), joiner, x);
+    }
+
+    
     /** Commonly used functions to remove the trailing whitespace of strings
      * Do note, these only work on string views so be aware if passing strings!
      */
