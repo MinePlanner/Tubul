@@ -72,10 +72,35 @@ struct CSVContents
 	std::vector<double> getColumnAsDouble(size_t colIndex) const;
 	std::vector<int64_t> getColumnAsInteger(size_t colIndex) const;
 	std::vector<std::string> getColumnAsString(size_t colIndex) const;
+	auto rows() const;
 
 	std::unique_ptr<CSVRawData> impl_;
 };
 
+inline
+auto CSVContents::rows() const {
+	struct iterator
+	{
+		size_t idx;
+		const CSVContents &contents;
+
+		bool operator != (const iterator &other) const {return other.idx != idx;}
+		iterator operator ++ (){
+			idx++;
+			return *this;
+		}
+		std::vector<std::string> operator * () const {return contents.getRow(idx);}
+	};
+	struct iterator_wrapper
+	{
+		const CSVContents &contents;
+
+		auto begin(){ return iterator{0, contents}; }
+		auto end(){ return iterator{contents.rowCount(), contents}; }
+	};
+
+	return iterator_wrapper{*this};
+}
 
 struct CSVOptions
 {
