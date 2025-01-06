@@ -73,6 +73,8 @@ struct CSVContents
 	std::vector<int64_t> getColumnAsInteger(size_t colIndex) const;
 	std::vector<std::string> getColumnAsString(size_t colIndex) const;
 	auto rows() const;
+	
+	std::optional <size_t> getColumnIndex(const std::string_view& name) const;
 
 	std::unique_ptr<CSVRawData> impl_;
 };
