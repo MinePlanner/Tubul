@@ -148,6 +148,22 @@ std::string getCurrentBlockLocation()
 	}
 	return res;
 }
+void Block::report(){
+	auto& blocks = getBlockContainer();
+	auto& reportingBlock = blocks[index_];
+	//We calculate how much time has passed since the creation of this block.
+	TimeDuration block_duration =  now() - reportingBlock.start_time ;
+	//Current info
+	auto& [ n, accum ] = getBlockStatsContainer()[reportingBlock.name];
+
+	auto allocations = memLifetime() - reportingBlock.allocAtStart;
+
+	logReport() << "Reporting " << getCurrentBlockLocation() << " |" 
+		<< " rss/peak/alive/allocated: [" << bytesToStr(memCurrentRSS()) << "/"
+		<< bytesToStr(memPeakRSS()) << "/" << bytesToStr(memAlive()) << "/" << bytesToStr(allocations)
+		<< "] e: " << block_duration.count() << "s accum: " << accum.count() << "s";
+
+}
 
 
 }
