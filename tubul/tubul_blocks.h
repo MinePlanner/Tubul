@@ -21,6 +21,7 @@ struct Block
 	explicit Block(const std::string& name);
 	Block(const std::string& name, LogType l);
 	~Block();
+	void report();
 
 private:
 	size_t index_;
