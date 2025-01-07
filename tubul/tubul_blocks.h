@@ -4,6 +4,7 @@
 
 #pragma once
 #include <string>
+#define TUBUL_BLOCK TU::Block ___aux_t_block(__FUNCTION__)
 
 namespace TU
 {
