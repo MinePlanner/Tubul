@@ -155,6 +155,46 @@ std::vector< std::string_view > split(std::string_view const& input, std::string
 	return detail::split_strict(input, delims);
 }
 
+
+std::vector<std::string_view> splitCsv(std::string_view const &input){
+	//vector to contain the resulting splits
+	std::vector<std::string_view> results;
+	
+	//empty input case
+	if(input.empty()){
+		results.emplace_back();
+		return results;
+	}
+
+	size_t start = 0, end = input.size();
+	size_t idx = start;
+	bool quoted = false;
+	const char *ptr = input.data();
+
+	// looping throught the input string to find the characters
+	// that define the desired split
+	while(idx < end){
+		// when a quotation mark is found
+		if(input[idx] == '"')
+			quoted = !quoted;
+		
+		// a split should happened whenever we find a comma and we are outside
+		// quotes, otherwise a comma is ignored for the splitting
+		if(input[idx] == ',' && !quoted){
+			results.emplace_back(ptr+start, ptr+idx);
+			start = idx+1;
+		}
+
+		idx++;
+	}
+
+	// the left split after the while loop
+	std::string_view last(ptr+start, ptr+end);
+	results.push_back(last);
+
+	return results;
+}
+
 details::string_line_range slinerange(const std::string& s)
 {
     return details::string_line_range(s);
