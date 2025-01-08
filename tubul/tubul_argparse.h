@@ -29,6 +29,10 @@ public:
 	Argument& setAsInteger();
 	Argument& setAsList();
 
+	//for parsing vectors of any type
+	template<typename T>
+	Argument& testList(std::vector<T> &v);
+
 private:
 	ArgImplPtr arg_;
 };

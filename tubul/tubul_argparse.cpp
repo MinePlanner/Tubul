@@ -48,6 +48,12 @@ Argument& Argument::setAsInteger( ){  arg_->get().scan<'d',int>(); return *this;
 Argument& Argument::setAsFlag(){ arg_->get().implicit_value(true).default_value(false); return *this;}
 Argument& Argument::setAsList( ){  arg_->get().nargs(argparse::nargs_pattern::at_least_one); return *this;}
 
+//for parsing args as vectors of any type
+//saves args into v
+template <typename T>
+Argument &Argument::testList(std::vector<T> &v){ arg_->get().nargs(argparse::nargs_pattern::at_least_one).store_into(v); return *this;};
+//instance for int casue 
+template Argument &Argument::testList(std::vector<int> &v);
 
 /**
  * This function creates an argument to be parsed and returns an
