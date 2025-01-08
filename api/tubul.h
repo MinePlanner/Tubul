@@ -322,6 +322,7 @@ namespace TU {
 	 */
 	struct Block;
 	std::string getCurrentBlockLocation();
+	std::string reportBlocks();
 
     /////////////
     // Exceptions

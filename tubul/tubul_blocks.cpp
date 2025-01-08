@@ -15,6 +15,7 @@
 #include "tubul_time.h"
 #include "tubul_mem_utils.h"
 #include "tubul_logger.h"
+#include <iomanip>
 
 
 namespace TU
@@ -163,6 +164,38 @@ void Block::report(){
 		<< bytesToStr(memPeakRSS()) << "/" << bytesToStr(memAlive()) << "/" << bytesToStr(allocations)
 		<< "] e: " << block_duration.count() << "s accum: " << accum.count() << "s";
 
+}
+//generates table with a list of blocks, shows name and stats
+std::string reportBlocks(){
+	//map of stats
+	auto& blocks = getBlockStatsContainer();
+
+	auto begin = blocks.begin(), end = blocks.end();
+	//for decent table
+	size_t width = 0;
+	for(auto it = begin; it != end; ++it){
+		width = std::max(it->first.size(), width);
+	}
+	
+	std::ostringstream report;
+
+	//header
+	report << std::left << "| " << std::setw(width) << "name" << " |" << " times created " << "|" << " accumulated time " << "|\n";
+	
+	for(auto it = begin;it != end; ++it){
+		std::ostringstream buf;
+
+		std::string name = it->first;
+
+		auto n = it->second.count_;
+		auto accum = it->second.t_;
+		
+		std::string times = std::to_string(n), accumTime = std::to_string(accum.count());
+
+		//I am assuming that there is not gonna be a gigantic number here
+		report << std::left << "| " << std::setw(width) << name << " | " << std::setw(14) << n <<"| " << std::setw(17) << accumTime << "|\n";
+	}	
+	return report.str();
 }
 
 
