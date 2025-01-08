@@ -39,6 +39,12 @@ const char *TEST_PARAMDEF = R"###(
         "description": "Magical sequence used in the processing",
         "type": "list_int",
         "default": [1,1,1,2,2,4,8]
+    },
+    {
+        "name" : "FloatMagicSequence",
+        "description" : "Magical sequence, but of float type",
+        "type" : "list_float",
+        "default" : [1.23,1.45,1.67,2.122,2.09,4.67,8.8901]
     }
     ]
 }
@@ -54,6 +60,7 @@ solver= Gurobi ; another comment
 LionShowAvailable =false
 MagicValue=420 # and a third for good measure
 MagicSequence = [30,10,50,120,70]
+FloatMagicSequence = [30.31,10.21,50.46,120.87,70.13]
 )###";
 
 TEST(TUBULParams, definitions) {
@@ -65,9 +72,10 @@ TEST(TUBULParams, definitions) {
     EXPECT_EQ( TU::getParam<std::string>("Global.solver"), "cplex" );
     EXPECT_EQ( TU::getParam<double>("Zoo.MagicValue"), 3.1415 );
     EXPECT_EQ( TU::getParam<bool>("Zoo.LionShowAvailable"), true );
-    std::vector<int> expected = {1,1,1,2,2,4,8};
-    EXPECT_EQ( TU::getParam<std::vector<int>>("Zoo.MagicSequence"), expected);
-
+    std::vector<int> intExpected = {1,1,1,2,2,4,8};
+    EXPECT_EQ( TU::getParam<std::vector<int>>("Zoo.MagicSequence"), intExpected);
+    std::vector<double> floatExpected = {1.23,1.45,1.67,2.122,2.09,4.67,8.8901};
+    EXPECT_EQ( TU::getParam<std::vector<double>>("Zoo.FloatMagicSequence"), floatExpected);
 
 }
 
@@ -93,10 +101,14 @@ TEST(TUBULParams, settingParams) {
     paramUpdateChecker("Zoo.LionShowAvailable", true, false);
     //String
     paramUpdateChecker("Global.solver",std::string("cplex"), std::string("abacus"));
-    //Numbers list
-    std::vector<int> expectedDefault = {1,1,1,2,2,4,8};
-    std::vector<int> expectedNew = {1,1,2,3,5,8,13};
-    paramUpdateChecker("Zoo.MagicSequence", expectedDefault, expectedNew );
+    //Int list
+    std::vector<int> intExpectedDefault = {1,1,1,2,2,4,8};
+    std::vector<int> IntExpectedNew = {1,1,2,3,5,8,13};
+    paramUpdateChecker("Zoo.MagicSequence", intExpectedDefault, IntExpectedNew );
+    //Float list
+    std::vector<double> floatExpectedDefault = {1.23,1.45,1.67,2.122,2.09,4.67,8.8901};
+    std::vector<double> floatExpectedNew = {1.12,1.031,2.56,3.1,5.907,8.2,13.34};
+    paramUpdateChecker("Zoo.FloatMagicSequence", floatExpectedDefault, floatExpectedNew);
 }
 
 
@@ -123,10 +135,14 @@ TEST(TUBULParams, pushPopSingleParam) {
     paramPushPopChecker("Zoo.LionShowAvailable", true, false);
     //String
     paramPushPopChecker("Global.solver",std::string("cplex"), std::string("abacus"));
-    //Numbers list
-    std::vector<int> expectedDefault = {1,1,1,2,2,4,8};
-    std::vector<int> expectedNew = {1,1,2,3,5,8,13};
-    paramPushPopChecker("Zoo.MagicSequence", expectedDefault, expectedNew );
+    //Int list
+    std::vector<int> intExpectedDefault = {1,1,1,2,2,4,8};
+    std::vector<int> IntExpectedNew = {1,1,2,3,5,8,13};
+    paramPushPopChecker("Zoo.MagicSequence", intExpectedDefault, IntExpectedNew );
+    //Float list
+    std::vector<double> floatExpectedDefault = {1.23,1.45,1.67,2.122,2.09,4.67,8.8901};
+    std::vector<double> floatExpectedNew = {1.12,1.031,2.56,3.1,5.907,8.2,13.34};
+    paramPushPopChecker("Zoo.FloatMagicSequence", floatExpectedDefault, floatExpectedNew);
 }
 
 TEST(TUBULParams, pushSingleParamPopSeveral) {
@@ -139,8 +155,10 @@ TEST(TUBULParams, pushSingleParamPopSeveral) {
         EXPECT_EQ( TU::getParam<std::string>("Global.solver"), "cplex" );
         EXPECT_EQ( TU::getParam<double>("Zoo.MagicValue"), 3.1415 );
         EXPECT_EQ( TU::getParam<bool>("Zoo.LionShowAvailable"), true );
-        std::vector<int> expected = {1,1,1,2,2,4,8};
-        EXPECT_EQ( TU::getParam<std::vector<int>>("Zoo.MagicSequence"), expected);
+        std::vector<int> intExpected = {1,1,1,2,2,4,8};
+        EXPECT_EQ( TU::getParam<std::vector<int>>("Zoo.MagicSequence"), intExpected);
+        std::vector<double> floatExpected = {1.23,1.45,1.67,2.122,2.09,4.67,8.8901};
+        EXPECT_EQ( TU::getParam<std::vector<double>>("Zoo.FloatMagicSequence"), floatExpected);
     }
     {
         std::stringstream dump;
@@ -153,8 +171,10 @@ TEST(TUBULParams, pushSingleParamPopSeveral) {
         TU::pushParam("Global.solver", "juanin");
         TU::pushParam("Zoo.MagicValue", 1.6180);
         TU::pushParam("Zoo.LionShowAvailable", false );
-        std::vector<int> newSeq= {2,4,6,8,10};
-        TU::pushParam("Zoo.MagicSequence", newSeq);
+        std::vector<int> newIntSeq = {2,4,6,8,10};
+        TU::pushParam("Zoo.MagicSequence", newIntSeq);
+        std::vector<double> newFloatSeq = {2.1,4.12,6.123,8.1234,10.12345};
+        TU::pushParam("Zoo.FloatMagicSequence", newFloatSeq);
     }
     //Check the pushed values just in case
     {
@@ -162,8 +182,10 @@ TEST(TUBULParams, pushSingleParamPopSeveral) {
         EXPECT_EQ(TU::getParam<std::string>("Global.solver"), "juanin");
         EXPECT_EQ(TU::getParam<double>("Zoo.MagicValue"), 1.6180);
         EXPECT_EQ(TU::getParam<bool>("Zoo.LionShowAvailable"), false);
-        std::vector<int> newSeq= {2,4,6,8,10};
-        EXPECT_EQ(TU::getParam<std::vector<int>>("Zoo.MagicSequence"), newSeq);
+        std::vector<int> newIntSeq= {2,4,6,8,10};
+        EXPECT_EQ(TU::getParam<std::vector<int>>("Zoo.MagicSequence"), newIntSeq);
+        std::vector<double> newFloatSeq = {2.1,4.12,6.123,8.1234,10.12345};
+        EXPECT_EQ(TU::getParam<std::vector<double>>("Zoo.FloatMagicSequence"), newFloatSeq);
     }
     {
         std::stringstream dump;
@@ -176,7 +198,8 @@ TEST(TUBULParams, pushSingleParamPopSeveral) {
                                           "Global.solver",
                                           "Zoo.MagicValue",
                                           "Zoo.LionShowAvailable",
-                                          "Zoo.MagicSequence"};
+                                          "Zoo.MagicSequence",
+                                          "Zoo.FloatMagicSequence"};
     TU::popParams(keysToPop);
     //Check the params returned to normal
     {
@@ -184,8 +207,10 @@ TEST(TUBULParams, pushSingleParamPopSeveral) {
         EXPECT_EQ( TU::getParam<std::string>("Global.solver"), "cplex" );
         EXPECT_EQ( TU::getParam<double>("Zoo.MagicValue"), 3.1415 );
         EXPECT_EQ( TU::getParam<bool>("Zoo.LionShowAvailable"), true );
-        std::vector<int> expected = {1,1,1,2,2,4,8};
-        EXPECT_EQ( TU::getParam<std::vector<int>>("Zoo.MagicSequence"), expected);
+        std::vector<int> intExpected = {1,1,1,2,2,4,8};
+        EXPECT_EQ( TU::getParam<std::vector<int>>("Zoo.MagicSequence"), intExpected);
+        std::vector<double> floatExpected = {1.23,1.45,1.67,2.122,2.09,4.67,8.8901};
+        EXPECT_EQ( TU::getParam<std::vector<double>>("Zoo.FloatMagicSequence"), floatExpected);
     }
 }
 
@@ -206,8 +231,10 @@ TEST(TUBULParams, readFromIniFile) {
     EXPECT_EQ( TU::getParam<std::string>("Global.solver"), "Gurobi" );
     EXPECT_EQ( TU::getParam<double>("Zoo.MagicValue"), 420 );
     EXPECT_EQ( TU::getParam<bool>("Zoo.LionShowAvailable"), false );
-    std::vector<int> expected = { 30,10,50,120,70};
-    EXPECT_EQ( TU::getParam<std::vector<int>>("Zoo.MagicSequence"), expected);
+    std::vector<int> intExpected = {30,10,50,120,70};
+    EXPECT_EQ( TU::getParam<std::vector<int>>("Zoo.MagicSequence"), intExpected);
+    std::vector<double> floatExpected = {30.31,10.21,50.46,120.87,70.13}; 
+    EXPECT_EQ( TU::getParam<std::vector<double>>("Zoo.FloatMagicSequence"), floatExpected);
 
 }
 
@@ -222,7 +249,9 @@ TEST(TUBULParams, readFromIniString) {
     EXPECT_EQ( TU::getParam<std::string>("Global.solver"), "Gurobi" );
     EXPECT_EQ( TU::getParam<double>("Zoo.MagicValue"), 420 );
     EXPECT_EQ( TU::getParam<bool>("Zoo.LionShowAvailable"), false );
-    std::vector<int> expected = { 30,10,50,120,70};
-    EXPECT_EQ( TU::getParam<std::vector<int>>("Zoo.MagicSequence"), expected);
+    std::vector<int> intExpected = {30,10,50,120,70};
+    EXPECT_EQ( TU::getParam<std::vector<int>>("Zoo.MagicSequence"), intExpected);
+    std::vector<double> floatExpected = {30.31,10.21,50.46,120.87,70.13};
+    EXPECT_EQ( TU::getParam<std::vector<double>>("Zoo.FloatMagicSequence"), floatExpected);
 
 }
