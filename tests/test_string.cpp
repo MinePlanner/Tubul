@@ -170,6 +170,37 @@ TEST(TUBULString, testSplitStrictReal){
 	}
 }
 
+
+TEST(TUBULString, testSplitCsv){
+	{
+		std::vector<std::string_view> expected = {""};
+		std::vector<std::string_view> result = TU::splitCsv("");
+		
+		EXPECT_EQ(result, expected);
+
+	}
+	{
+		std::vector<std::string_view> expected = {"\"A,1\""};
+		std::vector<std::string_view> result = TU::splitCsv("\"A,1\"");
+
+		EXPECT_EQ(result, expected);
+	}
+	{
+		std::vector<std::string_view> expected = {"A"};
+		std::vector<std::string_view> result = TU::splitCsv("A");
+
+		EXPECT_EQ(result, expected);
+	}
+	{ 
+	std::vector<std::string_view> expected = {"name", "surname","desc","\"city, country\""};
+	std::vector<std::string_view> result = TU::splitCsv("name,surname,desc,\"city, country\"");
+
+	int idx = 0;
+	for(auto &string : result)
+		EXPECT_EQ(string, expected[idx++]);
+	}
+}
+
 TEST(TUBULString, testJoinEmpty) {
 
 	std::vector<std::string> test;

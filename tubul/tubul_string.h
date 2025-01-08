@@ -36,6 +36,8 @@ namespace TU {
 
     std::vector<std::string_view> split(std::string_view const &input, std::string const &delims);
 
+    std::vector<std::string_view> splitCsv(std::string_view const &input);
+
     //only for strings + joiner
     template <typename IteratorType>
     std::string join(IteratorType begin, IteratorType end, std::string const& joiner){
