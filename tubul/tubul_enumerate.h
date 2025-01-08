@@ -29,7 +29,11 @@ namespace TU {
             size_t i;
             TIter iter;
             bool operator != (const iterator & other) const { return iter != other.iter; }
-            void operator ++ () { ++i; ++iter; }
+            iterator operator ++ () {
+                ++i;
+                ++iter;
+                return *this;
+            }
             auto operator * () const { return std::tie(i, *iter); }
         };
         struct iterable_wrapper
