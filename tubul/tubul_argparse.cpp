@@ -60,7 +60,13 @@ Argument addArgument(std::string const& short_form, std::string const& long_form
 {
 	return Argument(std::make_unique<Argument::ArgImpl>(getArgumentsParser().add_argument(short_form, long_form) ));
 }
-
+/**
+ * supports positional arguments, aswell as optional arguments with only 1 form.
+ * @param name for the name of the argument
+ */
+Argument addArgument(std::string const& name){
+	return Argument(std::make_unique<Argument::ArgImpl>(getArgumentsParser().add_argument(name) ));
+}
 /**
  * Very explicit call to parse arguments or die trying.
  */
