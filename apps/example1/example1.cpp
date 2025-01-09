@@ -48,11 +48,11 @@ void parseArguments(int argc, const char** argv)
 
 	TU::addArgument( "-x", "--xerox")
 		.help("un numerito")
-		.setAsDouble();
+		.testFunc<int>();
 
 	TU::addArgument( "-b", "--barks")
 		.help("ladridos")
-		.setAsList();
+		.setAsDoubleList();
 
 	TU::parseArgsOrDie(argc, argv);
 	bool askedFor = TU::getArg<bool>("-c");
@@ -64,11 +64,11 @@ void parseArguments(int argc, const char** argv)
 	auto cachupin = TU::getArg<std::string>("-p");
 	TU::logReport() <<" > The doggy i was asked is " << cachupin;
 
-	auto magicNumber = TU::getOptionalArg<double>("-x");
+	auto magicNumber = TU::getOptionalArg<int>("-x");
 	if (magicNumber)
 		TU::logReport() << " I got a magic number!"  << *magicNumber;
 
-	auto barkTypes = TU::getOptionalArg<std::vector<std::string>>("-b");
+	auto barkTypes = TU::getOptionalArg<std::vector<double>>("-b");
 	if (barkTypes )
 		TU::logReport() << "Barks: " << TU::join( *barkTypes, ",");
 

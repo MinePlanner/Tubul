@@ -27,14 +27,19 @@ public:
 	Argument& setAsFlag();
 	Argument& setAsDouble();
 	Argument& setAsInteger();
-	Argument& setAsList();
 
-	//for parsing vectors of any type
-	template<typename T>
-	Argument& testList(std::vector<T> &v);
+	Argument& setAsStringList();
+	Argument& setAsIntList();
+	Argument& setAsDoubleList();
 
+	template <typename T>
+	Argument& testFunc();
+
+	
 private:
 	ArgImplPtr arg_;
+
+	
 };
 
 }
