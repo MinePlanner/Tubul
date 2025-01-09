@@ -5,11 +5,13 @@
 #pragma once
 
 #include <string>
-#include <string_view>
 #include <iosfwd>
 
 namespace TU
 {
+    // Reset any parameter configuration
+    void clearParams();
+
     // Passes the configuration of parameters to parse.
     void configParams(std::istream& paramsConfig);
     void configParams(const std::string& paramsConfig);
