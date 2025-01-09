@@ -6,6 +6,7 @@
 #include "tubul.h"
 #include <gtest/gtest.h>
 
+
 const char *TEST_PARAMDEF = R"###(
 {
 "Global": [
@@ -50,47 +51,46 @@ const char *TEST_PARAMDEF = R"###(
 }
 )###";
 
+
 const char *OTHER_TEST_PARAMDEF = R"###(
 {
 "Global": [
     {
-        "name": "timeout",
-        "description": "max number of seconds for full execution. 0=unlimited",
+        "name": "retries",
+        "description": "max number of seconds for a rerty after a timeout. 0=unlimited",
 		"type" : "int",
-		"default" : 3
+		"default" : 5
     },
-    {
-        "name": "solver",
-        "description": "solver engine to be used. Requires support at compilation time",
-        "type": "str",
-        "values": ["cplex", "gurobi", "coin"],
-        "default": "gurobi"
-    }
+	{
+		"name" : "format",
+		"description" : "desired format for the output",
+		"type" : "str",
+		"default" : "CSV"
+	}
     ],
-"Zoo": [
+"Time": [
     {
-        "name": "LionShowAvailable",
-        "description": "Signals if we can watch the lion's show",
+        "name": "ran_out",
+        "description": "Signals if the timer's time has passed",
         "type": "bool",
         "default": false
     },
     {
-        "name": "MagicValue",
-        "description": "magical value we can provide for the solver",
-        "type": "float",
-        "default": 3.14
+        "name": "elapsed_time",
+        "description": "defines the elapsed time since a certain point in time",
+		"type" : "float"
     },
     {
-        "name":"MagicSequence",
-        "description": "Magical sequence used in the processing",
+        "name": "events",
+        "description": "timed events id's",
         "type": "list_int",
-        "default": [2, 4, 5, 9]
+        "default": [101, 102, 103, 104, 105]
     },
     {
-        "name" : "FloatMagicSequence",
-        "description" : "Magical sequence, but of float type",
+        "name" : "events_times",
+        "description" : "expected times for the events execution",
         "type" : "list_float",
-        "default" : [1.3, 2.5]
+        "default" : [0.35, 5.85, 12.6, 200.6, 30.2]
     }
     ]
 }
@@ -311,42 +311,24 @@ TEST(TUBULParams, readFromIniString) {
 
 TEST(TUBULParams, multipleConfigs)
 {
+	TU::configParams( TEST_PARAMDEF );
+	TU::configParams( OTHER_TEST_PARAMDEF);
+
 	{
-		//Check the default values.
+		//Check the default values of the second params
+		EXPECT_EQ( TU::getParam<int>("Global.retries"), 5 );
+		EXPECT_EQ( TU::getParam<std::string>("Global.format"), "CSV" );
+		EXPECT_EQ( TU::getParam<bool>("Time.ran_out"), false );
+		EXPECT_EQ( TU::getParam<double>("Time.elapsed_time"), 0.0 );
+		std::vector<int> intExpected = {101,102,103,104,105};
+		EXPECT_EQ( TU::getParam<std::vector<int>>("Time.events"), intExpected);
+		std::vector<double> floatExpected = {0.35, 5.85, 12.6, 200.6, 30.2};
+		EXPECT_EQ( TU::getParam<std::vector<double>>("Time.events_times"), floatExpected);
+	}
+
+	{
+		//Check that the other values are still there.
 		TU::configParams(TEST_PARAMDEF);
-		EXPECT_EQ( TU::getParam<int>("Global.timeout"), 0 );
-		EXPECT_EQ( TU::getParam<std::string>("Global.solver"), "cplex" );
-		EXPECT_EQ( TU::getParam<double>("Zoo.MagicValue"), 3.1415 );
-		EXPECT_EQ( TU::getParam<bool>("Zoo.LionShowAvailable"), true );
-		std::vector<int> intExpected = {1,1,1,2,2,4,8};
-		EXPECT_EQ( TU::getParam<std::vector<int>>("Zoo.MagicSequence"), intExpected);
-		std::vector<double> floatExpected = {1.23,1.45,1.67,2.122,2.09,4.67,8.8901};
-		EXPECT_EQ( TU::getParam<std::vector<double>>("Zoo.FloatMagicSequence"), floatExpected);
-	}
-
-	{
-		TU::configParams(OTHER_TEST_PARAMDEF);
-		//Check new values
-		EXPECT_EQ( TU::getParam<int>("Global.timeout"), 3 );
-		EXPECT_EQ( TU::getParam<std::string>("Global.solver"), "gurobi" );
-		EXPECT_EQ( TU::getParam<double>("Zoo.MagicValue"), 3.14 );
-		EXPECT_EQ( TU::getParam<bool>("Zoo.LionShowAvailable"), false );
-		std::vector<int> intExpected = {2, 4, 5, 9};
-		EXPECT_EQ( TU::getParam<std::vector<int>>("Zoo.MagicSequence"), intExpected);
-		std::vector<double> floatExpected = {1.3, 2.5};
-		EXPECT_EQ( TU::getParam<std::vector<double>>("Zoo.FloatMagicSequence"), floatExpected);
-	}
-
-	{
-		// pop the new values
-		TU::popParam("Global.timeout");
-		TU::popParam("Global.solver");
-		TU::popParam("Zoo.MagicValue");
-		TU::popParam("Zoo.LionShowAvailable");
-		TU::popParam("Zoo.MagicSequence");
-		TU::popParam("Zoo.FloatMagicSequence");
-
-		// check for the old values
 		EXPECT_EQ( TU::getParam<int>("Global.timeout"), 0 );
 		EXPECT_EQ( TU::getParam<std::string>("Global.solver"), "cplex" );
 		EXPECT_EQ( TU::getParam<double>("Zoo.MagicValue"), 3.1415 );
