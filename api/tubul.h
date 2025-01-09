@@ -243,6 +243,7 @@ namespace TU {
 
 	void parseArgsOrDie(int argc, const char** argv);
 	Argument addArgument(std::string const& short_form, std::string const& long_form);
+	Argument addArgument(std::string const& name);
 
 	template<typename T>
 	T getArg(std::string const& param);
