@@ -72,6 +72,7 @@ Argument addArgument(std::string const& name){
  */
 void parseArgsOrDie(int argc, const char** argv)
 {
+	
 	try
 	{
 		getArgumentsParser().parse_args(argc, argv);
@@ -99,9 +100,16 @@ std::string getArgsHelp()
  */
 template<typename T>
 T getArg(std::string const& param)
-{
-	auto value = getArgumentsParser().get<T>(param);
-	return value;
+{	
+	try{
+		auto value = getArgumentsParser().get<T>(param);
+		return value;
+	}
+	catch(std::exception & e){
+		std::cerr << "\n" << e.what() << "\n" << std::endl;
+		std::cerr << getArgumentsParser() << std::endl;
+		std::exit(1);
+	}
 }
 
 template bool getArg<bool>(std::string const& param);
@@ -124,8 +132,17 @@ template std::vector<std::string> getArg<std::vector<std::string>>( std::string 
 template <typename T>
 std::optional<T> getOptionalArg( std::string const& param)
 {
-	auto res = getArgumentsParser().present<T>( param );
-	return res;
+	try
+	{
+		auto res = getArgumentsParser().present<T>( param );
+		return res;
+	}
+	catch (std::exception& e)
+	{
+		std::cerr << "\n" << e.what() << "\n" << std::endl;
+		std::cerr << getArgumentsParser() << std::endl;
+		std::exit(1);
+	}
 }
 
 template std::optional<bool> getOptionalArg<bool>( std::string const& param);
