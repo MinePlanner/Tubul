@@ -328,7 +328,6 @@ TEST(TUBULParams, multipleConfigs)
 
 	{
 		//Check that the other values are still there.
-		TU::configParams(TEST_PARAMDEF);
 		EXPECT_EQ( TU::getParam<int>("Global.timeout"), 0 );
 		EXPECT_EQ( TU::getParam<std::string>("Global.solver"), "cplex" );
 		EXPECT_EQ( TU::getParam<double>("Zoo.MagicValue"), 3.1415 );

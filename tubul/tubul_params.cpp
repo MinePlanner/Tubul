@@ -150,11 +150,14 @@ public:
     {
         nlohmann::json paramDef(nlohmann::json::parse(input));
         if (paramDef.empty())
-            throw;
+            throw std::runtime_error("No parameters were specified in configParams");
 
         for (auto &[section, paramdefs] : paramDef.items()) {
             for (auto &paramdef : paramdefs) {
                 std::string full_name = tolower(section) + "." + tolower(paramdef["name"].get<std::string>());
+
+				if (m_paramQueues.count(full_name) != 0)
+					throw std::runtime_error("Trying to re-define already defined parameter " + full_name);
 
                 ParamType paramType = getParamDefType(paramdef);
                 m_paramType[full_name] = paramType;
@@ -401,7 +404,6 @@ void configParams(const std::string& paramsConfig)
 {
     ParamsType &params = Parameters::getInstance();
     params.setConfig(paramsConfig);
-    params.printAllValues();
 }
 
 // load a params file (as many times as you want)
