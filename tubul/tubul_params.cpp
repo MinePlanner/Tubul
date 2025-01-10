@@ -7,14 +7,9 @@
 #include <vector>
 #include <string>
 #include <variant>
-
 #include <iostream>
-#include <memory>
 #include <sstream>
-#include <string>
 #include <regex>
-#include <exception>
-
 #include "tubul_params.h"
 #include "tubul_string.h"
 #include "INIReader.h"
@@ -81,18 +76,22 @@ ParamType getParamDefType(nlohmann::json &paramdef)
         dataType = paramdef["type"];
     }
 
-    if (stringToType.count(dataType) == 0)
+    if (not stringToType.contains(dataType))
         throw std::runtime_error("Unrecognized type on paramdef: " + dataType);
 
     return stringToType.at(dataType);
 }
-class ParamsData;
-ParamsData &getInstance();
 
-class ParamsData {
 
-public:
+struct ParamsData {
+
 	ParamsData() = default;
+
+	static ParamsData& getInstance()
+	{
+		static ParamsData params;
+		return params;
+	}
 
 	// reset stores params and values
 	void clear()
@@ -125,8 +124,8 @@ public:
 	void pop(const std::string &key);
 
 	// show current/queues
-	std::string printCurrentValues();
-    std::string printAllValues();
+	std::string printCurrentValues() const;
+    std::string printAllValues() const;
 
 	// get param value
 	template<typename T>
@@ -135,7 +134,7 @@ public:
 		std::string key = TU::tolower(anykey);
 
 
-		if (not m_paramQueues.count(key))
+		if (not m_paramQueues.contains(key))
 			throw std::runtime_error("Trying to get a nonexisting parameter " + anykey);
 
 		ParamValue &pv = m_paramQueues[key].back();
@@ -146,9 +145,9 @@ public:
 	}
 
     template <typename T>
-    void setConfig(T &input)
+    void addParamsConfig(T &&input)
     {
-        nlohmann::json paramDef(nlohmann::json::parse(input));
+        nlohmann::json paramDef(nlohmann::json::parse(std::forward<T>(input)));
         if (paramDef.empty())
             throw std::runtime_error("No parameters were specified in configParams");
 
@@ -156,7 +155,7 @@ public:
             for (auto &paramdef : paramdefs) {
                 std::string full_name = tolower(section) + "." + tolower(paramdef["name"].get<std::string>());
 
-				if (m_paramQueues.count(full_name) != 0)
+				if (m_paramQueues.contains(full_name))
 					throw std::runtime_error("Trying to re-define already defined parameter " + full_name);
 
                 ParamType paramType = getParamDefType(paramdef);
@@ -165,6 +164,22 @@ public:
             }
         }
     }
+
+	void loadFromINIReader(INIReader &reader)
+	{
+		for (auto &value : reader.Values())
+		{
+			std::string keyName(value.first);
+
+			//replace INIReader keys (section=key) with local format (section.key)
+			std::size_t posEqual = keyName.find_first_of('=');
+			if (posEqual == std::string::npos)
+				throw std::runtime_error("param oddly defined: " + keyName + "\n");
+			keyName[posEqual] = '.';
+
+			setFromString(keyName, value.second);
+		}
+	}
 
 private:
 
@@ -176,19 +191,14 @@ private:
 
 };
 
-void loadFromFile(const std::string& filename);
-void loadFromString(const std::string& contents);
-
-
 inline
 std::string dumpParams(){
-    return getInstance().printCurrentValues();
+    return ParamsData::getInstance().printCurrentValues();
 }
 inline
 std::string dumpAllParams(){
-    return getInstance().printAllValues();
+    return ParamsData::getInstance().printAllValues();
 }
-
 
 /** Helper visitor to convert the ParamValue into a string by handling the
  * real type of the param (but from the outside is "just another param").
@@ -223,52 +233,6 @@ struct ParamValuePrinter{
 std::string toString(ParamValue const &pv)
 {
     return std::visit(ParamValuePrinter(), pv);
-}
-
-ParamsData& getInstance()
-{
-    static ParamsData params;
-    return params;
-}
-
-void loadFromFile(const std::string& paramFile)
-{
-	ParamsData &params = Parameters::getInstance();
-
-	auto reader = INIReader::fromFile(paramFile);
-
-	for(auto &value: reader.Values())
-	{
-		std::string keyName(value.first);
-
-		// replace INIReader keys (section=key) with local format (section.key)
-		std::size_t posEqual = keyName.find_first_of('=');
-		if (posEqual==std::string::npos)
-			throw std::runtime_error("param oddly defined: " + keyName + "\n");
-		keyName[posEqual] = '.';
-
-		params.setFromString(keyName, value.second);
-	}
-}
-
-void loadFromString(const std::string& paramString)
-{
-    ParamsData &params = Parameters::getInstance();
-
-    auto reader = INIReader::fromString(paramString);
-
-    for(auto &value: reader.Values())
-    {
-        std::string keyName(value.first);
-
-        // replace INIReader keys (section=key) with local format (section.key)
-        std::size_t posEqual = keyName.find_first_of('=');
-        if (posEqual==std::string::npos)
-            throw std::runtime_error("param oddly defined: " + keyName + "\n");
-        keyName[posEqual] = '.';
-
-        params.setFromString(keyName, value.second);
-    }
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -335,12 +299,12 @@ void ParamsData::setFromString(std::string const &key, std::string const &value)
 	// try to convert value to the type defined on paramdef
 	std::set<std::string> validTrue = {"yes", "true", "True", "1"};
 
-	if (m_paramType.count(key) == 0)
-		throw std::runtime_error("Trying to set an unknown key: "+key);
+	auto paramType_it = m_paramType.find(key);
 
-	ParamType paramType = m_paramType[key];
+	if (paramType_it == m_paramType.end())
+		throw std::runtime_error("Trying to set an unknown key: " + key);
 
-	switch(paramType)
+	switch(paramType_it->second)
 	{
 		case INT: set<int>(key, std::stoi(value)); break;
 		case FLOAT: set<double>(key, std::stod(value)); break;
@@ -351,7 +315,7 @@ void ParamsData::setFromString(std::string const &key, std::string const &value)
 	}
 }
 
-std::string ParamsData::printCurrentValues()
+std::string ParamsData::printCurrentValues() const
 {
 
     std::stringstream out;
@@ -362,7 +326,7 @@ std::string ParamsData::printCurrentValues()
     return out.str();
 }
 
-std::string ParamsData::printAllValues()
+std::string ParamsData::printAllValues() const
 {
     std::stringstream out;
     out << "---------------------\n";
@@ -386,49 +350,54 @@ void ParamsData::pop(const std::string &anykey)
 
 }//end namespace parameters
 
-typedef Parameters::ParamsData ParamsType;
 
 void clearParams()
 {
-	ParamsType &params = Parameters::getInstance();
+	Parameters::ParamsData &params = Parameters::ParamsData::getInstance();
 	params.clear();
 }
 
 void configParams(std::istream& paramsConfig)
 {
-    ParamsType &params = Parameters::getInstance();
-    params.setConfig(paramsConfig);
+    Parameters::ParamsData &params = Parameters::ParamsData::getInstance();
+    params.addParamsConfig(paramsConfig);
 }
 
 void configParams(const std::string& paramsConfig)
 {
-    ParamsType &params = Parameters::getInstance();
-    params.setConfig(paramsConfig);
+    Parameters::ParamsData &params = Parameters::ParamsData::getInstance();
+    params.addParamsConfig(paramsConfig);
 }
 
 // load a params file (as many times as you want)
 void loadParams(const std::string& paramsFile)
 {
-    Parameters::loadFromFile(paramsFile);
+	INIReader reader = INIReader::fromFile(paramsFile);
+
+	Parameters::ParamsData &params = Parameters::ParamsData::getInstance();
+    params.loadFromINIReader(reader);
 }
 
 // load a params string (as many times as you want)
 void loadParamsString(const std::string& content)
 {
-    Parameters::loadFromString(content);
+	INIReader reader = INIReader::fromString(content);
+
+	Parameters::ParamsData &params = Parameters::ParamsData::getInstance();
+	params.loadFromINIReader(reader);
 }
 
 // return to the previous value of a param
 void popParam(const std::string& param)
 {
-    ParamsType &params = Parameters::getInstance();
+    Parameters::ParamsData &params = Parameters::ParamsData::getInstance();
     params.pop(param);
 }
 
 // return several params to their previous values
 void popParams(const std::vector<std::string>& listOfParams)
 {
-    ParamsType &params = Parameters::getInstance();
+    Parameters::ParamsData &params = Parameters::ParamsData::getInstance();
     for (const auto& p: listOfParams){
         params.pop(p);
     }
@@ -437,37 +406,37 @@ void popParams(const std::vector<std::string>& listOfParams)
 // get the current value of a param
 template <> int getParam(const std::string& param)
 {
-    ParamsType &params = Parameters::getInstance();
+    Parameters::ParamsData &params = Parameters::ParamsData::getInstance();
     return params.get<int>(param);
 }
 
 template <> double getParam(const std::string& param)
 {
-    ParamsType &params = Parameters::getInstance();
+    Parameters::ParamsData &params = Parameters::ParamsData::getInstance();
     return params.get<double>(param);
 }
 
 template <> bool getParam(const std::string& param)
 {
-    ParamsType &params = Parameters::getInstance();
+    Parameters::ParamsData &params = Parameters::ParamsData::getInstance();
     return params.get<bool>(param);
 }
 
 template <> std::string getParam(const std::string& param)
 {
-    ParamsType &params = Parameters::getInstance();
+    Parameters::ParamsData &params = Parameters::ParamsData::getInstance();
     return params.get<std::string>(param);
 }
 
 template <> std::vector<int> getParam(const std::string& param)
 {
-    ParamsType &params = Parameters::getInstance();
+    Parameters::ParamsData &params = Parameters::ParamsData::getInstance();
     return params.get<std::vector<int>>(param);
 }
 
 template <> std::vector<double> getParam(const std::string& param)
 {
-    ParamsType &params = Parameters::getInstance();
+    Parameters::ParamsData &params = Parameters::ParamsData::getInstance();
     return params.get<std::vector<double>>(param);
 }
 
@@ -475,86 +444,86 @@ template <> std::vector<double> getParam(const std::string& param)
 //Set the param to a new value
 void setParam(const std::string& param, int value)
 { 
-    ParamsType &params = Parameters::getInstance();
+    Parameters::ParamsData &params = Parameters::ParamsData::getInstance();
     params.set<int>( param, value);
 }
 
 void setParam(const std::string& param, double value)
 {
-    ParamsType &params = Parameters::getInstance();
+    Parameters::ParamsData &params = Parameters::ParamsData::getInstance();
     params.set<double>( param, value);
 }
 
 void setParam(const std::string& param, bool value) 
 {
-    ParamsType &params = Parameters::getInstance();
+    Parameters::ParamsData &params = Parameters::ParamsData::getInstance();
     params.set<bool>( param, value);
 }
 
 void setParam(const std::string& param, const std::string& value) 
 {
-    ParamsType &params = Parameters::getInstance();
+    Parameters::ParamsData &params = Parameters::ParamsData::getInstance();
     params.set<std::string>( param, value);
 }
 
 void setParam(const std::string& param, const char* value) 
 {
-    ParamsType &params = Parameters::getInstance();
+    Parameters::ParamsData &params = Parameters::ParamsData::getInstance();
     params.set<std::string>( param, std::string(value) );
 }
 
 void setParam(const std::string& param, const std::vector<int>& value) 
 {
-    ParamsType &params = Parameters::getInstance();
+    Parameters::ParamsData &params = Parameters::ParamsData::getInstance();
     params.set<std::vector<int>>( param, value);
 }
 
 void setParam(const std::string& param, const std::vector<double>& value) 
 {
-    ParamsType &params = Parameters::getInstance();
+    Parameters::ParamsData &params = Parameters::ParamsData::getInstance();
     params.set<std::vector<double>>( param, value);
 }
 
 //Set the param to a temporary new value
 void pushParam(const std::string& param, int value)
 {
-    ParamsType &params = Parameters::getInstance();
+    Parameters::ParamsData &params = Parameters::ParamsData::getInstance();
     params.push(param,value);
 }
 
 void pushParam(const std::string& param, double value)
 {
-    ParamsType &params = Parameters::getInstance();
+    Parameters::ParamsData &params = Parameters::ParamsData::getInstance();
     params.push(param,value);
 }
 
 void pushParam(const std::string& param, bool value)
 {
-    ParamsType &params = Parameters::getInstance();
+    Parameters::ParamsData &params = Parameters::ParamsData::getInstance();
     params.push(param,value);
 }
 
 void pushParam(const std::string& param, const char* value)
 {
-    ParamsType &params = Parameters::getInstance();
+    Parameters::ParamsData &params = Parameters::ParamsData::getInstance();
     params.push(param,std::string(value));
 }
 
 void pushParam(const std::string& param, const std::string& value)
 {
-    ParamsType &params = Parameters::getInstance();
+    Parameters::ParamsData &params = Parameters::ParamsData::getInstance();
     params.push(param,value);
 }
 
 void pushParam(const std::string& param, const std::vector<int>& value)
 {
-    ParamsType &params = Parameters::getInstance();
+    Parameters::ParamsData &params = Parameters::ParamsData::getInstance();
     params.push(param,value);
 }
 
 void pushParam(const std::string& param, const std::vector<double>& value)
 {
-    ParamsType &params = Parameters::getInstance();
+    Parameters::ParamsData &params = Parameters::ParamsData::getInstance();
     params.push(param,value);
 }
 
