@@ -133,7 +133,6 @@ struct ParamsData {
 	{
 		std::string key = TU::tolower(anykey);
 
-
 		if (not m_paramQueues.contains(key))
 			throw std::runtime_error("Trying to get a nonexisting parameter " + anykey);
 
@@ -142,6 +141,34 @@ struct ParamsData {
 			return std::get<T>(pv);
 
 		throw std::runtime_error("Trying to obtain value of " + anykey + " as incorrect type");
+	}
+
+	template<typename T>
+	T getDefault(const std::string& anykey)
+	{
+		std::string key = TU::tolower(anykey);
+
+		if (not m_paramQueues.contains(key))
+			throw std::runtime_error("Trying to get the default value of a nondefined parameter " + anykey);
+
+		ParamValue _default = m_defaultValues[key];
+		if (std::holds_alternative<T>(_default))
+			return std::get<T>(_default);
+
+		throw std::runtime_error("Trying to obtain default value of " + anykey + " as incorrect type");
+	}
+
+	bool usingDefault(const std::string &anykey)
+	{
+		std::string key = TU::tolower(anykey);
+
+		if (not m_paramQueues.contains(key))
+			throw std::runtime_error("Nondefined parameter " + anykey);
+
+		ParamValue _default = m_defaultValues[key], _current = m_paramQueues[key].back();
+
+		return _default == _current;
+
 	}
 
     template <typename T>
@@ -160,7 +187,10 @@ struct ParamsData {
 
                 ParamType paramType = getParamDefType(paramdef);
                 m_paramType[full_name] = paramType;
-                m_paramQueues[full_name].push_back(getParamDefDefault(paramdef, paramType));
+
+            	ParamValue paramValue = getParamDefDefault(paramdef, paramType);
+                m_paramQueues[full_name].push_back(paramValue);
+            	m_defaultValues[full_name] = paramValue;
             }
         }
     }
@@ -188,6 +218,9 @@ private:
 
 	// Primary set of queues
 	std::unordered_map<std::string, std::vector<ParamValue>> m_paramQueues;
+
+	// to store default-defined values
+	std::unordered_map<std::string, ParamValue> m_defaultValues;
 
 };
 
@@ -527,6 +560,47 @@ void pushParam(const std::string& param, const std::vector<double>& value)
     params.push(param,value);
 }
 
+template <> int getDefault(const std::string& param)
+{
+	Parameters::ParamsData &params = Parameters::ParamsData::getInstance();
+	return params.getDefault<int>(param);
+}
+
+template <> double getDefault(const std::string& param)
+{
+	Parameters::ParamsData &params = Parameters::ParamsData::getInstance();
+	return params.getDefault<double>(param);
+}
+
+template <> bool getDefault(const std::string& param)
+{
+	Parameters::ParamsData &params = Parameters::ParamsData::getInstance();
+	return params.getDefault<bool>(param);
+}
+
+template <> std::string getDefault(const std::string& param)
+{
+	Parameters::ParamsData &params = Parameters::ParamsData::getInstance();
+	return params.getDefault<std::string>(param);
+}
+
+template <> std::vector<int> getDefault(const std::string& param)
+{
+	Parameters::ParamsData &params = Parameters::ParamsData::getInstance();
+	return params.getDefault<std::vector<int>>(param);
+}
+
+template <> std::vector<double> getDefault(const std::string& param)
+{
+	Parameters::ParamsData &params = Parameters::ParamsData::getInstance();
+	return params.getDefault<std::vector<double>>(param);
+}
+
+bool usingDefault(const std::string &param)
+{
+	Parameters::ParamsData &params = Parameters::ParamsData::getInstance();
+	return params.usingDefault(param);
+}
 
 void dumpParams(std::ostream& out){
     out << Parameters::dumpParams();
