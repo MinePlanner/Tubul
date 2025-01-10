@@ -50,6 +50,13 @@ namespace TU
     // return several params to their previous values
     void popParams(const std::vector<std::string>& listOfParams);
 
+    // return the default-defined value for the given parameter
+    template <typename T>
+    T getDefault(const std::string& param);
+
+    // return if the given parameter is currently using its default-defined value
+    bool usingDefault(const std::string& param);
+
     // return a copy of a section, where keys are at the root level
     // (should be recovered with "key", not with "section.key")
 //    Parameters getSection(std::string_view& section);

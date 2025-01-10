@@ -309,6 +309,40 @@ TEST(TUBULParams, readFromIniString) {
 	TU::clearParams();
 }
 
+TEST(TUBULParams, usingDefault)
+{
+	TU::configParams( TEST_PARAMDEF );
+
+	// all params should be using their defaults values initially
+	EXPECT_EQ( TU::usingDefault("Global.timeout"), true );
+	EXPECT_EQ( TU::usingDefault("Global.solver"), true );
+	EXPECT_EQ( TU::usingDefault("Zoo.LionShowAvailable"), true );
+	EXPECT_EQ( TU::usingDefault("Zoo.MagicValue"), true );
+	EXPECT_EQ( TU::usingDefault("Zoo.MagicSequence"), true);
+	EXPECT_EQ( TU::usingDefault("Zoo.FloatMagicSequence"), true);
+
+	TU::setParam("Global.timeout", 2);
+	TU::setParam("Global.solver", "gurobi");
+	TU::setParam("Zoo.LionShowAvailable", false);
+	TU::setParam("Zoo.MagicValue", 3.14);
+	std::vector<int> newInt = {1, 2, 3, 4, 5};
+	TU::setParam("Zoo.MagicSequence", newInt);
+	std::vector<double> newFloat = {0.2, 0.33, 0.56, 0.82, 0.97};
+	TU::setParam("Zoo.FloatMagicSequence", newFloat);
+
+	// the default-defined value of a params doesnt change with the parameter
+	EXPECT_EQ( TU::getDefault<int>("Global.timeout"), 0);
+	EXPECT_EQ( TU::getDefault<std::string>("Global.solver"), "cplex" );
+	EXPECT_EQ( TU::getDefault<bool>("Zoo.LionShowAvailable"), true );
+	EXPECT_EQ( TU::getDefault<double>("Zoo.MagicValue"), 3.1415 );
+	std::vector<int> intExpected = {1,1,1,2,2,4,8};
+	EXPECT_EQ( TU::getDefault<std::vector<int>>("Zoo.MagicSequence"), intExpected );
+	std::vector<double> floatExpected = {1.23,1.45,1.67,2.122,2.09,4.67,8.8901};
+	EXPECT_EQ( TU::getDefault<std::vector<double>>("Zoo.FloatMagicSequence"), floatExpected );
+
+	TU::clearParams();
+}
+
 TEST(TUBULParams, multipleConfigs)
 {
 	TU::configParams( TEST_PARAMDEF );
