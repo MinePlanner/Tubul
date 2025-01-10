@@ -8,7 +8,7 @@ https://github.com/nlohmann/json
 fast_float from:
 https://github.com/fastfloat/fast_float
 
-argparse from:
+argparse 3.1 from:
 https://github.com/p-ranav/argparse
 
 rapidcsv from:
