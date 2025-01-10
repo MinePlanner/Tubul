@@ -43,31 +43,46 @@ Argument& Argument::defaultValue( int val){  arg_->get().default_value( val).sca
 Argument& Argument::defaultValue( double val){  arg_->get().default_value( val).scan<'g',double>(); return *this;}
 Argument& Argument::defaultValue( std::string const& val){  arg_->get().default_value( val); return *this;}
 Argument& Argument::defaultValue( const char* val){  arg_->get().default_value( std::string(val)); return *this;}
-Argument& Argument::setAsDouble( ){  arg_->get().scan<'g',double>(); return *this;}
-Argument& Argument::setAsInteger( ){  arg_->get().scan<'d',int>(); return *this;}
 Argument& Argument::setAsFlag(){ arg_->get().implicit_value(true).default_value(false); return *this;}
 
-
-Argument& Argument::setAsStringList( ){  arg_->get().nargs(argparse::nargs_pattern::at_least_one); return *this;}
-Argument& Argument::setAsIntList( ){  arg_->get().nargs(argparse::nargs_pattern::at_least_one).scan<'d',int>(); return *this;}
-Argument& Argument::setAsDoubleList( ){  arg_->get().nargs(argparse::nargs_pattern::at_least_one).scan<'g',double>(); return *this;}
-
+//for getting correct scan depending on T
 template <typename T>
-Argument& Argument::genScan(argparse::Argument& arg){
-	return arg.scan< typeid(T) == typeid(int) ? 'd' : 'g', T>();
+void genScan(argparse::Argument& arg){
+
+	if constexpr ( std::is_same_v<T, int> )
+		arg.scan<'d', int>();
+	else 
+		arg.scan<'g', double>();
 }
+//instancing
+template void genScan <int> (argparse::Argument& arg);
+template void genScan <double> (argparse::Argument& arg);
 
-template Argument& Argument::genScan <int> (argparse::Argument& arg);
-
-
-
+//for parsing as an int or double
 template <typename T>
-Argument& Argument::testFunc(){
+Argument& Argument::setAsNum(){
 	genScan<T>(arg_->get());
 	return *this;
 }
+//instancing
+template Argument& Argument::setAsNum<int>();
+template Argument& Argument::setAsNum<double>();
 
-template Argument& Argument::testFunc<int>();
+//for parsing as lists/vectors
+template <typename T>
+Argument& Argument::setAsList(){
+	if constexpr (std::is_same_v<T, std::string>)
+		arg_->get().nargs(argparse::nargs_pattern::at_least_one);
+	else 
+		genScan<T>(arg_->get().nargs(argparse::nargs_pattern::at_least_one));
+
+	return *this;
+}
+//instancing
+template Argument& Argument::setAsList<std::string>();
+template Argument& Argument::setAsList<int>();
+template Argument& Argument::setAsList<double>();
+
 
 
 /**

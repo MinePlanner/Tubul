@@ -33,7 +33,10 @@ public:
 	Argument& setAsDoubleList();
 
 	template <typename T>
-	Argument& testFunc();
+	Argument& setAsNum();
+
+	template <typename T>
+	Argument& setAsList();
 
 	
 private:
