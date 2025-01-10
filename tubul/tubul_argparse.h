@@ -25,12 +25,6 @@ public:
 	Argument& defaultValue( std::string const& val );
 	Argument& defaultValue( const char* val );
 	Argument& setAsFlag();
-	Argument& setAsDouble();
-	Argument& setAsInteger();
-
-	Argument& setAsStringList();
-	Argument& setAsIntList();
-	Argument& setAsDoubleList();
 
 	template <typename T>
 	Argument& setAsNum();

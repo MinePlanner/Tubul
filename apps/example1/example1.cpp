@@ -48,11 +48,11 @@ void parseArguments(int argc, const char** argv)
 
 	TU::addArgument( "-x", "--xerox")
 		.help("un numerito")
-		.testFunc<int>();
+		.setAsNum<int>();
 
 	TU::addArgument( "-b", "--barks")
 		.help("ladridos")
-		.setAsDoubleList();
+		.setAsList<double>();
 
 	TU::parseArgsOrDie(argc, argv);
 	bool askedFor = TU::getArg<bool>("-c");
