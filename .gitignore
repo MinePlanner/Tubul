@@ -42,7 +42,7 @@ version.h
 
 #Clion build/config folders
 cmake-build-*
-.idea
+.idea/
 .vscode/
 
 # Log files
