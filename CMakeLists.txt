@@ -77,8 +77,6 @@ endif()
 #Adding external dependencies.
 add_subdirectory(External)
 
-include_directories(${PROJECT_SOURCE_DIR}/api)
-include_directories(${PROJECT_SOURCE_DIR}/tubul)
 
 add_subdirectory(tubul)
 

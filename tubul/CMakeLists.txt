@@ -12,7 +12,8 @@ foreach(dir ${TUBUL_EXTERNAL_LIBS_INCLUDES})
     target_include_directories(libtubul PUBLIC ${dir})
 endforeach()
 
-target_include_directories(libtubul PUBLIC ${CMAKE_SOURCE_DIR}/api)
+target_include_directories(libtubul PUBLIC ${tubul_SOURCE_DIR}/api)
+target_include_directories(libtubul PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 target_compile_definitions(libtubul PUBLIC ${TUBUL_COMPILE_DEFS})
 ## MSVC complains about very base functions used by third parties, like fopen. This
 ## compiler definition lowers the rage for those functions
