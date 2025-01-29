@@ -110,24 +110,39 @@ FloatMagicSequence = [30.31,10.21,50.46,120.87,70.13]
 
 TEST(TUBULParams, definitions) {
     //Configure params
-    TU::configParams( TEST_PARAMDEF );
+    TU::addParamsConfig( TEST_PARAMDEF );
 
-    //Check the default values.
-    EXPECT_EQ( TU::getParam<int>("Global.timeout"), 0 );
-    EXPECT_EQ( TU::getParam<std::string>("Global.solver"), "cplex" );
-    EXPECT_EQ( TU::getParam<double>("Zoo.MagicValue"), 3.1415 );
-    EXPECT_EQ( TU::getParam<bool>("Zoo.LionShowAvailable"), true );
-    std::vector<int> intExpected = {1,1,1,2,2,4,8};
-    EXPECT_EQ( TU::getParam<std::vector<int>>("Zoo.MagicSequence"), intExpected);
-    std::vector<double> floatExpected = {1.23,1.45,1.67,2.122,2.09,4.67,8.8901};
-    EXPECT_EQ( TU::getParam<std::vector<double>>("Zoo.FloatMagicSequence"), floatExpected);
+	{
+		//Check the default values.
+    	EXPECT_EQ( TU::getParam<int>("Global.timeout"), 0 );
+    	EXPECT_EQ( TU::getParam<std::string>("Global.solver"), "cplex" );
+    	EXPECT_EQ( TU::getParam<double>("Zoo.MagicValue"), 3.1415 );
+    	EXPECT_EQ( TU::getParam<bool>("Zoo.LionShowAvailable"), true );
+    	std::vector<int> intExpected = {1,1,1,2,2,4,8};
+    	EXPECT_EQ( TU::getParam<std::vector<int>>("Zoo.MagicSequence"), intExpected);
+    	std::vector<double> floatExpected = {1.23,1.45,1.67,2.122,2.09,4.67,8.8901};
+    	EXPECT_EQ( TU::getParam<std::vector<double>>("Zoo.FloatMagicSequence"), floatExpected);
+	}
+
+	{
+		//Redundant definitions are allowed
+    	TU::addParamsConfig( TEST_PARAMDEF );
+    	EXPECT_EQ( TU::getParam<int>("Global.timeout"), 0 );
+    	EXPECT_EQ( TU::getParam<std::string>("Global.solver"), "cplex" );
+    	EXPECT_EQ( TU::getParam<double>("Zoo.MagicValue"), 3.1415 );
+    	EXPECT_EQ( TU::getParam<bool>("Zoo.LionShowAvailable"), true );
+    	std::vector<int> intExpected = {1,1,1,2,2,4,8};
+    	EXPECT_EQ( TU::getParam<std::vector<int>>("Zoo.MagicSequence"), intExpected);
+    	std::vector<double> floatExpected = {1.23,1.45,1.67,2.122,2.09,4.67,8.8901};
+    	EXPECT_EQ( TU::getParam<std::vector<double>>("Zoo.FloatMagicSequence"), floatExpected);
+	}
 
 	TU::clearParams();
 }
 
 TEST(TUBULParams, settingParams) {
     //Configure params
-    TU::configParams( TEST_PARAMDEF );
+    TU::addParamsConfig( TEST_PARAMDEF );
 
     //Be careful of the types passed to old/new value!! I wrote this to avoid repeating
     //the same lines, but it can be misleading if you make an error regarding the types.
@@ -162,7 +177,7 @@ TEST(TUBULParams, settingParams) {
 
 TEST(TUBULParams, pushPopSingleParam) {
     //Configure params
-    TU::configParams( TEST_PARAMDEF );
+    TU::addParamsConfig( TEST_PARAMDEF );
 
     //Same concerns and lambda in previoous test
     auto paramPushPopChecker = [&](const std::string& name, auto oldValue, auto newValue){
@@ -197,7 +212,7 @@ TEST(TUBULParams, pushPopSingleParam) {
 
 TEST(TUBULParams, pushSingleParamPopSeveral) {
     //Configure params
-    TU::configParams( TEST_PARAMDEF );
+    TU::addParamsConfig( TEST_PARAMDEF );
 
     //Check the default values.
     {
@@ -269,7 +284,7 @@ TEST(TUBULParams, pushSingleParamPopSeveral) {
 TEST(TUBULParams, readFromIniFile) {
     //Configure params
     std::string iniFileName = "test_file.ini";
-    TU::configParams( TEST_PARAMDEF );
+    TU::addParamsConfig( TEST_PARAMDEF );
     {
         std::ofstream iniFile(iniFileName);
         iniFile << TEST_INIFILE;
@@ -292,7 +307,7 @@ TEST(TUBULParams, readFromIniFile) {
 }
 
 TEST(TUBULParams, readFromIniString) {
-    TU::configParams( TEST_PARAMDEF );
+    TU::addParamsConfig( TEST_PARAMDEF );
     //Loading ini data from string that contains several keys.
     TU::loadParamsString(TEST_INIFILE);
 
@@ -311,7 +326,7 @@ TEST(TUBULParams, readFromIniString) {
 
 TEST(TUBULParams, usingDefault)
 {
-	TU::configParams( TEST_PARAMDEF );
+	TU::addParamsConfig( TEST_PARAMDEF );
 
 	// all params should be using their defaults values initially
 	EXPECT_EQ( TU::usingDefault("Global.timeout"), true );
@@ -345,8 +360,8 @@ TEST(TUBULParams, usingDefault)
 
 TEST(TUBULParams, multipleConfigs)
 {
-	TU::configParams( TEST_PARAMDEF );
-	TU::configParams( OTHER_TEST_PARAMDEF);
+	TU::addParamsConfig( TEST_PARAMDEF );
+	TU::addParamsConfig( OTHER_TEST_PARAMDEF);
 
 	{
 		//Check the default values of the second params

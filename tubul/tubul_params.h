@@ -13,8 +13,8 @@ namespace TU
     void clearParams();
 
     // Passes the configuration of parameters to parse.
-    void configParams(std::istream& paramsConfig);
-    void configParams(const std::string& paramsConfig);
+    void addParamsConfig(std::istream& paramsConfig);
+    void addParamsConfig(const std::string& paramsConfig);
 
     // load a params file (as many times as you want)
     void loadParams(const std::string&  paramsFile);
