@@ -114,7 +114,7 @@ namespace TU {
     void LogEngine::streamTimestamp(std::ostream &logStream) {
         auto now = std::chrono::system_clock::now();
         time_t tnow = std::chrono::system_clock::to_time_t(now);
-        struct tm buf;
+        tm buf;
 #ifdef TUBUL_WINDOWS
         //Windows bad people changed the api!!
         localtime_s(&buf, &tnow);
