@@ -1,5 +1,5 @@
-//
 // Created by Carlos Acosta on 30-06-23.
+//
 //
 
 
@@ -182,13 +182,19 @@ struct ParamsData {
             for (auto &paramdef : paramdefs) {
                 std::string full_name = tolower(section) + "." + tolower(paramdef["name"].get<std::string>());
 
-				if (m_paramQueues.contains(full_name))
-					throw std::runtime_error("Trying to re-define already defined parameter " + full_name);
+				ParamType paramType = getParamDefType(paramdef);
+				ParamValue paramValue = getParamDefDefault(paramdef, paramType);
 
-                ParamType paramType = getParamDefType(paramdef);
+            	if (m_paramQueues.contains(full_name))
+            	{
+					if (m_paramType[full_name] == paramType and m_paramQueues[full_name].back() == paramValue)
+						continue;
+
+					throw std::runtime_error("Trying to re-define already defined parameter " + full_name);
+            	}
+
                 m_paramType[full_name] = paramType;
 
-            	ParamValue paramValue = getParamDefDefault(paramdef, paramType);
                 m_paramQueues[full_name].push_back(paramValue);
             	m_defaultValues[full_name] = paramValue;
             }
@@ -390,13 +396,13 @@ void clearParams()
 	params.clear();
 }
 
-void configParams(std::istream& paramsConfig)
+void addParamsConfig(std::istream& paramsConfig)
 {
     Parameters::ParamsData &params = Parameters::ParamsData::getInstance();
     params.addParamsConfig(paramsConfig);
 }
 
-void configParams(const std::string& paramsConfig)
+void addParamsConfig(const std::string& paramsConfig)
 {
     Parameters::ParamsData &params = Parameters::ParamsData::getInstance();
     params.addParamsConfig(paramsConfig);
