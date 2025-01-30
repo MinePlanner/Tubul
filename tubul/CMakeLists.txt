@@ -1,5 +1,3 @@
-project(libtubul)
-
 #Grab all source code that must be compiled.
 file(GLOB tubul_src "*.cpp")
 add_library(libtubul STATIC ${tubul_src} )
@@ -13,4 +11,6 @@ foreach(dir ${TUBUL_EXTERNAL_LIBS_INCLUDES})
 endforeach()
 
 target_compile_definitions(libtubul PUBLIC ${TUBUL_COMPILE_DEFS})
+target_include_directories(libtubul INTERFACE ${CMAKE_CURRENT_LIST_DIR}/../api )
+target_include_directories(libtubul PUBLIC ${CMAKE_CURRENT_LIST_DIR} )
 set_target_properties(libtubul PROPERTIES POSITION_INDEPENDENT_CODE ON)
