@@ -42,7 +42,7 @@ using ParamValue = std::variant<
 
 
 // utils
-ParamValue getParamDefDefault(nlohmann::json &paramdef, ParamType paramsType)
+ParamValue getParamDefDefault(const nlohmann::json &paramdef, ParamType paramsType)
 {
     ParamValue data;
 
@@ -58,7 +58,7 @@ ParamValue getParamDefDefault(nlohmann::json &paramdef, ParamType paramsType)
     return data;
 }
 
-ParamType getParamDefType(nlohmann::json &paramdef)
+ParamType getParamDefType(const nlohmann::json &paramdef)
 {
     static const std::unordered_map<std::string, ParamType> stringToType = {
             {"int", INT},
@@ -174,31 +174,36 @@ struct ParamsData {
     template <typename T>
     void addParamsConfig(T &&input)
     {
-        nlohmann::json paramDef(nlohmann::json::parse(std::forward<T>(input)));
-        if (paramDef.empty())
-            throw std::runtime_error("No parameters were specified in configParams");
+      nlohmann::json paramDef(nlohmann::json::parse(std::forward<T>(input)));
+      if (paramDef.empty())
+        throw std::runtime_error("No parameters were specified in configParams");
 
-        for (auto &[section, paramdefs] : paramDef.items()) {
-            for (auto &paramdef : paramdefs) {
-                std::string full_name = tolower(section) + "." + tolower(paramdef["name"].get<std::string>());
+      for (const auto &[section, paramdefs] : paramDef.items()) {
+        for (const auto &paramdef : paramdefs) {
 
-				ParamType paramType = getParamDefType(paramdef);
-				ParamValue paramValue = getParamDefDefault(paramdef, paramType);
+          nlohmann::json theName = paramdef["name"];
+          std::string jsonValue = theName.get<std::string>();
+          auto lowerJson = tolower(jsonValue);
 
-            	if (m_paramQueues.contains(full_name))
-            	{
-					if (m_paramType[full_name] == paramType and m_paramQueues[full_name].back() == paramValue)
-						continue;
+          std::string full_name = tolower(section) + "." + lowerJson;
 
-					throw std::runtime_error("Trying to re-define already defined parameter " + full_name);
-            	}
+          ParamType paramType = getParamDefType(paramdef);
+          ParamValue paramValue = getParamDefDefault(paramdef, paramType);
 
-                m_paramType[full_name] = paramType;
+          if (m_paramQueues.contains(full_name))
+          {
+            if (m_paramType[full_name] == paramType and m_paramQueues[full_name].back() == paramValue)
+              continue;
 
-                m_paramQueues[full_name].push_back(paramValue);
-            	m_defaultValues[full_name] = paramValue;
-            }
+            throw std::runtime_error("Trying to re-define already defined parameter " + full_name);
+          }
+
+          m_paramType[full_name] = paramType;
+
+          m_paramQueues[full_name].push_back(paramValue);
+          m_defaultValues[full_name] = paramValue;
         }
+      }
     }
 
 	void loadFromINIReader(INIReader &reader)
