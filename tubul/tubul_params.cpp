@@ -267,7 +267,7 @@ struct ParamValuePrinter{
 
     std::string operator()(const int pv) const{ return simpleToString(pv);}
     std::string operator()(const double pv) const { return simpleToString(pv);}
-    std::string operator()(const bool pv) const { return simpleToString(pv);}
+    std::string operator()(const bool pv) const { return (pv)?"true":"false";}
     std::string operator()(const std::string& pv) const { return pv;}
     std::string operator()(const std::vector<int>& pv) const { return vectorToString(pv); }
     std::string operator()(const std::vector<double>& pv) const { return vectorToString(pv); }
