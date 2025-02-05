@@ -56,7 +56,7 @@ std::unordered_map<std::string, BlockStats>& getBlockStatsContainer()
 	return stat_container;
 }
 
-void logBlockOnOpen(const BlockDescription& b) {
+void logBlockOnOpen(const BlockDescription& ) {
 	logDevel() << "Starting " << getCurrentBlockLocation() << " | "
 		<< " mem rss/peak/alive: [" << bytesToStr(memCurrentRSS()) << "/" << bytesToStr(memPeakRSS())
 		<< "/" << bytesToStr(memAlive()) << "]";
@@ -131,7 +131,8 @@ std::string getCurrentBlockLocation()
 		return current + b.name.size();
 	};
 	//Get the length of all names
-	const size_t final_length = std::accumulate(blocks.begin(), blocks.end(),0 , sizeAcc);
+	constexpr size_t zero = 0UL;
+	const size_t final_length = std::accumulate(blocks.begin(), blocks.end(), zero, sizeAcc);
 
 	//We will start with an empty string that will hold the final concatenated location.
 	//This strings needs a total space of the sum of all block name's length plus the number
@@ -159,7 +160,7 @@ void Block::report(){
 
 	auto allocations = memLifetime() - reportingBlock.allocAtStart;
 
-	logReport() << "Reporting " << getCurrentBlockLocation() << " |" 
+	logReport() << "Reporting " << getCurrentBlockLocation() << " |"
 		<< " rss/peak/alive/allocated: [" << bytesToStr(memCurrentRSS()) << "/"
 		<< bytesToStr(memPeakRSS()) << "/" << bytesToStr(memAlive()) << "/" << bytesToStr(allocations)
 		<< "] e: " << block_duration.count() << "s accum: " << accum.count() << "s";
@@ -176,12 +177,12 @@ std::string reportBlocks(){
 	for(auto it = begin; it != end; ++it){
 		width = std::max(it->first.size(), width);
 	}
-	
+
 	std::ostringstream report;
 
 	//header
 	report << std::left << "| " << std::setw(width) << "name" << " |" << " times created " << "|" << " accumulated time " << "|\n";
-	
+
 	for(auto it = begin;it != end; ++it){
 		std::ostringstream buf;
 
@@ -189,12 +190,12 @@ std::string reportBlocks(){
 
 		auto n = it->second.count_;
 		auto accum = it->second.t_;
-		
+
 		std::string times = std::to_string(n), accumTime = std::to_string(accum.count());
 
 		//I am assuming that there is not gonna be a gigantic number here
 		report << std::left << "| " << std::setw(width) << name << " | " << std::setw(14) << n <<"| " << std::setw(17) << accumTime << "|\n";
-	}	
+	}
 	return report.str();
 }
 

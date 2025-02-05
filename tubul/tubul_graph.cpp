@@ -31,9 +31,10 @@ namespace TU::Graph {
             return false;
         for (std::integral auto nid: irange(l.nodeCount()))
         {
+            const auto inid = static_cast<NodeId>(nid);
             //If both sides are sorted, this would be A LOT faster/
-            auto const& lside = l.neighbors(nid);
-            auto const& rside = r.neighbors(nid);
+            auto const& lside = l.neighbors(inid);
+            auto const& rside = r.neighbors(inid);
             if (lside.size() != rside.size())
                 return false;
             for ( auto item: lside) {
@@ -128,7 +129,8 @@ namespace TU::Graph {
             //Dump all edge lists for each node. (only non/empty?) I lose the auto-tracking if I skip them
             for ( std::integral auto i: TU::irange(g.nodeCount()))
             {
-                auto& nodeNeighbors = g.neighbors( i );
+                const auto iid = static_cast<NodeId>(i);
+                auto& nodeNeighbors = g.neighbors( iid );
                 writeEdgeList( out, nodeNeighbors );
                 out << '\n';
             }
@@ -166,7 +168,7 @@ namespace TU::Graph {
             size_t nEdges;
             in >> nEdges;
             SparseWeightDirected::EdgeList edgeList;
-            for ( int i = 0; i < nEdges; ++i) {
+            for ( size_t i = 0; i < nEdges; ++i) {
                 NodeId nid;
                 CostType cost;
                 in >> nid;
@@ -184,7 +186,7 @@ namespace TU::Graph {
             readHeader(in);
             readDescription(in,g);
             std::string line;
-            for(int i = 0; i < g.nodeCount(); ++i) {
+            for(size_t i = 0; i < g.nodeCount(); ++i) {
                 g.adj_.at(i) = readEdgeList(in);
             }
 
@@ -238,7 +240,8 @@ namespace TU::Graph {
             //Dump all edge lists for each node. (only non/empty?) I lose the auto-tracking if I skip them
             for ( std::integral auto i: TU::irange(g.nodeCount()))
             {
-                auto& nodeNeighbors = g.neighbors( i );
+                const auto iid = static_cast<NodeId>(i);
+                auto& nodeNeighbors = g.neighbors( iid );
                 writeEdgeList( out, nodeNeighbors );
             }
         }
@@ -274,7 +277,7 @@ namespace TU::Graph {
             size_t nEdges=0;
             readPod(in, nEdges);
             SparseWeightDirected::EdgeList edgeList;
-            for ( int i = 0; i < nEdges; ++i) {
+            for ( size_t i = 0; i < nEdges; ++i) {
                 SparseWeightDirected::Edge e{0, 0};
                 readPod(in,e);
                 edgeList.push_back( e );
@@ -290,7 +293,7 @@ namespace TU::Graph {
             readHeader(in);
             readDescription(in,g);
 
-            for(int i = 0; i < g.nodeCount(); ++i) {
+            for(size_t i = 0; i < g.nodeCount(); ++i) {
                 g.adj_.at(i) = readEdgeList(in);
             }
 
@@ -436,7 +439,8 @@ namespace TU::Graph {
             //Dump all edge lists for each node. (only non/empty?) I lose the auto-tracking if I skip them
             for ( std::integral auto i: TU::irange(g.nodeCount()))
             {
-                auto& nodeNeighbors = g.neighbors( i );
+                const auto iid = static_cast<NodeId>(i);
+                auto& nodeNeighbors = g.neighbors( iid );
                 writeEdgeList( out, nodeNeighbors );
             }
         }
@@ -494,7 +498,7 @@ namespace TU::Graph {
                     else if ( sublistDescr != EdgeListDescriptionMask::NoCost)
                         throw TU::Exception("Reading list with subgroups decoded something invalid");
 
-                    for (int i = 0; i < subListEdges; ++i) {
+                    for (size_t i = 0; i < subListEdges; ++i) {
                         SparseWeightDirected::Edge e{0, 0};
                         e.dest_ = static_cast<NodeId >( readVarInt(in));
                         e.cost_ = commonCost;
@@ -506,7 +510,7 @@ namespace TU::Graph {
 
             }
             else if ( descr == EdgeListDescriptionMask::UniqueCosts ) {
-                for (int i = 0; i < nEdges; ++i) {
+                for (size_t i = 0; i < nEdges; ++i) {
                     SparseWeightDirected::Edge e{0, 0};
                     e.dest_ = static_cast<NodeId >( readVarInt(in));
                     e.cost_ = static_cast<CostType>( readVarInt(in));
@@ -520,7 +524,7 @@ namespace TU::Graph {
                 commonCost = static_cast<CostType>(readVarInt(in));
             }
             //else EdgeListDescriptionMask::NoCost -> nothing to do
-            for (int i = 0; i < nEdges; ++i) {
+            for (size_t i = 0; i < nEdges; ++i) {
                 SparseWeightDirected::Edge e{0, 0};
                 e.dest_ = static_cast<NodeId >( readVarInt(in));
                 e.cost_ = commonCost;
@@ -538,7 +542,7 @@ namespace TU::Graph {
             readHeader(in);
             readDescription(in,g);
 
-            for(int i = 0; i < g.nodeCount(); ++i) {
+            for(size_t i = 0; i < g.nodeCount(); ++i) {
                 g.adj_.at(i) = readEdgeList(in);
             }
 
@@ -597,14 +601,15 @@ namespace TU::Graph {
             std::ofstream o(filename);
             if (g.nameTable_.empty()){
                 for (std::integral auto nId: TU::irange(g.nodeCount())) {
-                    const auto &neighbors = g.neighbors(nId);
+                    const auto inId = static_cast<NodeId>(nId);
+                    const auto &neighbors = g.neighbors(inId);
                     if ( not neighbors.empty())
-                        o << buildPrecLine(nId, neighbors) << '\n';
+                        o << buildPrecLine(inId, neighbors) << '\n';
                 }
             }
             else{
-                for (auto nodeName: g.nameTable_) {
-                    NodeId nId = g.nameIndex_.at(nodeName);
+                for (const auto& nodeName: g.nameTable_) {
+                    const NodeId nId = static_cast<NodeId>(g.nameIndex_.at(nodeName));
                     const auto &neighbors = g.neighbors(nId);
                     if ( not neighbors.empty())
                         o << buildPrecLine(nId, neighbors, g.nameTable_) << '\n';
@@ -671,7 +676,8 @@ namespace TU::Graph {
             auto safeNeighbors = [&](size_t n) -> SparseWeightDirected::EdgeList& {
                 if ( graph.nodeCount() <= n)
                     graph.adj_.resize(n+1);
-                return graph.neighbors(n);
+                const auto nId = static_cast<NodeId>(n);
+                return graph.neighbors(nId);
             };
 
             auto precCount = TU::countCharInFile(filename, '\n');
@@ -679,7 +685,6 @@ namespace TU::Graph {
 
             std::ifstream in(filename);
             std::string line;
-            size_t lineNumber = 0;
             while ( std::getline(in,line)){
 
                 //just in case, drop the \r that may be left at the end.
@@ -694,7 +699,8 @@ namespace TU::Graph {
                 auto it = tokens.begin();
                 auto [headName, dummy] = readPrecEdge(*it);
                 ++it;
-                auto count = TU::strToInt(*it);
+    //We have to check the sign of this number in a stronger typed way
+                size_t count = TU::strToInt(*it);
                 ++it;
 
                     size_t headId = getNameId(headName);
@@ -711,8 +717,6 @@ namespace TU::Graph {
                         auto precNameId = getNameId(name);
                         nodeEdges.emplace_back(SparseWeightDirected::Edge{static_cast<NodeId>(precNameId), static_cast<CostType>(lag)});
                     }
-
-                ++lineNumber;
 
             }
 

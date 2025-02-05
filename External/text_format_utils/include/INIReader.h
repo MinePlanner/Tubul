@@ -117,8 +117,8 @@ https://github.com/benhoyt/inih
 #include <stdlib.h>
 #endif
 
-#define MAX_SECTION 50
-#define MAX_NAME 50
+#define MAX_SECTION 250
+#define MAX_NAME 250
 
 /* Strip whitespace chars off end of given string, in place. Return s. */
 inline static char* rstrip(char* s)
@@ -495,8 +495,9 @@ inline float INIReader::GetFloat(std::string section, std::string name, float de
 inline bool INIReader::GetBoolean(std::string section, std::string name, bool default_value) const
 {
     std::string valstr = Get(section, name, "");
+    auto typesafe_tolower = [](char c) { return static_cast<char>(::tolower(c)); };
     // Convert to lower case to make string comparisons case-insensitive
-    std::transform(valstr.begin(), valstr.end(), valstr.begin(), ::tolower);
+    std::transform(valstr.begin(), valstr.end(), valstr.begin(), typesafe_tolower);
     if (valstr == "true" || valstr == "yes" || valstr == "on" || valstr == "1")
         return true;
     else if (valstr == "false" || valstr == "no" || valstr == "off" || valstr == "0")
@@ -508,8 +509,9 @@ inline bool INIReader::GetBoolean(std::string section, std::string name, bool de
 inline std::string INIReader::MakeKey(std::string section, std::string name)
 {
     std::string key = section + "=" + name;
+    auto typesafe_tolower = [](char c) { return static_cast<char>(::tolower(c)); };
     // Convert to lower case to make section/name lookups case-insensitive
-    std::transform(key.begin(), key.end(), key.begin(), ::tolower);
+    std::transform(key.begin(), key.end(), key.begin(), typesafe_tolower);
     return key;
 }
 
