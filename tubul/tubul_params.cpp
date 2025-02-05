@@ -180,7 +180,11 @@ struct ParamsData {
 
         for (auto &[section, paramdefs] : paramDef.items()) {
             for (auto &paramdef : paramdefs) {
-                std::string full_name = tolower(section) + "." + tolower(paramdef["name"].get<std::string>());
+
+                auto theName = paramDef["name"];
+                auto jsonValue = theName.get<std::string>();
+                auto lowerJson = tolower(jsonValue);
+                std::string full_name = tolower(section) + "." + lowerJson;
 
 				ParamType paramType = getParamDefType(paramdef);
 				ParamValue paramValue = getParamDefDefault(paramdef, paramType);
