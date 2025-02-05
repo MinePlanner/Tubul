@@ -293,7 +293,7 @@ TEST(TUBULString, testjoinWithLambda){
 	std::vector <Book> structVec = {b1, b2};
 
 	auto f = [](struct Book book){
-		return format("{} {}", book.name, book.pages);
+		return book.name + " " + std::to_string(book.pages);
 	};
 
 	std::string res = TU::join(structVec, ", ", f);
