@@ -453,5 +453,15 @@ namespace TU {
      * can provide certain parameters that will affect some behavior.
      */
 
+	/////////
+	// TubulApplication
+	/////////
+	/** Represents a tubul application. Is able to store info about the app such as
+	 * name and version.
+	 */
+	void initTubulApp(const std::string& name, const std::string& version);
+	const std::string& getAppName();
+	const std::string& getAppVer();
+
 
 }
