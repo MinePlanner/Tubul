@@ -2,11 +2,12 @@
 // Created by Carlos Acosta on 13-01-23.
 //
 #include <string>
-#include <variant>
-#include <optional>
 #include <iostream>
+#include <optional>
 #include <argparse.hpp>
+#include "tubul_application.h"
 #include "tubul_argparse.h"
+
 
 namespace TU{
 
@@ -16,7 +17,7 @@ namespace TU{
  */
 argparse::ArgumentParser& getArgumentsParser()
 {
-	static argparse::ArgumentParser program("TubulApplication", "1.0", argparse::default_arguments::help);
+	static argparse::ArgumentParser program(getAppName(), getAppVer(), argparse::default_arguments::help);
 	return program;
 }
 /**
