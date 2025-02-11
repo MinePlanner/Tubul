@@ -295,6 +295,7 @@ static constexpr bool TUBUL_LOG_ALLOCATIONS = false;
 #endif
 
 
+#ifdef TUBUL_OPERATOR_NEW_OVERRIDE
 // no inline, required by [replacement.functions]/3
 void* operator new(std::size_t sz)
 {
@@ -384,3 +385,5 @@ void operator delete[](void* ptr, std::size_t size) noexcept
 	if ( ptrInfo != stats.sizes.end())
 		stats.removeArrayAlloc(ptrInfo);
 }
+
+#endif
