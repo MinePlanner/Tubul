@@ -5,6 +5,7 @@
 #pragma once
 
 #include <string>
+#include <vector>
 #include <iosfwd>
 
 namespace TU
