@@ -17,6 +17,13 @@ set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
 target_link_libraries(libtubul PUBLIC Threads::Threads)
 
+if (DEFINED TUBUL_NO_MALLOC)
+    message(WARNING "Not using tubul's memory tracking")
+else()
+    target_compile_definitions(libtubul PUBLIC TUBUL_OPERATOR_NEW_OVERRIDE)
+endif()
+
+
 target_compile_definitions(libtubul PUBLIC ${TUBUL_COMPILE_DEFS})
 target_include_directories(libtubul INTERFACE ${CMAKE_CURRENT_LIST_DIR}/../api )
 target_include_directories(libtubul PUBLIC ${CMAKE_CURRENT_LIST_DIR} )
