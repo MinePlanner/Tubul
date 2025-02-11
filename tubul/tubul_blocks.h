@@ -29,5 +29,8 @@ private:
 	LogType whenToLog_;
 };
 
+std::string getCurrentBlockLocation();
+
+std::string reportBlocks();
 
 }

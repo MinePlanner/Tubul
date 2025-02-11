@@ -8,7 +8,7 @@
 #include <memory>
 #include <streambuf>
 #include <fstream>
-#include "tubul.h"
+#include "tubul_string.h"
 
 namespace TU{
 /** Set of simple functions to perform tasks that are common
