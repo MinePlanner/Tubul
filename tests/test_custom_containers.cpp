@@ -232,6 +232,15 @@ TEST(TUBULContainers, testFlatSetConstructorList) {
     }
     test2.clear();
 
+    TU::FlatSet<int> test3 = {  3,2,1, 3 };
+    EXPECT_EQ( test3.size(), 3);
+    expectedIt = 1;
+    for ( auto& key: test3 ){
+        EXPECT_EQ(key, expectedIt);
+        ++expectedIt;
+    }
+    test3.clear();
+
 }
 TEST(TUBULContainers, testFlatSetFind) {
     std::vector<int> sample = { 1, 2, 3, 4, 5 };

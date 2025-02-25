@@ -1,6 +1,5 @@
 #pragma once
 
-
 #include <memory>
 #include <algorithm>
 #include <functional>
@@ -92,6 +91,9 @@ namespace TU {
                 : Base(first, last, alloc), MyCompare(comp) {
             MyCompare &me = *this;
             std::sort(begin(), end(), me);
+            //Ensure elements are unique
+            auto new_end = std::unique(begin(), end() );
+            Base::erase( new_end, end());
         }
 
         FlatSet( std::initializer_list<value_type> slist,const key_compare &comp = key_compare(),
@@ -99,6 +101,9 @@ namespace TU {
                 : Base(slist,alloc), MyCompare(comp) {
             MyCompare &me = *this;
             std::sort(begin(), end(), me);
+            //Ensure elements are unique
+            auto new_end = std::unique(begin(), end() );
+            Base::erase( new_end, end());
         }
 
         FlatSet &operator=(const FlatSet &rhs) {
