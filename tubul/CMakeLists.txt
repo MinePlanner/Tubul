@@ -10,6 +10,13 @@ foreach(dir ${TUBUL_EXTERNAL_LIBS_INCLUDES})
     target_include_directories(libtubul PUBLIC ${dir})
 endforeach()
 
+
+#Tubul uses threads, so we declare the dependency for platforms where
+#we need special extra stuff (linux mostly).
+set(THREADS_PREFER_PTHREAD_FLAG ON)
+find_package(Threads REQUIRED)
+target_link_libraries(libtubul PUBLIC Threads::Threads)
+
 target_compile_definitions(libtubul PUBLIC ${TUBUL_COMPILE_DEFS})
 target_include_directories(libtubul INTERFACE ${CMAKE_CURRENT_LIST_DIR}/../api )
 target_include_directories(libtubul PUBLIC ${CMAKE_CURRENT_LIST_DIR} )
