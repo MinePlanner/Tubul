@@ -267,6 +267,7 @@ MemoryMonitor::~MemoryMonitor() = default;
 }
 
 
+#ifdef TUBUL_OPERATOR_NEW_OVERRIDE
 /** Here are Tubul's custom implementations of new and delete to try to
  * keep track of the allocated memory. Even though this looked relatively simple
  * it turns out there's a lot of small details to keep in mind
@@ -295,7 +296,6 @@ static constexpr bool TUBUL_LOG_ALLOCATIONS = false;
 #endif
 
 
-#ifdef TUBUL_OPERATOR_NEW_OVERRIDE
 // no inline, required by [replacement.functions]/3
 void* operator new(std::size_t sz)
 {
