@@ -343,6 +343,8 @@ void* operator new[](std::size_t sz)
 //this version of operator delete is not used.
 void operator delete(void* ptr) noexcept
 {
+	if (ptr == nullptr)
+		return;
 	//Simply record the we are freen size amount of bytes.
 	if constexpr (TUBUL_LOG_ALLOCATIONS)
 		std::printf("3) delete(void*),  ptr = %p\n", ptr);
@@ -352,6 +354,8 @@ void operator delete(void* ptr) noexcept
 
 void operator delete(void* ptr, std::size_t size) noexcept
 {
+	if (ptr == nullptr)
+		return;
 	//Simply record the we are freen size amount of bytes.
 	auto& stats = TU::getTubulStats();
 	auto cur = stats.alive.fetch_sub(size);
@@ -362,6 +366,8 @@ void operator delete(void* ptr, std::size_t size) noexcept
 }
 
 void operator delete[](void* ptr) noexcept {
+	if (ptr == nullptr)
+		return;
 	//Now, because the array handling sucks, we have to try to retrieve the size of this
 	//pointer for accurate bookkeeping.
 	auto& stats = TU::getTubulStats();
@@ -385,6 +391,8 @@ void operator delete[](void* ptr) noexcept {
 
 void operator delete[](void* ptr, std::size_t size) noexcept
 {
+	if (ptr == nullptr)
+		return;
 	auto& stats = TU::getTubulStats();
 	auto cur = stats.alive.fetch_sub(size);
 	if constexpr (TUBUL_LOG_ALLOCATIONS)
