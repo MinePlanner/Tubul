@@ -368,7 +368,7 @@ void operator delete[](void* ptr) noexcept {
 	auto ptrInfo = stats.findArrayAlloc(ptr);
 	//If for some reason, we don't have information for this ptr, we panic a little and go on with life.
 	if ( ptrInfo == stats.sizes.end() ) {
-		std::printf("Deleting pointer for which no size information is recorded!");
+		std::printf("Deleting pointer [%p] for which no size information is recorded!\n", ptr);
 		std::free(ptr);
 		return;
 	}
