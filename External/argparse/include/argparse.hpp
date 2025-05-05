@@ -1005,7 +1005,8 @@ private:
     if constexpr (details::IsContainer<T>) {
       return any_cast_container<T>(m_values);
     }
-    return std::any_cast<T>(m_values.front());
+  	else
+  	  return std::any_cast<T>(m_values.front());
   }
 
   template <typename T>
