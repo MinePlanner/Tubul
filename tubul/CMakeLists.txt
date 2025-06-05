@@ -33,6 +33,16 @@ target_include_directories(libtubul PUBLIC ${CMAKE_CURRENT_LIST_DIR} )
 #Always use PIC so we can create shared libs with tubul.
 set_target_properties(libtubul PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
+## Export some easy to use macros to identify release or debug builds
+string( TOLOWER "${CMAKE_BUILD_TYPE}" build_type )
+if((build_type MATCHES "debug") )
+    target_compile_definitions(libtubul PUBLIC "TUBUL_DEBUG")
+endif()
+
+if((build_type MATCHES "release") )
+    target_compile_definitions(libtubul PUBLIC "TUBUL_RELEASE")
+endif()
+
 ## MSVC complains about very base functions used by third parties, like fopen. This
 ## compiler definition lowers the rage for those functions
 if (MSVC)
