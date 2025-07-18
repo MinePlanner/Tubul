@@ -408,3 +408,38 @@ TEST(TUBULString, testToUpper) {
 	doTest( "L337 C0d3", "L337 C0D3");
 }
 
+TEST(TUBULString, testToUpperInplace) {
+	auto doTest = []( const std::string& in, const std::string& expected) {
+		auto s = in;
+		TU::inplace_toupper(s);
+		EXPECT_EQ(s, expected);
+	};
+
+
+	doTest("", "");
+	doTest("A", "A");
+	doTest("N", "N");
+	doTest("FANCY WORDS", "FANCY WORDS");
+	doTest("a", "A");
+	doTest("n", "N");
+	doTest("Fancy Words", "FANCY WORDS");
+	doTest( "aTeSt", "ATEST");
+	doTest( "L337 C0d3", "L337 C0D3");
+}
+
+TEST(TUBULString, testToLowerInplace) {
+	auto doTest = []( const std::string& in, const std::string& expected) {
+		auto res = in;
+		TU::inplace_tolower(res);
+		EXPECT_EQ(res, expected);
+	};
+	doTest("", "");
+	doTest("a", "a");
+	doTest("n", "n");
+	doTest("fancy words", "fancy words");
+	doTest("A", "a");
+	doTest("N", "n");
+	doTest("Fancy Words", "fancy words");
+	doTest( "aTeSt", "atest");
+	doTest( "L337 C0d3", "l337 c0d3");
+}

@@ -4,15 +4,18 @@
 namespace TU{
 
 /** 
-  * This class provides a string-like identifier that is typed on a tag-type class.
+  * This class provides a string-like object, but it can't be compared directly to
+  * other objects of different classes. The class of the string is defined by the empty
+  * tag type used as template argument, so it doesn't create any extra cost.
   * This means that you can create classes that are basically strings but can't be 
-  * mixed with other StringId classes with different tags.
+  * mixed with other StringId classes with different tags. This is the same idea as
+  * the basic wrapper type, with some extra functionality specifically for strings.
+  * For ease of use, you can use the macro CREATE_STRING_WRAPPER to create a new
+  * StringId type.
   * Example:
-  *   struct ingredient_tag[{};
-  *   struct name_tag[{};
-  *   using IngredientName = StringId<ingredient_tag>;
-  *   using PersonName = StringId<name_tag>;
-  * 
+  * CREATE_STRING_WRAPPER(IngredientName);
+  * CREATE_STRING_WRAPPER(PersonName)
+  *
   *   IngredientName c("Basil");
   *   PersonaName p = c ; //Can't be done!
   *
@@ -89,5 +92,8 @@ namespace std {
         }
     };
 }
+
+#define CREATE_STRING_WRAPPER(NameType) \
+    struct NameType##_wrapper_tag{}; using NameType = TU::StringId<NameType##_wrapper_tag>;
 
 

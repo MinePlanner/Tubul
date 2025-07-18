@@ -163,8 +163,9 @@ namespace TU {
         return data;
     }
     inline
-    auto tolower(const std::string& word) -> std::string {
-        return tolower(std::string_view(word) );
+    auto inplace_tolower(std::string& word) {
+        std::transform(word.begin(), word.end(), word.begin(),
+                       [](const unsigned char c) { return static_cast<char>(std::tolower(c)); });
     }
 
     inline
@@ -176,8 +177,9 @@ namespace TU {
     }
 
     inline
-    auto toupper(const std::string& word) -> std::string {
-        return toupper(std::string_view(word) );
+    auto inplace_toupper(std::string& word) {
+        std::transform(word.begin(), word.end(), word.begin(),
+                       [](const unsigned char c) { return static_cast<char>(std::toupper(c)); });
     }
 
     namespace details {

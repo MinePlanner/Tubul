@@ -13,8 +13,8 @@ struct dog_tag{};
 struct cat_tag{};
 
 // create some type aliases for ease of use
-using DogId = TU::StringId<dog_tag>;
-using CatId = TU::StringId<cat_tag>;
+CREATE_STRING_WRAPPER(DogId);
+CREATE_STRING_WRAPPER(CatId);
 
 TEST(TUBULStringId, basicComparison)
 {

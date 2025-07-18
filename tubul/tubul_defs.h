@@ -32,6 +32,7 @@
 #include "tubul_thread_pool.h"
 #include "tubul_graph.h"
 #include "tubul_stringid.h"
+#include "tubul_wrapper_type.h"
 #include "tubul_flat_map.h"
 #include "tubul_flat_set.h"
 #include "tubul_enumerate.h"
