@@ -4,7 +4,9 @@
 
 #include <gtest/gtest.h>
 #include <algorithm>
+#include <numeric>
 #include "tubul.h"
+#include "tubul_string_index.h"
 
 const char* test_string1 = R"(This is a test
 for the line iterator
@@ -408,3 +410,49 @@ TEST(TUBULString, testToUpper) {
 	doTest( "L337 C0d3", "L337 C0D3");
 }
 
+TEST(TUBULStringIndex, testCreationAndUse)
+{
+	TU::StringIndex storage;
+
+	//Lets insert some strings.
+	storage.addStr("nebula");
+	storage.addStr("nanu");
+	storage.addStr("kali");
+	EXPECT_EQ(storage.size(), 3);
+
+	std::vector<std::string> expectedNames = { "nebula", "nanu", "kali"};
+	auto expectedStrIt = expectedNames.begin();
+	for (const auto& name: storage.strings())
+		EXPECT_EQ(*expectedStrIt++, name);
+
+	std::vector<size_t> expectedIds = { 0, 1, 2};
+	auto expectedIdIt = expectedIds.begin();
+	for (const auto id: storage.keys())
+	{
+		EXPECT_EQ(*expectedIdIt++, id);
+		EXPECT_EQ(storage.getStr(id), expectedNames[id]);
+	}
+	//Checking if we can use strings, const char* and str_views to check
+	//the strings contained in the index.
+	EXPECT_TRUE( storage.contains("nebula") );//literal string view
+	EXPECT_TRUE(storage.contains(expectedNames.front())) ; //from a string
+
+	//Validating the id -> string -> round trip
+	auto nebulaId = storage.getId("nebula");
+	EXPECT_EQ(storage.getStr(nebulaId), "nebula" );
+	EXPECT_EQ(storage.getId("nebula"), nebulaId );
+
+	auto nanuId = storage.getId("nanu");
+	EXPECT_EQ(storage.getStr(nanuId), "nanu" );
+	EXPECT_EQ(storage.getId("nanu"), nanuId );
+
+	auto kaliId = storage.getId("kali");
+	EXPECT_EQ(storage.getStr(kaliId), "kali" );
+	EXPECT_EQ(storage.getId("kali"), kaliId );
+
+	//The number of characters stored should be the sum of all the characters
+	//in the string we stored (because they should be stored consecutively).
+	size_t totalExpectedSize = std::accumulate(expectedIds.begin(), expectedIds.end(), 0, [](auto x, auto y){return x + y;});
+	EXPECT_EQ( totalExpectedSize, expectedIds.size() );
+
+}
