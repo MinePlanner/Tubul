@@ -6,11 +6,13 @@
 #include <vector>
 #include <set>
 #include <deque>
+#include <ranges>
+#include <format>
 
 
 TEST(TUBULEnumerate, vector) {
-   std::vector<char> test_vector  = { 'a', 'b', 'c', 'd', 'e'};
-   std::vector<std::tuple<size_t, char>> expected = {  {0,'a'}, {1,'b'}, {2,'c'},{3,'d'},{4,'e'} };
+   std::vector<char> test_vector  = { 'a', 'b', 'c', 'd', 'e', 'f', 'g'};
+   std::vector<std::tuple<size_t, char>> expected = {  {0,'a'}, {1,'b'}, {2,'c'},{3,'d'},{4,'e'}, {5,'f'}, {6,'g'} };
    auto index = 0;
    for ( const auto& [i, item]: TU::enumerate(test_vector)){
        const auto& [expected_i, expected_item] = expected[index];
@@ -19,7 +21,33 @@ TEST(TUBULEnumerate, vector) {
 
        ++index;
    }
-    EXPECT_EQ(index,5);
+    EXPECT_EQ(index,7);
+
+	index = 0;
+	//An enumerate range stored as an lvalue, must be a view
+	auto enumRange = TU::enumerate(test_vector);
+	static_assert(std::ranges::view<decltype(enumRange)>, "enumerate is not a range");
+	//Because the original range has a size, then the enumerated range can have size
+	ASSERT_EQ(enumRange.size(), expected.size());
+	//An enumerate range as an rvalue also has to be compliant with view so we can compose it.
+	static_assert(std::ranges::view<decltype(TU::enumerate(test_vector))>, "enumerate is not a range");
+	//And in fact, we should be able to compose it.
+	auto composedEnum =   TU::enumerate(test_vector) |
+	 std::views::transform([](const auto &i)
+	{
+		const auto &[idx, item] = i;
+		return std::to_string(idx+10) + "->" + item;
+	});
+
+	std::ranges::for_each(composedEnum, [](const auto &i)
+						  { std::cout << i << std::endl; });
+
+	//Checking if we can create an enumerate view over a composed view
+	auto test_view = test_vector | std::views::transform([](char i){ return ++i; });
+	for ( const auto&[ idx, item]: TU::enumerate(test_view))
+	{
+		std::cout <<  std::format("{} -> {}\n", idx, item);
+	}
 }
 
 TEST(TUBULEnumerate, set)
@@ -47,7 +75,6 @@ TEST(TUBULZip, vector_set) {
     auto zipped = TU::zip(test_vector, test_set);
 
     for (const auto &[num, letter]: zipped) {
-        // std::cout <<" tuple [" << num << "," << letter << "]" << std::endl;
         EXPECT_EQ(*index_vec, num);
         EXPECT_EQ(*index_set, letter);
         ++index_vec;
@@ -58,12 +85,22 @@ TEST(TUBULZip, vector_set) {
     index_vec = test_vector.begin();
     index_set = test_set.begin();
     for (const auto &[num, letter]: zipped) {
-        // std::cout <<" tuple [" << num << "," << letter << "]" << std::endl;
         EXPECT_EQ(*index_vec, num);
         EXPECT_EQ(*index_set, letter);
         ++index_vec;
         ++index_set;
     }
+
+	//We can use TU::zip with a non-const view (the main concern is a mutable lambda
+	//such as enumerate) and zip still can deduce normally the correct types.
+	auto enumTest = TU::enumerate(test_set) | std::views::transform([](const auto &item){auto [idx, val] = item; return std::make_tuple(idx+10, val);} );
+	for (const auto &[num, letter]: enumTest)
+		std::cout << std::format("normal {} -> {}\n", num, letter);
+	 for (const auto &[tup, letter]: TU::zip(enumTest, test_set))
+	 {
+	 	const auto&[ idx, tupletter] = tup;
+		 std::cout << std::format("zip [{},{}] -> {}\n", idx, tupletter, letter);
+	 }
 }
 
 TEST(TUBULZip, vector_set2)
@@ -75,12 +112,32 @@ TEST(TUBULZip, vector_set2)
     auto index_set = test_set.begin();
 
     for (const auto &[num, letter]: TU::zip(test_vector, test_set)) {
-        // std::cout <<" tuple [" << num << "," << letter << "]" << std::endl;
         EXPECT_EQ(*index_vec, num);
         EXPECT_EQ(*index_set, letter);
         ++index_vec;
         ++index_set;
     }
+
+	index_vec = test_vector.begin() ;
+	std::advance(index_vec, 3);
+    index_set = test_set.begin();
+	std::advance(index_set, 3);
+    for (const auto &[num, letter]: TU::zip(test_vector, test_set) | std::views::filter([](const auto &i){ return std::get<0>(i) > 3; })) {
+        EXPECT_EQ(*index_vec, num);
+        EXPECT_EQ(*index_set, letter);
+        ++index_vec;
+        ++index_set;
+    }
+
+	//Now we will create a new view, and pass it to zip to test that we can receive
+	//these types of views (which can cause a lot of issues due const-ness
+	std::string buffer; //We need a value to reference to, because zip references back the items.
+	auto vecView = test_vector | std::views::transform([](const int& i){ return i + 100;} );
+	auto setView = test_set | std::views::transform([&buffer](const std::string& i)->const std::string& { buffer = i; buffer[0] = buffer.back(); return buffer;} );
+	for (const auto &[num, txt]: TU::zip(vecView, setView))
+	{
+		std::cout << std::format("{} -> {}\n", num, txt);
+	}
 }
 
 TEST(TUBULZip, vector_set3)
