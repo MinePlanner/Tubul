@@ -420,3 +420,48 @@ TEST(TUBULCSV, testDataframeNoColumnHeader)
 	testColumn( colD, expectedColDs );
 	testColumn(colName, expectedColNames);
 }
+
+
+
+constexpr std::string_view kBlockData = R"(X,Y,Z,value
+0, 0, 0, 1.
+0, 0, 1, 2.
+0, 0, 2, 3.
+0, 1, 0, 4.
+0, 1, 1, 5.
+0, 1, 2, 6.
+0, 2, 0, 7.
+0, 2, 1, 8.
+0, 2, 2, 9.
+1, 0, 0, 1.1
+1, 0, 1, 1.2
+1, 0, 2, 1.3
+1, 1, 0, 1.4
+1, 1, 1, 1.5
+1, 1, 2, 1.6
+1, 2, 0, 1.7
+1, 2, 1, 1.8
+1, 2, 2, 1.9
+2, 0, 0, 2.1
+2, 0, 1, 2.2
+2, 0, 2, 2.3
+2, 1, 0, 2.4
+2, 1, 1, 2.5
+2, 1, 2, 2.6
+2, 2, 0, 2.7
+2, 2, 1, 2.8
+2, 2, 2, 2.9)";
+
+TEST(
+	TUBULCSV,
+	DanielCase)
+{
+	TU::ColumnRequest req(
+			{{"X", TU::DataType::DOUBLE},
+			 {"Z", TU::DataType::DOUBLE},
+			 {"Value", TU::DataType::DOUBLE}});
+	TU::DataFrame df = TU::dataFrameFromCSVString(
+		std::string(kBlockData),req);
+	const auto& colX = std::get<TU::DoubleColumn>( df["X"]);
+	std::cout  << "First val: " << colX.at(0) << std::endl;
+}

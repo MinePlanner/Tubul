@@ -163,6 +163,19 @@ namespace rapidcsv
      */
     void ToVal(const std::string& pStr, T& pVal) const
     {
+		auto quickTrim = [](const std::string &str)
+		{
+			auto beginPtr = str.begin();
+			while (*beginPtr == ' ' and beginPtr != str.end())
+				++beginPtr;
+			if ( beginPtr == str.end() )
+				return std::make_tuple(beginPtr, str.end() + str.size());
+			auto endPtr = str.begin() + str.size() -1;
+			while (*endPtr == ' ' and endPtr != beginPtr)
+				--endPtr;
+
+			return std::make_tuple(beginPtr, endPtr + 1);
+		};
       try
       {
         if constexpr ( std::is_same_v<T, int> )
@@ -217,10 +230,11 @@ namespace rapidcsv
               		  std::is_same_v<T,double>  ||
               		  std::is_same_v<T,long double> )
           {
-			  auto res = fast_float::from_chars(pStr.data(), pStr.data()+ pStr.size(), pVal);
+          	  auto [beginPtr, endPtr] = quickTrim(pStr);
+			  auto res = fast_float::from_chars(std::addressof(*beginPtr), std::addressof(*endPtr), pVal);
 			  if (res.ec != std::errc())
 			  {
-				  throw std::invalid_argument("from_chars: no conversion");
+				  throw std::invalid_argument(std::string("from_chars: no conversion for '"+pStr+"'") );
 			  }
             return;
           }
@@ -231,7 +245,8 @@ namespace rapidcsv
                std::is_same_v<T,double>  ||
               std::is_same_v<T,long double> )
           {
-			auto res = fast_float::from_chars(pStr.data(), pStr.data()+ pStr.size(), pVal);
+          	  auto [beginPtr, endPtr] = quickTrim(pStr);
+			  auto res = fast_float::from_chars(std::addressof(*beginPtr), std::addressof(*endPtr), pVal);
 			if (res.ec != std::errc())
             {
               throw std::invalid_argument("from_chars: no conversion");
