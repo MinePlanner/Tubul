@@ -3,13 +3,41 @@
 //
 
 #include "tubul_log_engine.h"
-#include <mutex>
 #include <chrono>
 #include <fstream>
-#include <iostream>
+#include <sstream>
 #include <iomanip>
+#include <iostream>
+#include <mutex>
 
 namespace TU {
+
+static
+    std::string getFormattedTimestamp() {
+        auto nowTime = std::chrono::system_clock::now();
+        time_t tnow = std::chrono::system_clock::to_time_t(nowTime);
+        tm buf;
+#ifdef TUBUL_WINDOWS
+        //Windows bad people changed the api!!
+        localtime_s(&buf, &tnow);
+        const auto* utc = &buf;
+#else
+        tm *utc = localtime_r(&tnow, &buf);
+#endif
+		std::stringstream logStream;
+        logStream << std::setfill('0');
+        logStream << std::setw(4) << utc->tm_year + 1900; // Year
+        logStream << '-';
+        logStream << std::setw(2) << utc->tm_mon + 1; // Month
+        logStream << '-';
+        logStream << std::setw(2) << utc->tm_mday; // Day
+        logStream << ' ';
+        logStream << std::setw(2) << utc->tm_hour << ':'; // Hours
+        logStream << std::setw(2) << utc->tm_min << ':';  // Minutes
+        logStream << std::setw(2) << utc->tm_sec;         // Seconds
+        logStream << " - ";
+		return logStream.str();
+    }
 
     int getVersion(){ return 0; }
 
@@ -53,7 +81,7 @@ namespace TU {
             loggers_.clear();
             loggerDefined_ = true;
         }
-        LogStreamItem item = std::addressof(outLog);
+        LogStreamItem item(std::in_place_type<std::ostream*>, std::addressof(outLog));
 
         loggers_.emplace_back(item, level, options);
     }
@@ -65,7 +93,20 @@ namespace TU {
             loggerDefined_ = true;
         }
         ManagedFileIndex item = { openFile(outLogFilename) };
-        LogStreamItem logItem = item;
+        LogStreamItem logItem(std::in_place_type<ManagedFileIndex>, item);
+
+        loggers_.emplace_back(logItem, level, options);
+    }
+
+    void LogEngine::addLoggerDefinition(LogCallback callback, LogLevel level, LogOptions options) {
+        // first logger definition overrides default behavior
+        if (not loggerDefined_) {
+            loggers_.clear();
+            loggerDefined_ = true;
+        }
+        ManagedCallback item = { managedCallbacks_.size()};
+        managedCallbacks_.emplace_back(std::move(callback));
+        LogStreamItem logItem(std::in_place_type<ManagedCallback>, item);
 
         loggers_.emplace_back(logItem, level, options);
     }
@@ -75,65 +116,79 @@ namespace TU {
         loggerDefined_ = true;
     }
 
-    void LogEngine::log(LogLevel level, std::string const &text) {
+	struct LogEngine::LogDispatchVisitor
+	{
+		void handleStream(std::ostream *sPtr) const
+		{
+			std::ostream &out = *sPtr;
+			if (useTimestampFlag)
+				out << timestamp;
+			out << text;
+			if (text.empty() or (text.back() != '\n'))
+				out << std::endl;
+			else
+				out << std::flush;
+		}
+		void operator()(ManagedFileIndex &idx) const
+		{
+			auto aux = std::addressof(engine.managedFiles_[idx.index_]);
+			handleStream(aux);
+		}
 
+		void operator()(std::ostream *sPtr) const
+		{
+			handleStream(sPtr);
+		}
+
+		void operator()(ManagedCallback& idx)
+		{
+			auto& callback = engine.managedCallbacks_[idx.index_];
+			callback(level, text);
+		}
+
+		LogEngine         &engine;
+		LogLevel           level;
+		const std::string &text;
+		const std::string &timestamp;
+		bool               useTimestampFlag;
+	};
+
+	void LogEngine::log(LogLevel level, std::string const &text)
+	{
 #ifdef NDEBUG
-        if (level == LogLevel::DEBUG)
-            return;
+		if (level == LogLevel::DEBUG)
+			return;
 #endif
 
-        for (auto &[logWrapper, loggerLevel, options] : loggers_) {
-            std::ostream &logStream = getLogStream(logWrapper);
+		std::string timestamp;
+		auto        useTimestamp = [](LogOptions options)
+		{ return (not(options & LogOptions::NOTIMESTAMP)); };
 
-            if (level > loggerLevel)
-                continue;
+		for (auto &[logWrapper, loggerLevel, options] : loggers_)
+		{
+			if (level > loggerLevel)
+				continue;
 
-            if (options & LogOptions::QUIET)
-                continue;
+			if (options & LogOptions::QUIET)
+				continue;
 
-            if ((options & LogOptions::EXCLUSIVE) and (level != loggerLevel))
-                continue;
+			if ((options & LogOptions::EXCLUSIVE) and (level != loggerLevel))
+				continue;
 
-            if (not (options & LogOptions::NOTIMESTAMP))
-                streamTimestamp(logStream);
-
-            logStream << text;
-            if (text.empty() or (text.back() != '\n'))
-                logStream << std::endl;
-            else
-                logStream << std::flush;
-        }
-    }
+			if (useTimestamp(options))
+			{
+				timestamp = getFormattedTimestamp();
+			}
+			// lambda that helps us dispatch to the actual backends of each logItem
+			LogDispatchVisitor dispatch{*this, level, text, timestamp, useTimestamp(options)};
+			std::visit(dispatch, logWrapper);
+		}
+	}
 
     void LogEngine::safelog(LogLevel level, std::string const &text) {
         static std::mutex iolock;
         std::scoped_lock<std::mutex> l(iolock);
         log(level, text);
-    }
-
-    void LogEngine::streamTimestamp(std::ostream &logStream) {
-        auto now = std::chrono::system_clock::now();
-        time_t tnow = std::chrono::system_clock::to_time_t(now);
-        tm buf;
-#ifdef TUBUL_WINDOWS
-        //Windows bad people changed the api!!
-        localtime_s(&buf, &tnow);
-        const auto* utc = &buf;
-#else
-        tm *utc = localtime_r(&tnow, &buf);
-#endif
-
-        logStream << std::setfill('0');
-        logStream << std::setw(4) << utc->tm_year + 1900; // Year
-        logStream << '-';
-        logStream << std::setw(2) << utc->tm_mon + 1; // Month
-        logStream << '-';
-        logStream << std::setw(2) << utc->tm_mday; // Day
-        logStream << ' ';
-        logStream << std::setw(2) << utc->tm_hour << ':'; // Hours
-        logStream << std::setw(2) << utc->tm_min << ':';  // Minutes
-        logStream << std::setw(2) << utc->tm_sec;         // Seconds
-        logStream << " - ";
     }
 
     LogEngine &getLogEngineInstance() {
