@@ -87,3 +87,26 @@ TEST(TUBULLogger, testLogDevel) {
     EXPECT_EQ(ossReport.str(), "Danger, Will Robinson!\n");
     EXPECT_EQ(ossDevel.str(), "Message to Devel\nDanger, Will Robinson!\n");
 }
+TEST(TUBULLogger, testLogCallback)
+{
+	std::stringstream ossReport;
+    std::ostringstream ossDevel;
+	auto logCallback = [&](TU::LogLevel logLevel, const std::string& msg)
+	{
+		if (logLevel == TU::LogLevel::REPORT)
+			ossReport << msg;
+		if (logLevel == TU::LogLevel::DEVEL)
+			ossDevel << msg;
+	};
+	TU::clearLoggerDefinitions();
+	TU::addLoggerDefinition(logCallback, TU::LogLevel::DEVEL);
+	std::string msgReport = "Message to Report";
+	std::string msgDevel = "Message to Devel";
+
+	TU::logReport() << msgReport;
+	TU::logDevel() << msgDevel;
+
+	EXPECT_EQ(ossReport.str(), msgReport);
+	EXPECT_EQ(ossDevel.str(), msgDevel);
+
+}

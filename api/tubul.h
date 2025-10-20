@@ -154,6 +154,7 @@ namespace TU {
      */
 	void addLoggerDefinition(std::string const &logfile, LogLevel level, LogOptions options=LogOptions::NONE);
 	void addLoggerDefinition(std::ostream &out, LogLevel level, LogOptions options=LogOptions::NONE);
+    void addLoggerDefinition(std::function<void(TU::LogLevel, const std::string&)> callback, TU::LogLevel level, TU::LogOptions options=LogOptions::NONE);
 
     /** \brief Clears logger definitions defined previously,
      * including the default std::cout definition.

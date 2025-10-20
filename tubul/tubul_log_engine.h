@@ -7,6 +7,7 @@
 #include <string>
 #include <variant>
 #include <vector>
+#include <functional>
 
 #include "tubul_log_types.h"
 
@@ -20,6 +21,9 @@ namespace TU {
      */
     class LogEngine {
     public:
+    	//Wrapper to use callbacks provided from the outside.
+    	using LogCallback = std::function<void(TU::LogLevel, const std::string& )>;
+
         LogEngine();
 
         ~LogEngine();
@@ -28,6 +32,7 @@ namespace TU {
         //or receive a string and create a new file that we will use as a log backend.
         void addLoggerDefinition(std::ostream &outLog, LogLevel level, LogOptions options = LogOptions::NONE);
         void addLoggerDefinition(const std::string &logFilename, LogLevel level, LogOptions options = LogOptions::NONE);
+        void addLoggerDefinition(LogCallback callback, LogLevel level, LogOptions options = LogOptions::NONE);
 
         //Delete all existing logger streams
         void clearLoggerDefinitions();
@@ -42,9 +47,14 @@ namespace TU {
         struct ManagedFileIndex {
             size_t index_;
         };
+        struct ManagedCallback {
+            size_t index_;
+        };
+
+    	struct LogDispatchVisitor;
 
         //Loggers can point to a managed file or a user-provided stream.
-        using LogStreamItem = std::variant<ManagedFileIndex, std::ostream*>;
+        using LogStreamItem = std::variant<ManagedFileIndex, std::ostream*, ManagedCallback>;
         //The definition of a log is a LogStream (the variant we just defined) along with the level and options
         using LogDefinition = std::tuple< LogStreamItem, TU::LogLevel, TU::LogOptions>;
 
@@ -52,10 +62,9 @@ namespace TU {
         size_t openFile(std::string const &fileName);
         //Given a LogStreamItem, returns the associated std::ostream&
         std::ostream& getLogStream(const LogStreamItem& item) ;
-        //Timestamp formatting.
-        static void streamTimestamp(std::ostream &logStream);
 
         std::vector<std::ofstream> managedFiles_;
+    	std::vector<LogCallback> managedCallbacks_;
         std::vector<LogDefinition> loggers_;
 
         bool loggerDefined_;

@@ -27,6 +27,10 @@ namespace TU {
         getLogEngineInstance().addLoggerDefinition(logfile, level, options);
     }
 
+    void addLoggerDefinition(std::function<void(TU::LogLevel, const std::string&)> callback, TU::LogLevel level, TU::LogOptions options) {
+        getLogEngineInstance().addLoggerDefinition(callback, level, options);
+    }
+
     void clearLoggerDefinitions(){
         getLogEngineInstance().clearLoggerDefinitions();
     }
