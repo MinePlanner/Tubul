@@ -2,7 +2,7 @@
 inih from:
 https://github.com/jtilly/inih
 
-nlohmann 3.7.3:
+nlohmann 3.12.0:
 https://github.com/nlohmann/json
 
 fast_float from:
