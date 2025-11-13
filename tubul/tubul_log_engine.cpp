@@ -13,31 +13,23 @@
 namespace TU {
 
 static
-    std::string getFormattedTimestamp() {
-        auto nowTime = std::chrono::system_clock::now();
-        time_t tnow = std::chrono::system_clock::to_time_t(nowTime);
-        tm buf;
+    auto getFormattedTimestamp() {
+
+		using namespace std::chrono;
+        auto nowTime = system_clock::now();
+        auto tnow = system_clock::to_time_t(nowTime);
+		std::tm buf;
 #ifdef TUBUL_WINDOWS
         //Windows bad people changed the api!!
         localtime_s(&buf, &tnow);
-        const auto* utc = &buf;
 #else
-        tm *utc = localtime_r(&tnow, &buf);
+		localtime_r(&tnow, &buf);
 #endif
-		std::stringstream logStream;
-        logStream << std::setfill('0');
-        logStream << std::setw(4) << utc->tm_year + 1900; // Year
-        logStream << '-';
-        logStream << std::setw(2) << utc->tm_mon + 1; // Month
-        logStream << '-';
-        logStream << std::setw(2) << utc->tm_mday; // Day
-        logStream << ' ';
-        logStream << std::setw(2) << utc->tm_hour << ':'; // Hours
-        logStream << std::setw(2) << utc->tm_min << ':';  // Minutes
-        logStream << std::setw(2) << utc->tm_sec;         // Seconds
-        logStream << " - ";
-		return logStream.str();
-    }
+
+		std::ostringstream oss;
+		oss << std::put_time(&buf, "%Y-%m-%d %H:%M:%S - ") ;
+		return oss.str();
+	}
 
     int getVersion(){ return 0; }
 
@@ -120,6 +112,9 @@ static
 	{
 		void handleStream(std::ostream *sPtr) const
 		{
+			static std::mutex iolock;
+			std::scoped_lock<std::mutex> l(iolock);
+
 			std::ostream &out = *sPtr;
 			if (useTimestampFlag)
 				out << timestamp;
@@ -143,6 +138,9 @@ static
 		void operator()(ManagedCallback& idx)
 		{
 			auto& callback = engine.managedCallbacks_[idx.index_];
+
+			static std::mutex cblock;
+			std::scoped_lock<std::mutex> l(cblock);
 			callback(level, text);
 		}
 
@@ -184,12 +182,6 @@ static
 			std::visit(dispatch, logWrapper);
 		}
 	}
-
-    void LogEngine::safelog(LogLevel level, std::string const &text) {
-        static std::mutex iolock;
-        std::scoped_lock<std::mutex> l(iolock);
-        log(level, text);
-    }
 
     LogEngine &getLogEngineInstance() {
         static LogEngine engine;

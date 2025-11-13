@@ -192,26 +192,13 @@ namespace TU {
      * End-of-line is added automatically.
      * @return
      */
-    LogStreamU logError();
-    LogStreamU logWarning();
-    LogStreamU logReport();
-    LogStreamU logInfo();
-    LogStreamU logDevel();
-    LogStreamU logStat();
+    LogStream logError();
+    LogStream logWarning();
+    LogStream logReport();
+    LogStream logInfo();
+    LogStream logDevel();
+    LogStream logStat();
 
-    /** \brief log streams, which allow to send strings and numbers using
-     * the "<<" operator. Similar to normal log*() functions but these are
-     * thread-safe.  Example:
-     * TU::logInfo() << "We have " << numCars << " cars ready to ship.";
-     * End-of-line is added automatically.
-     * @return
-     */
-    LogStreamTS safelogError();
-    LogStreamTS safelogWarning();
-    LogStreamTS safelogReport();
-    LogStreamTS safelogInfo();
-    LogStreamTS safelogDevel();
-    LogStreamTS safelogStats();
 	/////////
 	// Args
 	/////////
