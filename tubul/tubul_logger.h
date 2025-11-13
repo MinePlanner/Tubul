@@ -28,35 +28,14 @@ namespace TU {
     void logStat(std::string const &msg);
     void logDebug(std::string const &msg);
 
-    void safelogError(std::string const &msg);
-    void safelogWarning(std::string const &msg);
-    void safelogReport(std::string const &msg);
-    void safelogInfo(std::string const &msg);
-    void safelogDevel(std::string const &msg);
-    void safelogStat(std::string const &msg);
-    void safelogDebug(std::string const &msg);
-
 // ostream-like handler objects
 
-    struct LogStreamNormalTag;
-    struct LogStreamThreadSafeTag;
-
-    template <typename Tag>
-    concept LogStreamTag =
-        std::is_same_v<Tag, LogStreamNormalTag> or
-        std::is_same_v<Tag, LogStreamThreadSafeTag>;
-
-    template <LogStreamTag TagType>
     class LogStream {
     public:
         explicit LogStream(LogLevel level): level_(level) {}
 
         ~LogStream() {
-            if constexpr (std::is_same_v<TagType, LogStreamNormalTag> )
                 getLogEngineInstance().log(level_, parts_.str());
-            else if constexpr ( std::is_same_v<TagType, LogStreamThreadSafeTag> )
-                getLogEngineInstance().safelog(level_, parts_.str());
-
         };
 
         template<typename TypeToLog>
@@ -70,23 +49,14 @@ namespace TU {
 
         LogLevel level_;
     };
-    using LogStreamU = LogStream<LogStreamNormalTag>;
-    using LogStreamTS = LogStream<LogStreamThreadSafeTag>;
 
-    LogStreamU logError();
-    LogStreamU logWarning();
-    LogStreamU logReport();
-    LogStreamU logInfo();
-    LogStreamU logDevel();
-    LogStreamU logStat();
-    LogStreamU logDebug();
-    LogStreamTS safelogError();
-    LogStreamTS safelogWarning();
-    LogStreamTS safelogReport();
-    LogStreamTS safelogInfo();
-    LogStreamTS safelogDevel();
-    LogStreamTS safelogStat();
-    LogStreamTS safelogDebug();
+    LogStream logError();
+    LogStream logWarning();
+    LogStream logReport();
+    LogStream logInfo();
+    LogStream logDevel();
+    LogStream logStat();
+    LogStream logDebug();
 
 #ifdef TUBUL_MACOS
     [[nodiscard]] TU::Exception throwError(const std::string &msg, int line = __builtin_LINE(),

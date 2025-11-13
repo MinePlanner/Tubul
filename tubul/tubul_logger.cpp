@@ -28,7 +28,7 @@ namespace TU {
     }
 
     void addLoggerDefinition(std::function<void(TU::LogLevel, const std::string&)> callback, TU::LogLevel level, TU::LogOptions options) {
-        getLogEngineInstance().addLoggerDefinition(callback, level, options);
+        getLogEngineInstance().addLoggerDefinition(std::move(callback), level, options);
     }
 
     void clearLoggerDefinitions(){
@@ -63,34 +63,6 @@ namespace TU {
         getLogEngineInstance().log(LogLevel::STATS, "STATS: " + msg);
     }
 
-    void safelogInfo(std::string const &msg) {
-        getLogEngineInstance().safelog(LogLevel::INFO, msg);
-    }
-
-    void safelogReport(std::string const &msg) {
-        getLogEngineInstance().safelog(LogLevel::REPORT, msg);
-    }
-
-    void safelogWarning(std::string const &msg) {
-        getLogEngineInstance().safelog(LogLevel::WARNING, "WARNING: " + msg);
-    }
-
-    void safelogError(std::string const &msg) {
-        getLogEngineInstance().safelog(LogLevel::ERROR, "ERROR: " + msg);
-    }
-
-    void safelogDebug(std::string const &msg) {
-        getLogEngineInstance().safelog(LogLevel::DEBUG, "DEBUG: " + msg);
-    }
-
-    void safelogDevel(std::string const &msg) {
-        getLogEngineInstance().safelog(LogLevel::DEVEL, "DEVEL: " + msg);
-    }
-
-    void safelogStat(std::string const &msg) {
-        getLogEngineInstance().safelog(LogLevel::STATS, "STATS: " + msg);
-    }
-
 #ifdef TUBUL_MACOS
 
     [[nodiscard]] TU::Exception throwError(const std::string &msg, int line, const char *file, const char *function) {
@@ -113,60 +85,32 @@ namespace TU {
 
 
 
-    LogStreamU logInfo() {
-        return LogStreamU(LogLevel::INFO);
+    LogStream logInfo() {
+        return LogStream(LogLevel::INFO);
     }
 
-    LogStreamU logReport() {
-        return LogStreamU(LogLevel::REPORT);
+    LogStream logReport() {
+        return LogStream(LogLevel::REPORT);
     }
 
-    LogStreamU logWarning() {
-        return LogStreamU(LogLevel::WARNING);
+    LogStream logWarning() {
+        return LogStream(LogLevel::WARNING);
     }
 
-    LogStreamU logError() {
-        return LogStreamU(LogLevel::ERROR);
+    LogStream logError() {
+        return LogStream(LogLevel::ERROR);
     }
 
-    LogStreamU logDevel() {
-        return LogStreamU(LogLevel::DEVEL);
+    LogStream logDevel() {
+        return LogStream(LogLevel::DEVEL);
     }
 
-    LogStreamU logStat() {
-        return LogStreamU(LogLevel::STATS);
+    LogStream logStat() {
+        return LogStream(LogLevel::STATS);
     }
 
-    LogStreamU logDebug() {
-        return LogStreamU(LogLevel::DEBUG);
-    }
-
-    LogStreamTS safelogInfo() {
-        return LogStreamTS(LogLevel::INFO);
-    }
-
-    LogStreamTS safelogReport() {
-        return LogStreamTS(LogLevel::REPORT);
-    }
-
-    LogStreamTS safelogWarning() {
-        return LogStreamTS(LogLevel::WARNING);
-    }
-
-    LogStreamTS safelogError() {
-        return LogStreamTS(LogLevel::ERROR);
-    }
-
-    LogStreamTS safelogDevel() {
-        return LogStreamTS(LogLevel::DEVEL);
-    }
-
-    LogStreamTS safelogStat() {
-        return LogStreamTS(LogLevel::STATS);
-    }
-
-    LogStreamTS safelogDebug() {
-        return LogStreamTS(LogLevel::DEBUG);
+    LogStream logDebug() {
+        return LogStream(LogLevel::DEBUG);
     }
 
 }; // namespace TU

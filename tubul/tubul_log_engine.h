@@ -40,7 +40,6 @@ namespace TU {
         //Base functions to handle the logging requests. The safe version uses a mutex to prevent issues
         //while using the logger in threads.
         void log(LogLevel level, std::string const &text);
-        void safelog(LogLevel level, std::string const &text);
 
     private:
         //Simple structure to wrap an index from managed files vector
