@@ -60,7 +60,7 @@ TEST(TUBULHash, BasicTupleHash3_float) {
     auto val4 = hasher(v4);
     EXPECT_NE(val1,val2); EXPECT_NE(val1,val3); EXPECT_NE(val1,val4);
     EXPECT_NE(val2,val3); EXPECT_NE(val2,val4); EXPECT_NE(val3,val4);
-    val4 = hasher(std::make_tuple(10,20,500));
+    val4 = hasher(std::make_tuple(10.0f,20.0f,500.0f));
     EXPECT_EQ(val1, val4);
 }
 
@@ -81,7 +81,7 @@ TEST(TUBULHash, TupleHash3_misc) {
     EXPECT_NE(val2,val3); EXPECT_NE(val2,val4); EXPECT_NE(val3,val4);
     val2 = hasher(v1);
     EXPECT_EQ(val1, val2);
-    val3 = hasher(std::make_tuple(20,"Juanelo", 10));
+    val3 = hasher(std::make_tuple(20.0f,std::string("Juanelo"), 10));
     EXPECT_EQ(val3, val4);
 }
 
@@ -90,18 +90,18 @@ TEST(TUBULHash, TupleHash3_umaps) {
     TU::hash<P3h> hasher;
     std::unordered_map<P3h, int, TU::hash<P3h> > container;
 
-    P3h v1{10.0, "Pepito", 500};
+    P3h v1{10.0f, "Pepito", 500};
     auto val = hasher(v1);
     container[v1] = 10;
     EXPECT_EQ(container[v1], 10);
 
-    P3h other{ 10.0, "Pepito", 500};
+    P3h other{ 10.0f, "Pepito", 500};
     auto val2 = hasher(other);
     container[other] = 20;
     EXPECT_EQ(val,val2);
     EXPECT_EQ(container[v1],20);
 
-    P3h other2{ 10.0, "Superman", 500};
+    P3h other2{ 10.0f, "Superman", 500};
     auto val3 = hasher(other2);
     EXPECT_NE(val3,val2);
     container[other2] = 50;

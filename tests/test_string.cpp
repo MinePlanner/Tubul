@@ -452,7 +452,7 @@ TEST(TUBULStringIndex, testCreationAndUse)
 
 	//The number of characters stored should be the sum of all the characters
 	//in the string we stored (because they should be stored consecutively).
-	size_t totalExpectedSize = std::accumulate(expectedIds.begin(), expectedIds.end(), 0, [](auto x, auto y){return x + y;});
+	size_t totalExpectedSize = std::accumulate(expectedIds.begin(), expectedIds.end(), size_t{0}, [](size_t x, size_t y){return x + y;});
 	EXPECT_EQ( totalExpectedSize, expectedIds.size() );
 
 }
