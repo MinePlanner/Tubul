@@ -6,7 +6,6 @@ add_library(libtubul STATIC ${tubul_src} )
 #note that we add the include dirs as PUBLIC so they can be inherited
 #by the user application.
 foreach(dir ${TUBUL_EXTERNAL_LIBS_INCLUDES})
-    message(STATUS "Adding include dir='${dir}'")
     target_include_directories(libtubul PUBLIC ${dir})
 endforeach()
 
