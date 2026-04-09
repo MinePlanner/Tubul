@@ -8,10 +8,10 @@
 #include <future>
 #include <memory>
 #include <mutex>
-#include <queue>
 #include <thread>
 #include <type_traits>
 #include <utility>
+#include <vector>
 
 namespace TU
 {
@@ -49,7 +49,7 @@ namespace TU
             std::function<void()> task_function = std::bind(std::forward<F>(task), std::forward<A>(args)...);
             {
                 const std::scoped_lock tasks_lock(tasks_mutex_);
-                tasks_.push(task_function);
+                tasks_.push_back(task_function);
             }
             ++tasks_total_;
             task_available_cv_.notify_one();
@@ -126,9 +126,9 @@ namespace TU
         std::condition_variable task_done_cv_;
 
         /**
-         * @brief A queue of tasks_ to be executed by the threads_.
+         * @brief A vector of tasks_ to be executed by the threads_.
          */
-        std::queue<std::function<void()>> tasks_ = {};
+        std::vector<std::function<void()>> tasks_ = {};
 
         /**
          * @brief A mutex to synchronize access to the task queue by different threads_.
