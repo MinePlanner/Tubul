@@ -11,6 +11,7 @@ namespace TU
             threads_(std::make_unique<std::thread[]>(thread_count_)),
             tasks_total_(0)
     {
+        tasks_.reserve(thread_count);
         running_.test_and_set();
         for (size_t i = 0; i < thread_count_; ++i)
         {
@@ -55,8 +56,8 @@ namespace TU
             task_available_cv_.wait(tasks_lock, [this] { return !tasks_.empty() || !running_.test(); });
             if (running_.test())
             {
-                task = std::move(tasks_.front());
-                tasks_.pop();
+                task = std::move(tasks_.back());
+                tasks_.pop_back();
                 tasks_lock.unlock();
                 task();
                 tasks_lock.lock();
