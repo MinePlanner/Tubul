@@ -29,6 +29,7 @@ public:
 	Argument& setAsDouble();
 	Argument& setAsInteger();
 	Argument& setAsList();
+	Argument& setAsRepeatable();
 
 private:
 	ArgImplPtr arg_;
