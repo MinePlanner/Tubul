@@ -48,6 +48,7 @@ Argument& Argument::setAsDouble( ){  arg_->get().scan<'g',double>(); return *thi
 Argument& Argument::setAsInteger( ){  arg_->get().scan<'d',int>(); return *this;}
 Argument& Argument::setAsFlag(){ arg_->get().implicit_value(true).default_value(false); return *this;}
 Argument& Argument::setAsList( ){  arg_->get().nargs(argparse::nargs_pattern::at_least_one); return *this;}
+Argument& Argument::setAsRepeatable( ){  arg_->get().append(); return *this;}
 
 
 /**
@@ -118,6 +119,9 @@ template int getArg<int>(std::string const& param);
 template double getArg<double>(std::string const& param);
 template std::string getArg<std::string>(std::string const& param);
 template std::vector<std::string> getArg<std::vector<std::string>>( std::string const& param);
+template std::vector<int> getArg<std::vector<int>>( std::string const& param);
+template std::vector<double> getArg<std::vector<double>>( std::string const& param);
+template std::vector<bool> getArg<std::vector<bool>>( std::string const& param);
 
 
 
@@ -151,4 +155,7 @@ template std::optional<int> getOptionalArg<int>( std::string const& param);
 template std::optional<double> getOptionalArg<double>( std::string const& param);
 template std::optional<std::string> getOptionalArg<std::string>( std::string const& param);
 template std::optional<std::vector<std::string>> getOptionalArg<std::vector<std::string>>( std::string const& param);
+template std::optional<std::vector<int>> getOptionalArg<std::vector<int>>( std::string const& param);
+template std::optional<std::vector<double>> getOptionalArg<std::vector<double>>( std::string const& param);
+template std::optional<std::vector<bool>> getOptionalArg<std::vector<bool>>( std::string const& param);
 }

@@ -214,8 +214,10 @@ namespace TU {
 	 * 				.required();
 	 * 		TU::addArgument("-i", "--invitees")
 	 * 				.setAsList();
-	 * 		TU::addArgument("-v", "--verbose)
+	 * 		TU::addArgument("-v", "--verbose")
 	 * 				.flag();
+	 * 		TU::addArgument("-t", "--parameter_overload")
+	 * 				.setAsRepeatable();
 	 *
 	 * 	With parseArgsOrDie you call the argument handler to do its magic.
 	 * 	Then you can use getArg to retrieve the value of a given argument (be consistent with
