@@ -4,10 +4,22 @@
 
 #pragma once
 #include <string>
+#include "tubul_time.h"
 #define TUBUL_BLOCK TU::Block ___aux_t_block(__FUNCTION__)
 
 namespace TU
 {
+
+struct BlockStats
+{
+	BlockStats():
+		count_(0),
+		t_(TimeDuration::zero())
+	{}
+
+	size_t count_;
+	TimeDuration t_;
+};
 
 struct Block
 {
@@ -19,8 +31,13 @@ struct Block
 		NONE
 	};
 
-	explicit Block(const std::string& name);
+	template<size_t N>
+	explicit Block(const char (&name)[N]) : Block(std::string_view{name, N-1}, LogType::ALL) {}
+	template<size_t N>
+	Block(const char (&name)[N], LogType l) : Block(std::string_view{name, N-1}, l) {}
+	explicit Block(const std::string& name) : Block(name, LogType::ALL) {}
 	Block(const std::string& name, LogType l);
+	Block(std::string_view name, LogType l);
 	~Block();
 	void report();
 
@@ -32,5 +49,7 @@ private:
 std::string getCurrentBlockLocation();
 
 std::string reportBlocks();
+
+BlockStats getAccumulatedStats(const std::string& name);
 
 }
