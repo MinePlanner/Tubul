@@ -4,9 +4,12 @@
 
 #include <vector>
 #include <unordered_map>
+#include <variant>
 #include <string>
 #include <chrono>
 #include <cassert>
+#include <algorithm>
+#include <sstream>
 #include "tubul_blocks.h"
 
 #include <numeric>
@@ -15,77 +18,115 @@
 #include "tubul_time.h"
 #include "tubul_mem_utils.h"
 #include "tubul_logger.h"
-#include <iomanip>
+#include <format>
 
 
 namespace TU
 {
+struct StringKey {
+	std::variant<std::string, std::string_view> storage;
+
+	StringKey(std::string s) : storage(std::move(s)) {}
+	StringKey(std::string_view sv) : storage(sv) {}
+
+	std::string_view view() const noexcept {
+		return std::visit([](const auto& s) -> std::string_view { return s; }, storage);
+	}
+};
+
+struct StringKeyHash {
+	using is_transparent = void;
+	size_t operator()(const StringKey& k) const noexcept {
+		return std::hash<std::string_view>{}(k.view());
+	}
+	size_t operator()(std::string_view sv) const noexcept {
+		return std::hash<std::string_view>{}(sv);
+	}
+	size_t operator()(const std::string& s) const noexcept {
+		return std::hash<std::string_view>{}(s);
+	}
+};
+
+struct StringKeyEqual {
+	using is_transparent = void;
+	bool operator()(const StringKey& a, const StringKey& b) const noexcept { return a.view() == b.view(); }
+	bool operator()(std::string_view sv, const StringKey& k) const noexcept { return sv == k.view(); }
+	bool operator()(const StringKey& k, std::string_view sv) const noexcept { return k.view() == sv; }
+	bool operator()(const std::string& s, const StringKey& k) const noexcept { return s == k.view(); }
+	bool operator()(const StringKey& k, const std::string& s) const noexcept { return k.view() == s; }
+};
+
 struct BlockDescription
 {
-	explicit
-	BlockDescription(const std::string& n):
+	explicit BlockDescription(const std::string_view n) :
 		name(n),
 		allocAtStart(memLifetime()),
 		start_time(now())
 	{}
 
-	std::string name;
-	size_t allocAtStart;
+	std::string_view name;
+	size_t    allocAtStart;
 	TimePoint start_time;
-};
-
-struct BlockStats {
-	BlockStats():
-		count_(0),
-		t_(TimeDuration::zero())
-	{}
-
-	size_t count_;
-	TimeDuration t_;
 };
 
 std::vector<BlockDescription>& getBlockContainer()
 {
-	static std::vector<BlockDescription> block_container;
+	// Lambda trick to reserve size for a static vector.
+	static std::vector<BlockDescription> block_container = []{
+		// We don't think we are reaching more than 20 blocks deep
+		// (remember block_container is a stack of active blocks)
+		const size_t BLOCKS_DEPTH = 20;
+		std::vector<BlockDescription> v;
+		v.reserve(BLOCKS_DEPTH);
+		return v;
+	}();
 	return block_container;
 }
 
-std::unordered_map<std::string, BlockStats>& getBlockStatsContainer()
+std::unordered_map<StringKey, BlockStats, StringKeyHash, StringKeyEqual>& getBlockStatsContainer()
 {
-	static std::unordered_map<std::string, BlockStats> stat_container;
+	static std::unordered_map<StringKey, BlockStats, StringKeyHash, StringKeyEqual> stat_container;
 	return stat_container;
 }
 
 void logBlockOnOpen(const BlockDescription& ) {
-	logDevel() << "Starting " << getCurrentBlockLocation() << " | "
-		<< " mem rss/peak/alive: [" << bytesToStr(memCurrentRSS()) << "/" << bytesToStr(memPeakRSS())
-		<< "/" << bytesToStr(memAlive()) << "]";
+	logDevel(std::format("Starting {} |  mem rss/peak/alive: [{}/{}/{}]",
+		getCurrentBlockLocation(), bytesToStr(memCurrentRSS()), bytesToStr(memPeakRSS()),
+		bytesToStr(memAlive())));
 }
 
 void logBlockOnClose( const BlockDescription& b, TimeDuration block_duration, TimeDuration accum_duration) {
 	//To store the amount of seconds as a double.
 	auto allocations = memLifetime() - b.allocAtStart;
-	logDevel() << "Closing " << getCurrentBlockLocation() << " | "
-		<< " rss/peak/alive/allocated: [" << bytesToStr(memCurrentRSS()) << "/" << bytesToStr(memPeakRSS())
-		<< "/" << bytesToStr(memAlive()) << "/" << bytesToStr(allocations)
-		<<  "] e: " << block_duration.count() << "s  accum:" << accum_duration.count() << "s";
-}
-
-Block::Block(const std::string &name):
-	whenToLog_(LogType::ALL)
-{
-	auto& blocks = getBlockContainer();
-	index_ = blocks.size();
-	blocks.emplace_back( name );
-	logBlockOnOpen(blocks.back());
+	logDevel(std::format("Closing {} |  rss/peak/alive/allocated: [{}/{}/{}/{}] e: {:g}s  accum:{:g}s",
+		getCurrentBlockLocation(), bytesToStr(memCurrentRSS()), bytesToStr(memPeakRSS()),
+		bytesToStr(memAlive()), bytesToStr(allocations), block_duration.count(), accum_duration.count()));
 }
 
 Block::Block(const std::string &name, LogType l):
 	whenToLog_(l)
 {
 	auto& blocks = getBlockContainer();
+	auto& blockStats = getBlockStatsContainer();
+	auto it = blockStats.find(name);
+	if(it == blockStats.end())
+		it = blockStats.emplace(std::string{name}, BlockStats{}).first;
 	index_ = blocks.size();
-	blocks.emplace_back( name );
+	blocks.emplace_back( it->first.view() );
+	if ( l == LogType::ALL or l == LogType::ON_START)
+		logBlockOnOpen(blocks.back());
+}
+
+Block::Block(std::string_view name, LogType l) :
+	whenToLog_(l)
+{
+	auto& blocks = getBlockContainer();
+	auto& blockStats = getBlockStatsContainer();
+	auto it = blockStats.find(name);
+	if (it == blockStats.end())
+		it = blockStats.emplace(name, BlockStats{}).first;
+	index_ = blocks.size();
+	blocks.emplace_back( it->first.view() );
 	if ( l == LogType::ALL or l == LogType::ON_START)
 		logBlockOnOpen(blocks.back());
 }
@@ -102,7 +143,7 @@ Block::~Block()
 	//We calculate how much time has passed since the creation of this block.
 	TimeDuration block_duration =  now() - closingBlock.start_time ;
 	//Add info to the mapped data of this particular block
-	auto& [ n, accum ] = getBlockStatsContainer()[closingBlock.name];
+	auto& [ n, accum ] = getBlockStatsContainer().find(closingBlock.name)->second;
 	++n;
 	accum += block_duration;
 
@@ -156,47 +197,52 @@ void Block::report(){
 	//We calculate how much time has passed since the creation of this block.
 	TimeDuration block_duration =  now() - reportingBlock.start_time ;
 	//Current info
-	auto& [ n, accum ] = getBlockStatsContainer()[reportingBlock.name];
+	auto& [ n, accum ] = getBlockStatsContainer().find(reportingBlock.name)->second;
 
 	auto allocations = memLifetime() - reportingBlock.allocAtStart;
 
-	logReport() << "Reporting " << getCurrentBlockLocation() << " |"
-		<< " rss/peak/alive/allocated: [" << bytesToStr(memCurrentRSS()) << "/"
-		<< bytesToStr(memPeakRSS()) << "/" << bytesToStr(memAlive()) << "/" << bytesToStr(allocations)
-		<< "] e: " << block_duration.count() << "s accum: " << accum.count() << "s";
+	logReport(std::format("Reporting {} | rss/peak/alive/allocated: [{}/{}/{}/{}] e: {:g}s accum: {:g}s",
+		getCurrentBlockLocation(), bytesToStr(memCurrentRSS()), bytesToStr(memPeakRSS()),
+		bytesToStr(memAlive()), bytesToStr(allocations), block_duration.count(), accum.count()));
 
 }
-//generates table with a list of blocks, shows name and stats
-std::string reportBlocks(){
-	//map of stats
-	auto& blocks = getBlockStatsContainer();
+// generates table with a list of blocks, shows name and stats
+std::string reportBlocks()
+{
+	auto &blocks = getBlockStatsContainer();
 
-	auto begin = blocks.begin(), end = blocks.end();
-	//for decent table
-	size_t width = 0;
-	for(auto it = begin; it != end; ++it){
-		width = std::max(it->first.size(), width);
+	size_t maxWidth = 0;
+	for (const auto &[key, val] : blocks)
+	{
+		maxWidth = std::max(maxWidth, key.view().size());
 	}
 
 	std::ostringstream report;
 
-	//header
-	report << std::left << "| " << std::setw(width) << "name" << " |" << " times created " << "|" << " accumulated time " << "|\n";
+	// header
+	report << std::format("| {:<{}} | times created | accumulated time |\n", "name", maxWidth);
 
-	for(auto it = begin;it != end; ++it){
-		std::ostringstream buf;
+	for (const auto &[name, stats] : blocks)
+	{
+		auto n         = stats.count_;
+		auto accum     = stats.t_;
+		auto accumTime = std::to_string(accum.count());
 
-		std::string name = it->first;
-
-		auto n = it->second.count_;
-		auto accum = it->second.t_;
-
-		std::string times = std::to_string(n), accumTime = std::to_string(accum.count());
-
-		//I am assuming that there is not gonna be a gigantic number here
-		report << std::left << "| " << std::setw(width) << name << " | " << std::setw(14) << n <<"| " << std::setw(17) << accumTime << "|\n";
+		// I am assuming that there is not gonna be a gigantic number here
+		report << std::format("| {:<{}} | {:<14}| {:<17}|\n", name.view(), maxWidth, n, accumTime);
 	}
 	return report.str();
+}
+
+// Returns the accumulated stats for a given block name (across all closed
+// instances of the block name), or zeroed stats if the block was never recorded.
+BlockStats getAccumulatedStats(const std::string& name)
+{
+	const auto &blocks = getBlockStatsContainer();
+	auto it = blocks.find(name);
+	if (it == blocks.end())
+		return {};
+	return it->second;
 }
 
 

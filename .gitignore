@@ -40,6 +40,9 @@ build/
 lib/
 version.h
 
+# justfile-generated copy of the active build compilation database
+compile_commands.json
+
 #Clion build/config folders
 cmake-build-*
 .idea/
