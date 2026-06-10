@@ -6,6 +6,9 @@
 #include <tuple>
 #include <cstddef>
 #include <functional>
+#include <string>
+#include <string_view>
+#include <unordered_map>
 
 namespace TU
 {
@@ -105,5 +108,21 @@ struct hash<std::tuple<TT...>> {
         return HashImpl::hashTupleImpl(tt);
     }
 };
+
+struct StringTransparentHash
+{
+    using is_transparent = void; // Tells unordered_map we support heterogeneous lookup
+
+    size_t operator()(std::string_view s) const noexcept
+    {
+        return std::hash<std::string_view>{}(s);
+    }
+};
+
+/** Shortcut for an std::unordered_map keyed by string that supports heterogeneous lookup,
+ * so find/contains can be called with a string_view (or string literal) without
+ * allocating a temporary std::string. */
+template <typename MappedType>
+using StringMap = std::unordered_map<std::string, MappedType, StringTransparentHash, std::equal_to<>>;
 
 }
