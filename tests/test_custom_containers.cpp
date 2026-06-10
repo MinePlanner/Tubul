@@ -4,6 +4,8 @@
 
 #include "tubul.h"
 #include <array>
+#include <string>
+#include <string_view>
 #include <gtest/gtest.h>
 
 TEST(TUBULContainers, testFlatMapBasic) {
@@ -659,4 +661,28 @@ TEST(TUBULContainers, testFlatSetRemoveRange) {
             EXPECT_EQ(v, *expectedIt++);
     }
 
+}
+
+TEST(TUBULContainers, testStringMapHeterogeneousLookup) {
+    TU::StringMap<int> map;
+    map["alpha"] = 1;
+    map["beta"] = 2;
+
+    // Lookups must work without constructing a std::string.
+    std::string_view alphaView("alpha");
+    EXPECT_TRUE(map.contains(alphaView));
+    EXPECT_TRUE(map.contains("beta"));
+    EXPECT_FALSE(map.contains(std::string_view("gamma")));
+
+    auto found = map.find(alphaView);
+    ASSERT_NE(found, map.end());
+    EXPECT_EQ(found->second, 1);
+
+    // Lookup with std::string keeps working as usual.
+    std::string betaString("beta");
+    EXPECT_EQ(map.find(betaString)->second, 2);
+
+    // string and string_view with equal contents must hash equal.
+    TU::StringTransparentHash hasher;
+    EXPECT_EQ(hasher(betaString), hasher(std::string_view("beta")));
 }

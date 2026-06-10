@@ -73,8 +73,12 @@ int ini_parse_stream(ini_reader reader, void* stream, ini_handler handler,
 #ifndef INI_ALLOW_INLINE_COMMENTS
 #define INI_ALLOW_INLINE_COMMENTS 1
 #endif
+/* LOCAL MODIFICATION (tubul): upstream default is ";". We add "#" so inline
+   comments starting with '#' are stripped too. Patched directly in this vendored
+   header because CMake refuses to pass a -D definition containing '#'. Re-apply
+   if this third-party file is ever updated. */
 #ifndef INI_INLINE_COMMENT_PREFIXES
-#define INI_INLINE_COMMENT_PREFIXES ";"
+#define INI_INLINE_COMMENT_PREFIXES "#;"
 #endif
 
 /* Nonzero to use stack, zero to use heap (malloc/free). */

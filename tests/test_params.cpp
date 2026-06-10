@@ -109,283 +109,293 @@ FloatMagicSequence = [30.31,10.21,50.46,120.87,70.13]
 )###";
 
 TEST(TUBULParams, definitions) {
-    //Configure params
-    TU::addParamsConfig( TEST_PARAMDEF );
+    TU::ParamStorage params;
+    params.defineParams(TEST_PARAMDEF);
 
-	{
-		//Check the default values.
-    	EXPECT_EQ( TU::getParam<int>("Global.timeout"), 0 );
-    	EXPECT_EQ( TU::getParam<std::string>("Global.solver"), "cplex" );
-    	EXPECT_EQ( TU::getParam<double>("Zoo.MagicValue"), 3.1415 );
-    	EXPECT_EQ( TU::getParam<bool>("Zoo.LionShowAvailable"), true );
-    	std::vector<int> intExpected = {1,1,1,2,2,4,8};
-    	EXPECT_EQ( TU::getParam<std::vector<int>>("Zoo.MagicSequence"), intExpected);
-    	std::vector<double> floatExpected = {1.23,1.45,1.67,2.122,2.09,4.67,8.8901};
-    	EXPECT_EQ( TU::getParam<std::vector<double>>("Zoo.FloatMagicSequence"), floatExpected);
-	}
+    {
+        EXPECT_EQ(params.get<int>("Global.timeout"), 0);
+        EXPECT_EQ(params.get<std::string>("Global.solver"), "cplex");
+        EXPECT_EQ(params.get<double>("Zoo.MagicValue"), 3.1415);
+        EXPECT_EQ(params.get<bool>("Zoo.LionShowAvailable"), true);
+        std::vector<int> intExpected = {1,1,1,2,2,4,8};
+        EXPECT_EQ(params.get<std::vector<int>>("Zoo.MagicSequence"), intExpected);
+        std::vector<double> floatExpected = {1.23,1.45,1.67,2.122,2.09,4.67,8.8901};
+        EXPECT_EQ(params.get<std::vector<double>>("Zoo.FloatMagicSequence"), floatExpected);
+    }
 
-	{
-		//Redundant definitions are allowed
-    	TU::addParamsConfig( TEST_PARAMDEF );
-    	EXPECT_EQ( TU::getParam<int>("Global.timeout"), 0 );
-    	EXPECT_EQ( TU::getParam<std::string>("Global.solver"), "cplex" );
-    	EXPECT_EQ( TU::getParam<double>("Zoo.MagicValue"), 3.1415 );
-    	EXPECT_EQ( TU::getParam<bool>("Zoo.LionShowAvailable"), true );
-    	std::vector<int> intExpected = {1,1,1,2,2,4,8};
-    	EXPECT_EQ( TU::getParam<std::vector<int>>("Zoo.MagicSequence"), intExpected);
-    	std::vector<double> floatExpected = {1.23,1.45,1.67,2.122,2.09,4.67,8.8901};
-    	EXPECT_EQ( TU::getParam<std::vector<double>>("Zoo.FloatMagicSequence"), floatExpected);
-	}
+    {
+        //Redundant definitions are allowed
+        params.defineParams(TEST_PARAMDEF);
+        EXPECT_EQ(params.get<int>("Global.timeout"), 0);
+        EXPECT_EQ(params.get<std::string>("Global.solver"), "cplex");
+        EXPECT_EQ(params.get<double>("Zoo.MagicValue"), 3.1415);
+        EXPECT_EQ(params.get<bool>("Zoo.LionShowAvailable"), true);
+        std::vector<int> intExpected = {1,1,1,2,2,4,8};
+        EXPECT_EQ(params.get<std::vector<int>>("Zoo.MagicSequence"), intExpected);
+        std::vector<double> floatExpected = {1.23,1.45,1.67,2.122,2.09,4.67,8.8901};
+        EXPECT_EQ(params.get<std::vector<double>>("Zoo.FloatMagicSequence"), floatExpected);
+    }
+}
 
-	TU::clearParams();
+TEST(TUBULParams, helpTexts) {
+    TU::ParamStorage params;
+    params.defineParams(TEST_PARAMDEF);
+
+    const auto& helpTexts = params.getHelpTexts();
+    EXPECT_EQ(helpTexts.size(), 6);
+    EXPECT_EQ(helpTexts.at("global.timeout"), "max number of seconds for full execution. 0=unlimited");
+    EXPECT_EQ(helpTexts.at("zoo.lionshowavailable"), "Signals if we can watch the lion's show");
+
+    //A param without description gets an empty help text
+    params.defineParams(R"###({"Extra": [{"name": "undocumented"}]})###");
+    EXPECT_EQ(params.getHelpTexts().at("extra.undocumented"), "");
+
+    //clear() also clears the help texts
+    params.clear();
+    EXPECT_TRUE(params.getHelpTexts().empty());
 }
 
 TEST(TUBULParams, settingParams) {
-    //Configure params
-    TU::addParamsConfig( TEST_PARAMDEF );
+    TU::ParamStorage params;
+    params.defineParams(TEST_PARAMDEF);
 
-    //Be careful of the types passed to old/new value!! I wrote this to avoid repeating
-    //the same lines, but it can be misleading if you make an error regarding the types.
     auto paramUpdateChecker = [&](const std::string& name, auto oldValue, auto newValue){
         using paramType = decltype(oldValue);
-        EXPECT_EQ( TU::getParam<paramType>(name), oldValue );
-        TU::setParam(name, newValue);
-        EXPECT_NE( TU::getParam<paramType>(name), oldValue );
-        EXPECT_EQ( TU::getParam<paramType>(name), newValue);
+        EXPECT_EQ(params.get<paramType>(name), oldValue);
+        params.set(name, newValue);
+        EXPECT_NE(params.get<paramType>(name), oldValue);
+        EXPECT_EQ(params.get<paramType>(name), newValue);
     };
 
-    //Integer setting and querying
     paramUpdateChecker("Global.timeout", 0, 42);
-    //Floating point setting and querying
     paramUpdateChecker("Zoo.MagicValue", 3.1415, 2.7182818);
-    //Boolean
     paramUpdateChecker("Zoo.LionShowAvailable", true, false);
-    //String
-    paramUpdateChecker("Global.solver",std::string("cplex"), std::string("abacus"));
-    //Int list
+    paramUpdateChecker("Global.solver", std::string("cplex"), std::string("abacus"));
     std::vector<int> intExpectedDefault = {1,1,1,2,2,4,8};
-    std::vector<int> IntExpectedNew = {1,1,2,3,5,8,13};
-    paramUpdateChecker("Zoo.MagicSequence", intExpectedDefault, IntExpectedNew );
-    //Float list
+    std::vector<int> intExpectedNew = {1,1,2,3,5,8,13};
+    paramUpdateChecker("Zoo.MagicSequence", intExpectedDefault, intExpectedNew);
     std::vector<double> floatExpectedDefault = {1.23,1.45,1.67,2.122,2.09,4.67,8.8901};
     std::vector<double> floatExpectedNew = {1.12,1.031,2.56,3.1,5.907,8.2,13.34};
     paramUpdateChecker("Zoo.FloatMagicSequence", floatExpectedDefault, floatExpectedNew);
-
-	TU::clearParams();
 }
 
-
 TEST(TUBULParams, pushPopSingleParam) {
-    //Configure params
-    TU::addParamsConfig( TEST_PARAMDEF );
+    TU::ParamStorage params;
+    params.defineParams(TEST_PARAMDEF);
 
-    //Same concerns and lambda in previoous test
     auto paramPushPopChecker = [&](const std::string& name, auto oldValue, auto newValue){
         using paramType = decltype(oldValue);
-        EXPECT_EQ( TU::getParam<paramType>(name), oldValue );
-        TU::pushParam(name, newValue);
-        EXPECT_NE( TU::getParam<paramType>(name), oldValue );
-        EXPECT_EQ( TU::getParam<paramType>(name), newValue);
-        TU::popParam(name);
-        EXPECT_EQ( TU::getParam<paramType>(name), oldValue );
+        EXPECT_EQ(params.get<paramType>(name), oldValue);
+        params.push(name, newValue);
+        EXPECT_NE(params.get<paramType>(name), oldValue);
+        EXPECT_EQ(params.get<paramType>(name), newValue);
+        params.pop(name);
+        EXPECT_EQ(params.get<paramType>(name), oldValue);
     };
 
-    //Integer
     paramPushPopChecker("Global.timeout", 0, 42);
-    //Floating point setting and querying
     paramPushPopChecker("Zoo.MagicValue", 3.1415, 2.7182818);
-    //Boolean
     paramPushPopChecker("Zoo.LionShowAvailable", true, false);
-    //String
-    paramPushPopChecker("Global.solver",std::string("cplex"), std::string("abacus"));
-    //Int list
+    paramPushPopChecker("Global.solver", std::string("cplex"), std::string("abacus"));
     std::vector<int> intExpectedDefault = {1,1,1,2,2,4,8};
-    std::vector<int> IntExpectedNew = {1,1,2,3,5,8,13};
-    paramPushPopChecker("Zoo.MagicSequence", intExpectedDefault, IntExpectedNew );
-    //Float list
+    std::vector<int> intExpectedNew = {1,1,2,3,5,8,13};
+    paramPushPopChecker("Zoo.MagicSequence", intExpectedDefault, intExpectedNew);
     std::vector<double> floatExpectedDefault = {1.23,1.45,1.67,2.122,2.09,4.67,8.8901};
     std::vector<double> floatExpectedNew = {1.12,1.031,2.56,3.1,5.907,8.2,13.34};
     paramPushPopChecker("Zoo.FloatMagicSequence", floatExpectedDefault, floatExpectedNew);
-
-	TU::clearParams();
 }
 
 TEST(TUBULParams, pushSingleParamPopSeveral) {
-    //Configure params
-    TU::addParamsConfig( TEST_PARAMDEF );
+    TU::ParamStorage params;
+    params.defineParams(TEST_PARAMDEF);
 
-    //Check the default values.
     {
-        EXPECT_EQ( TU::getParam<int>("Global.timeout"), 0 );
-        EXPECT_EQ( TU::getParam<std::string>("Global.solver"), "cplex" );
-        EXPECT_EQ( TU::getParam<double>("Zoo.MagicValue"), 3.1415 );
-        EXPECT_EQ( TU::getParam<bool>("Zoo.LionShowAvailable"), true );
+        EXPECT_EQ(params.get<int>("Global.timeout"), 0);
+        EXPECT_EQ(params.get<std::string>("Global.solver"), "cplex");
+        EXPECT_EQ(params.get<double>("Zoo.MagicValue"), 3.1415);
+        EXPECT_EQ(params.get<bool>("Zoo.LionShowAvailable"), true);
         std::vector<int> intExpected = {1,1,1,2,2,4,8};
-        EXPECT_EQ( TU::getParam<std::vector<int>>("Zoo.MagicSequence"), intExpected);
+        EXPECT_EQ(params.get<std::vector<int>>("Zoo.MagicSequence"), intExpected);
         std::vector<double> floatExpected = {1.23,1.45,1.67,2.122,2.09,4.67,8.8901};
-        EXPECT_EQ( TU::getParam<std::vector<double>>("Zoo.FloatMagicSequence"), floatExpected);
+        EXPECT_EQ(params.get<std::vector<double>>("Zoo.FloatMagicSequence"), floatExpected);
     }
     {
         std::stringstream dump;
-        TU::dumpParams(dump);
+        dump << params.printCurrentValues();
         std::cout << dump.str();
     }
-    //Push some values
     {
-        TU::pushParam("Global.timeout", 42);
-        TU::pushParam("Global.solver", "juanin");
-        TU::pushParam("Zoo.MagicValue", 1.6180);
-        TU::pushParam("Zoo.LionShowAvailable", false );
+        params.push("Global.timeout", 42);
+        params.push("Global.solver", "juanin");
+        params.push("Zoo.MagicValue", 1.6180);
+        params.push("Zoo.LionShowAvailable", false);
         std::vector<int> newIntSeq = {2,4,6,8,10};
-        TU::pushParam("Zoo.MagicSequence", newIntSeq);
+        params.push("Zoo.MagicSequence", newIntSeq);
         std::vector<double> newFloatSeq = {2.1,4.12,6.123,8.1234,10.12345};
-        TU::pushParam("Zoo.FloatMagicSequence", newFloatSeq);
+        params.push("Zoo.FloatMagicSequence", newFloatSeq);
     }
-    //Check the pushed values just in case
     {
-        EXPECT_EQ(TU::getParam<int>("Global.timeout"), 42);
-        EXPECT_EQ(TU::getParam<std::string>("Global.solver"), "juanin");
-        EXPECT_EQ(TU::getParam<double>("Zoo.MagicValue"), 1.6180);
-        EXPECT_EQ(TU::getParam<bool>("Zoo.LionShowAvailable"), false);
-        std::vector<int> newIntSeq= {2,4,6,8,10};
-        EXPECT_EQ(TU::getParam<std::vector<int>>("Zoo.MagicSequence"), newIntSeq);
+        EXPECT_EQ(params.get<int>("Global.timeout"), 42);
+        EXPECT_EQ(params.get<std::string>("Global.solver"), "juanin");
+        EXPECT_EQ(params.get<double>("Zoo.MagicValue"), 1.6180);
+        EXPECT_EQ(params.get<bool>("Zoo.LionShowAvailable"), false);
+        std::vector<int> newIntSeq = {2,4,6,8,10};
+        EXPECT_EQ(params.get<std::vector<int>>("Zoo.MagicSequence"), newIntSeq);
         std::vector<double> newFloatSeq = {2.1,4.12,6.123,8.1234,10.12345};
-        EXPECT_EQ(TU::getParam<std::vector<double>>("Zoo.FloatMagicSequence"), newFloatSeq);
+        EXPECT_EQ(params.get<std::vector<double>>("Zoo.FloatMagicSequence"), newFloatSeq);
     }
     {
         std::stringstream dump;
-        TU::dumpParams(dump);
-        TU::dumpAllParams(dump);
+        dump << params.printCurrentValues();
+        dump << params.printAllValues();
         std::cout << dump.str();
     }
-    //Pop several params
     std::vector<std::string> keysToPop = {"Global.timeout",
                                           "Global.solver",
                                           "Zoo.MagicValue",
                                           "Zoo.LionShowAvailable",
                                           "Zoo.MagicSequence",
                                           "Zoo.FloatMagicSequence"};
-    TU::popParams(keysToPop);
-    //Check the params returned to normal
+    params.pop(keysToPop);
     {
-        EXPECT_EQ( TU::getParam<int>("Global.timeout"), 0 );
-        EXPECT_EQ( TU::getParam<std::string>("Global.solver"), "cplex" );
-        EXPECT_EQ( TU::getParam<double>("Zoo.MagicValue"), 3.1415 );
-        EXPECT_EQ( TU::getParam<bool>("Zoo.LionShowAvailable"), true );
+        EXPECT_EQ(params.get<int>("Global.timeout"), 0);
+        EXPECT_EQ(params.get<std::string>("Global.solver"), "cplex");
+        EXPECT_EQ(params.get<double>("Zoo.MagicValue"), 3.1415);
+        EXPECT_EQ(params.get<bool>("Zoo.LionShowAvailable"), true);
         std::vector<int> intExpected = {1,1,1,2,2,4,8};
-        EXPECT_EQ( TU::getParam<std::vector<int>>("Zoo.MagicSequence"), intExpected);
+        EXPECT_EQ(params.get<std::vector<int>>("Zoo.MagicSequence"), intExpected);
         std::vector<double> floatExpected = {1.23,1.45,1.67,2.122,2.09,4.67,8.8901};
-        EXPECT_EQ( TU::getParam<std::vector<double>>("Zoo.FloatMagicSequence"), floatExpected);
+        EXPECT_EQ(params.get<std::vector<double>>("Zoo.FloatMagicSequence"), floatExpected);
     }
-
-	TU::clearParams();
 }
 
 TEST(TUBULParams, readFromIniFile) {
-    //Configure params
+    TU::ParamStorage params;
     std::string iniFileName = "test_file.ini";
-    TU::addParamsConfig( TEST_PARAMDEF );
+    params.defineParams(TEST_PARAMDEF);
     {
         std::ofstream iniFile(iniFileName);
         iniFile << TEST_INIFILE;
     }
 
-    //Loading ini file that contains several keys.
-    TU::loadParams(iniFileName);
+    params.loadParamsFile(iniFileName);
 
-    //The keys should be what the file said.
-    EXPECT_EQ( TU::getParam<int>("Global.timeout"), 21 );
-    EXPECT_EQ( TU::getParam<std::string>("Global.solver"), "Gurobi" );
-    EXPECT_EQ( TU::getParam<double>("Zoo.MagicValue"), 420 );
-    EXPECT_EQ( TU::getParam<bool>("Zoo.LionShowAvailable"), false );
+    EXPECT_EQ(params.get<int>("Global.timeout"), 21);
+    EXPECT_EQ(params.get<std::string>("Global.solver"), "Gurobi");
+    EXPECT_EQ(params.get<double>("Zoo.MagicValue"), 420);
+    EXPECT_EQ(params.get<bool>("Zoo.LionShowAvailable"), false);
     std::vector<int> intExpected = {30,10,50,120,70};
-    EXPECT_EQ( TU::getParam<std::vector<int>>("Zoo.MagicSequence"), intExpected);
-    std::vector<double> floatExpected = {30.31,10.21,50.46,120.87,70.13}; 
-    EXPECT_EQ( TU::getParam<std::vector<double>>("Zoo.FloatMagicSequence"), floatExpected);
-
-	TU::clearParams();
+    EXPECT_EQ(params.get<std::vector<int>>("Zoo.MagicSequence"), intExpected);
+    std::vector<double> floatExpected = {30.31,10.21,50.46,120.87,70.13};
+    EXPECT_EQ(params.get<std::vector<double>>("Zoo.FloatMagicSequence"), floatExpected);
 }
 
 TEST(TUBULParams, readFromIniString) {
-    TU::addParamsConfig( TEST_PARAMDEF );
-    //Loading ini data from string that contains several keys.
-    TU::loadParamsString(TEST_INIFILE);
+    TU::ParamStorage params;
+    params.defineParams(TEST_PARAMDEF);
+    params.loadParamsString(TEST_INIFILE);
 
-    //The keys should be what the file said.
-    EXPECT_EQ( TU::getParam<int>("Global.timeout"), 21 );
-    EXPECT_EQ( TU::getParam<std::string>("Global.solver"), "Gurobi" );
-    EXPECT_EQ( TU::getParam<double>("Zoo.MagicValue"), 420 );
-    EXPECT_EQ( TU::getParam<bool>("Zoo.LionShowAvailable"), false );
+    EXPECT_EQ(params.get<int>("Global.timeout"), 21);
+    EXPECT_EQ(params.get<std::string>("Global.solver"), "Gurobi");
+    EXPECT_EQ(params.get<double>("Zoo.MagicValue"), 420);
+    EXPECT_EQ(params.get<bool>("Zoo.LionShowAvailable"), false);
     std::vector<int> intExpected = {30,10,50,120,70};
-    EXPECT_EQ( TU::getParam<std::vector<int>>("Zoo.MagicSequence"), intExpected);
+    EXPECT_EQ(params.get<std::vector<int>>("Zoo.MagicSequence"), intExpected);
     std::vector<double> floatExpected = {30.31,10.21,50.46,120.87,70.13};
-    EXPECT_EQ( TU::getParam<std::vector<double>>("Zoo.FloatMagicSequence"), floatExpected);
-
-	TU::clearParams();
+    EXPECT_EQ(params.get<std::vector<double>>("Zoo.FloatMagicSequence"), floatExpected);
 }
 
 TEST(TUBULParams, usingDefault)
 {
-	TU::addParamsConfig( TEST_PARAMDEF );
+    TU::ParamStorage params;
+    params.defineParams(TEST_PARAMDEF);
 
-	// all params should be using their defaults values initially
-	EXPECT_EQ( TU::usingDefault("Global.timeout"), true );
-	EXPECT_EQ( TU::usingDefault("Global.solver"), true );
-	EXPECT_EQ( TU::usingDefault("Zoo.LionShowAvailable"), true );
-	EXPECT_EQ( TU::usingDefault("Zoo.MagicValue"), true );
-	EXPECT_EQ( TU::usingDefault("Zoo.MagicSequence"), true);
-	EXPECT_EQ( TU::usingDefault("Zoo.FloatMagicSequence"), true);
+    EXPECT_EQ(params.usingDefault("Global.timeout"), true);
+    EXPECT_EQ(params.usingDefault("Global.solver"), true);
+    EXPECT_EQ(params.usingDefault("Zoo.LionShowAvailable"), true);
+    EXPECT_EQ(params.usingDefault("Zoo.MagicValue"), true);
+    EXPECT_EQ(params.usingDefault("Zoo.MagicSequence"), true);
+    EXPECT_EQ(params.usingDefault("Zoo.FloatMagicSequence"), true);
 
-	TU::setParam("Global.timeout", 2);
-	TU::setParam("Global.solver", "gurobi");
-	TU::setParam("Zoo.LionShowAvailable", false);
-	TU::setParam("Zoo.MagicValue", 3.14);
-	std::vector<int> newInt = {1, 2, 3, 4, 5};
-	TU::setParam("Zoo.MagicSequence", newInt);
-	std::vector<double> newFloat = {0.2, 0.33, 0.56, 0.82, 0.97};
-	TU::setParam("Zoo.FloatMagicSequence", newFloat);
+    params.set("Global.timeout", 2);
+    params.set("Global.solver", std::string("gurobi"));
+    params.set("Zoo.LionShowAvailable", false);
+    params.set("Zoo.MagicValue", 3.14);
+    std::vector<int> newInt = {1, 2, 3, 4, 5};
+    params.set("Zoo.MagicSequence", newInt);
+    std::vector<double> newFloat = {0.2, 0.33, 0.56, 0.82, 0.97};
+    params.set("Zoo.FloatMagicSequence", newFloat);
 
-	// the default-defined value of a params doesnt change with the parameter
-	EXPECT_EQ( TU::getDefault<int>("Global.timeout"), 0);
-	EXPECT_EQ( TU::getDefault<std::string>("Global.solver"), "cplex" );
-	EXPECT_EQ( TU::getDefault<bool>("Zoo.LionShowAvailable"), true );
-	EXPECT_EQ( TU::getDefault<double>("Zoo.MagicValue"), 3.1415 );
-	std::vector<int> intExpected = {1,1,1,2,2,4,8};
-	EXPECT_EQ( TU::getDefault<std::vector<int>>("Zoo.MagicSequence"), intExpected );
-	std::vector<double> floatExpected = {1.23,1.45,1.67,2.122,2.09,4.67,8.8901};
-	EXPECT_EQ( TU::getDefault<std::vector<double>>("Zoo.FloatMagicSequence"), floatExpected );
-
-	TU::clearParams();
+    EXPECT_EQ(params.getDefault<int>("Global.timeout"), 0);
+    EXPECT_EQ(params.getDefault<std::string>("Global.solver"), "cplex");
+    EXPECT_EQ(params.getDefault<bool>("Zoo.LionShowAvailable"), true);
+    EXPECT_EQ(params.getDefault<double>("Zoo.MagicValue"), 3.1415);
+    std::vector<int> intExpected = {1,1,1,2,2,4,8};
+    EXPECT_EQ(params.getDefault<std::vector<int>>("Zoo.MagicSequence"), intExpected);
+    std::vector<double> floatExpected = {1.23,1.45,1.67,2.122,2.09,4.67,8.8901};
+    EXPECT_EQ(params.getDefault<std::vector<double>>("Zoo.FloatMagicSequence"), floatExpected);
 }
 
 TEST(TUBULParams, multipleConfigs)
 {
-	TU::addParamsConfig( TEST_PARAMDEF );
-	TU::addParamsConfig( OTHER_TEST_PARAMDEF);
+    TU::ParamStorage params;
+    params.defineParams(TEST_PARAMDEF);
+    params.defineParams(OTHER_TEST_PARAMDEF);
 
-	{
-		//Check the default values of the second params
-		EXPECT_EQ( TU::getParam<int>("Global.retries"), 5 );
-		EXPECT_EQ( TU::getParam<std::string>("Global.format"), "CSV" );
-		EXPECT_EQ( TU::getParam<bool>("Time.ran_out"), false );
-		EXPECT_EQ( TU::getParam<double>("Time.elapsed_time"), 0.0 );
-		std::vector<int> intExpected = {101,102,103,104,105};
-		EXPECT_EQ( TU::getParam<std::vector<int>>("Time.events"), intExpected);
-		std::vector<double> floatExpected = {0.35, 5.85, 12.6, 200.6, 30.2};
-		EXPECT_EQ( TU::getParam<std::vector<double>>("Time.events_times"), floatExpected);
-	}
+    {
+        EXPECT_EQ(params.get<int>("Global.retries"), 5);
+        EXPECT_EQ(params.get<std::string>("Global.format"), "CSV");
+        EXPECT_EQ(params.get<bool>("Time.ran_out"), false);
+        EXPECT_EQ(params.get<double>("Time.elapsed_time"), 0.0);
+        std::vector<int> intExpected = {101,102,103,104,105};
+        EXPECT_EQ(params.get<std::vector<int>>("Time.events"), intExpected);
+        std::vector<double> floatExpected = {0.35, 5.85, 12.6, 200.6, 30.2};
+        EXPECT_EQ(params.get<std::vector<double>>("Time.events_times"), floatExpected);
+    }
 
-	{
-		//Check that the other values are still there.
-		EXPECT_EQ( TU::getParam<int>("Global.timeout"), 0 );
-		EXPECT_EQ( TU::getParam<std::string>("Global.solver"), "cplex" );
-		EXPECT_EQ( TU::getParam<double>("Zoo.MagicValue"), 3.1415 );
-		EXPECT_EQ( TU::getParam<bool>("Zoo.LionShowAvailable"), true );
-		std::vector<int> intExpected = {1,1,1,2,2,4,8};
-		EXPECT_EQ( TU::getParam<std::vector<int>>("Zoo.MagicSequence"), intExpected);
-		std::vector<double> floatExpected = {1.23,1.45,1.67,2.122,2.09,4.67,8.8901};
-		EXPECT_EQ( TU::getParam<std::vector<double>>("Zoo.FloatMagicSequence"), floatExpected);
-	}
+    {
+        EXPECT_EQ(params.get<int>("Global.timeout"), 0);
+        EXPECT_EQ(params.get<std::string>("Global.solver"), "cplex");
+        EXPECT_EQ(params.get<double>("Zoo.MagicValue"), 3.1415);
+        EXPECT_EQ(params.get<bool>("Zoo.LionShowAvailable"), true);
+        std::vector<int> intExpected = {1,1,1,2,2,4,8};
+        EXPECT_EQ(params.get<std::vector<int>>("Zoo.MagicSequence"), intExpected);
+        std::vector<double> floatExpected = {1.23,1.45,1.67,2.122,2.09,4.67,8.8901};
+        EXPECT_EQ(params.get<std::vector<double>>("Zoo.FloatMagicSequence"), floatExpected);
+    }
+}
 
-	TU::clearParams();
+TEST(TUBULParams, stringViewKeys)
+{
+    TU::ParamStorage params;
+    params.defineParams(TEST_PARAMDEF);
+
+    //All key-taking methods should accept string_views directly.
+    std::string_view timeoutKey("Global.timeout");
+    std::string_view solverKey("Global.solver");
+
+    EXPECT_EQ(params.get<int>(timeoutKey), 0);
+    EXPECT_TRUE(params.usingDefault(timeoutKey));
+
+    params.set(timeoutKey, 42);
+    EXPECT_EQ(params.get<int>(timeoutKey), 42);
+    EXPECT_FALSE(params.usingDefault(timeoutKey));
+    EXPECT_EQ(params.getDefault<int>(timeoutKey), 0);
+
+    //Setting a string param from a string_view value (uses the dedicated overload).
+    std::string_view solverValue("gurobi");
+    params.set(solverKey, solverValue);
+    EXPECT_EQ(params.get<std::string>(solverKey), "gurobi");
+
+    //String literals keep working and still land on the std::string alternative.
+    params.set(solverKey, "coin");
+    EXPECT_EQ(params.get<std::string>(solverKey), "coin");
+
+    params.push(timeoutKey, 100);
+    EXPECT_EQ(params.get<int>(timeoutKey), 100);
+    params.pop("Global.timeout");
+    EXPECT_EQ(params.get<int>(timeoutKey), 42);
+
+    params.setFromString(std::string_view("global.timeout"), std::string_view("7"));
+    EXPECT_EQ(params.get<int>(timeoutKey), 7);
 }
