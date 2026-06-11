@@ -249,15 +249,17 @@ void ParamStorage::loadParamsString(const std::string& content)
 }
 
 
-void ParamStorage::setFromString(std::string_view key, std::string_view value)
+void ParamStorage::setFromString(std::string_view inKey, std::string_view value)
 {
 	// try to convert value to the type defined on paramdef
 	static const std::set<std::string, std::less<>> validTrue = {"yes", "true", "True", "1"};
 
+	// keys are stored lowercased (see defineParamsImpl), so lookups must match
+	std::string key = tolower(inKey);
 	auto paramType_it = m_paramType.find(key);
 
 	if (paramType_it == m_paramType.end())
-		throw std::runtime_error("Trying to set an unknown key: " + std::string(key));
+		throw std::runtime_error("Trying to set an unknown key: " + std::string(inKey));
 
 	switch(paramType_it->second)
 	{
