@@ -399,3 +399,48 @@ TEST(TUBULParams, stringViewKeys)
     params.setFromString(std::string_view("global.timeout"), std::string_view("7"));
     EXPECT_EQ(params.get<int>(timeoutKey), 7);
 }
+
+TEST(TUBULParams, caseInsensitiveKeys)
+{
+    TU::ParamStorage params;
+    params.defineParams(TEST_PARAMDEF);
+
+    //Definitions are stored lowercased (see defineParamsImpl), so every
+    //key-taking method must treat keys case-insensitively. Each call below
+    //uses non-canonical casing and is read back with yet another casing to
+    //confirm they all address the same parameter. The INI loaders mask bugs
+    //here because INIReader pre-lowercases keys; these hit the methods directly.
+
+    // get / getDefault / usingDefault
+    EXPECT_EQ(params.get<int>("GLOBAL.TIMEOUT"), 0);
+    EXPECT_EQ(params.getDefault<std::string>("global.SOLVER"), "cplex");
+    EXPECT_TRUE(params.usingDefault("Global.Timeout"));
+
+    // set (typed overload)
+    params.set("Global.TIMEOUT", 42);
+    EXPECT_EQ(params.get<int>("global.timeout"), 42);
+    EXPECT_FALSE(params.usingDefault("GLOBAL.timeout"));
+
+    // set (string_view value overload)
+    params.set("GLOBAL.solver", std::string_view("gurobi"));
+    EXPECT_EQ(params.get<std::string>("global.SOLVER"), "gurobi");
+
+    // setFromString (the direct path that was missing tolower)
+    params.setFromString("Global.TimeOut", "7");
+    EXPECT_EQ(params.get<int>("global.timeout"), 7);
+
+    // push / pop (single key)
+    params.push("GLOBAL.TIMEOUT", 100);
+    EXPECT_EQ(params.get<int>("global.timeout"), 100);
+    params.pop("global.TIMEOUT");
+    EXPECT_EQ(params.get<int>("Global.Timeout"), 7);
+
+    // pop (vector overload)
+    params.push("Zoo.MAGICVALUE", 2.71);
+    params.push("GLOBAL.Solver", std::string("coin"));
+    EXPECT_EQ(params.get<double>("zoo.magicvalue"), 2.71);
+    EXPECT_EQ(params.get<std::string>("global.solver"), "coin");
+    params.pop(std::vector<std::string> { "ZOO.MagicValue", "Global.SOLVER" });
+    EXPECT_EQ(params.get<double>("Zoo.MagicValue"), 3.1415);
+    EXPECT_EQ(params.get<std::string>("Global.solver"), "gurobi");
+}
