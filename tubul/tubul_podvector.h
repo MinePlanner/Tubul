@@ -143,18 +143,17 @@ public:
         if (new_size > capacity_) grow(next_capacity(new_size));
         if (new_size > size_) {
             T* p = data();
+            size_t count = new_size - size_;
             // memset works cast internally to unsigned char (1 byte), so it may not work with 
             // some values of the type. it could work with 0, but not with 5
             // memcpmp returns 0 if there is no difference between the casting of unsigned char of both values
             static const T kZero{};
             if (std::memcmp(&fill_value, &kZero, sizeof(T)) == 0) {
-                std::memset(p + size_, 0, (new_size - size_) * sizeof(T));
+                std::memset(p + size_, 0, count * sizeof(T));
             }
             else {
-                for (size_t i = size_; i < new_size; i++) 
-                    p[i] = fill_value;
+                std::fill_n(p + size_, count, fill_value);
             }
-            
         }
         size_ = new_size;
     }
@@ -175,6 +174,68 @@ public:
             *this = std::move(other);
             other = std::move(tmp);
         }
+    }
+
+    iterator insert(const_iterator pos, const T& value) {
+        size_type index = pos - begin();
+        if (index > size_) throw std::out_of_range("PODVector::insert: pos fuera de rango");
+
+        // copy value before growing
+        T tmp = value;
+        if (size_ == capacity_) grow(next_capacity(capacity_ + 1));
+
+        T* p = data();
+        if (index < size_) {
+            std::memmove(p + index + 1, p + index, (size_ - index) * sizeof(T));
+        }
+        p[index] = tmp;
+        ++size_;
+        return p + index;
+    }
+
+    iterator insert(const_iterator pos, size_type count, const T& value) {
+        size_type index = static_cast<size_type>(pos - begin());
+        if (index > size_) throw std::out_of_range("PODVector::insert: pos fuera de rango");
+        if (count == 0) return begin() + index;
+
+
+        T tmp = value; // misma razón que arriba
+
+        if (size_ + count > capacity_) grow(next_capacity(size_ + count));
+
+        T* p = data();
+        if (index < size_) {
+            std::memmove(p + index + count, p + index, (size_ - index) * sizeof(T));
+        }
+        std::fill_n(p + index, count, tmp);
+        size_ += count;
+        return p + index;
+    }
+
+    template <typename InputIt>
+    iterator insert(const_iterator pos, InputIt first, InputIt last) {
+        size_type index = static_cast<size_type>(pos - begin());
+        size_type count  = static_cast<size_type>(std::distance(first, last));
+        
+        if (index > size_) throw std::out_of_range("PODVector::insert: pos fuera de rango");
+        
+        if (count == 0) return begin() + index;
+
+        if (size_ + count > capacity_) grow(next_capacity(size_ + count));
+
+        T* p = data();
+        if (index < size_) {
+            std::memmove(p + index + count, p + index, (size_ - index) * sizeof(T));
+        }
+        for(size_type i = 0; i < count; ++i, ++first) {
+            p[index + i] = *first;
+        }
+        size_ += count;
+        return p + index;
+    }
+
+    iterator insert(const_iterator pos, std::initializer_list<T> ilist) {
+        return insert(pos, ilist.begin(), ilist.end());
     }
 
 
