@@ -37,3 +37,4 @@
 #include "tubul_enumerate.h"
 #include "tubul_mem_utils.h"
 #include "tubul_podvector.h"
+#include "tubul_smallvector.h"

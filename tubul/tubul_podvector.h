@@ -14,17 +14,14 @@
 #include <utility>              // std::swap
 #include <algorithm>            // fill_n
 #include <new>                  // std::bad_alloc
-#include <iterator>             // std::distance 
+#include <iterator>             // std::distance
 
 
 namespace TU {
-template <typename T, std::size_t N>
+template <typename T>
 struct PODVector{
     static_assert(std::is_trivially_copyable<T>::value, 
-        "PODVector<T, N> requires T to be trivially copyable type."
-    );
-    static_assert(N > 0, 
-        "N must be greater than 0."
+        "PODVector<T> requires T to be trivially copyable type."
     );
 
 public:
@@ -36,12 +33,8 @@ public:
     using const_iterator = const T*;
 
     // Commons
-    bool is_small() const {
-        return capacity_ <= N;
-    }
-
     bool empty() const { return size_ == 0; }
-    
+
     size_type size() const { return size_; }
     
     size_type capacity() const { return capacity_; }
@@ -52,7 +45,7 @@ public:
     }
 
     // Construction
-    PODVector() : size_(0), capacity_(N) {}
+    PODVector() : size_(0), capacity_(0), ptr_(nullptr) {}
 
     explicit PODVector(size_type count, const T& value = T()) : PODVector() {
         resize(count, value);
@@ -85,24 +78,20 @@ public:
 
     PODVector& operator=(PODVector&& other) noexcept {
         if (this == &other) return *this;
-        free_heap();
+    	std::free(ptr_);
         move_from(other);
         return *this;
     }
 
     // Destruction
     ~PODVector() { 
-        free_heap(); 
+    	std::free(ptr_);
     }
 
 
     // Element access
-    T* data() {
-        return is_small()? stackbuf_ : heapbuf_.ptr;
-    }
-    const T* data() const {
-        return is_small()? stackbuf_ : heapbuf_.ptr;
-    }
+    T* data() { return ptr_; }
+    const T* data() const { return ptr_; }
 
     reference operator[](size_type i) { return data()[i]; }
     const_reference operator[](size_type i) const { return data()[i]; }
@@ -136,7 +125,7 @@ public:
     void push_back(const T& value) {
         T tmp = value;
         if (size_ == capacity_) grow(next_capacity(capacity_ + 1));
-        data()[size_++] = tmp;   
+        data()[size_++] = tmp;
     }
 
     void pop_back() noexcept {
@@ -146,29 +135,16 @@ public:
     void resize(size_type new_size, const T& fill_value = T()) {
         if (new_size > capacity_) grow(next_capacity(new_size));
         if (new_size > size_) {
-            T* p = data();
             size_t count = new_size - size_;
-            std::fill_n(p + size_, count, fill_value);
+            std::fill_n(data() + size_, count, fill_value);
         }
         size_ = new_size;
     }
 
     void swap(PODVector& other) noexcept {
-        if (is_small() && other.is_small()) {
-            T tmp_buf[N];
-            std::memcpy(tmp_buf, stackbuf_, size_ * sizeof(T));
-            std::memcpy(stackbuf_, other.stackbuf_, other.size_ * sizeof(T));
-            std::memcpy(other.stackbuf_, tmp_buf, size_ * sizeof(T));
-            std::swap(size_, other.size_);
-        } else if (!is_small() && !other.is_small()) {
-            std::swap(heapbuf_.ptr, other.heapbuf_.ptr);
-            std::swap(size_, other.size_);
-            std::swap(capacity_, other.capacity_);
-        } else {
-            PODVector tmp(std::move(*this));
-            *this = std::move(other);
-            other = std::move(tmp);
-        }
+        std::swap(ptr_, other.ptr_);
+        std::swap(size_, other.size_);
+        std::swap(capacity_, other.capacity_);
     }
 
     iterator insert(const_iterator pos, const T& value) {
@@ -212,9 +188,9 @@ public:
     iterator insert(const_iterator pos, InputIt first, InputIt last) {
         size_type index = static_cast<size_type>(pos - begin());
         size_type count  = static_cast<size_type>(std::distance(first, last));
-        
+
         if (index > size_) throw std::out_of_range("PODVector::insert: pos out of range");
-        
+
         if (count == 0) return begin() + index;
 
         if (size_ + count > capacity_) grow(size_ + count);
@@ -238,12 +214,7 @@ public:
 private:
     size_t size_;
     size_t capacity_;
-    union {
-        struct {
-            T *ptr;
-        } heapbuf_;
-        T stackbuf_[N];
-    };
+	T* ptr_;
 
     size_type next_capacity(size_type min_required) const {
         size_type grown = capacity_ + capacity_ / 2;
@@ -251,40 +222,22 @@ private:
     }
 
     void grow(size_type new_cap) {
-        if (is_small()) {
-            T* new_data = static_cast<T*>(std::malloc(new_cap * sizeof(T)));
-            if (!new_data) throw std::bad_alloc();
-            // Reallocate the memory to the heapbuffer from the stackbuffer
-            std::memcpy(new_data, stackbuf_, size_ * sizeof(T));
-            heapbuf_.ptr = new_data;
-        }
-        else {
-            T* new_data = static_cast<T*>(std::realloc(heapbuf_.ptr, new_cap * sizeof(T)));
-            if (!new_data) throw std::bad_alloc();
-            // Change the pointer
-            heapbuf_.ptr = new_data;
-        }
+        T* new_data = static_cast<T*>(std::realloc(ptr_, new_cap * sizeof(T)));
+        if (!new_data) throw std::bad_alloc();
+        // Change the pointer
+        ptr_ = new_data;
         capacity_ = new_cap;
     }
 
-    void free_heap() {
-        if (!is_small()) std::free(heapbuf_.ptr);
-    }
-
     void move_from(PODVector& other) noexcept {
-        if (other.is_small()) {
-            std::memcpy(stackbuf_, other.stackbuf_, other.size_ * sizeof(T));
-            capacity_ = N;
-        }
-        else {
-            heapbuf_.ptr = other.heapbuf_.ptr;
-            capacity_ = other.capacity_;
-        }
+        ptr_ = other.ptr_;
+        capacity_ = other.capacity_;
         size_ = other.size_;
 
-        // other vector as a small vector
+        // leave the other vector empty. don't free because the memory is now on this ptr.
+        other.ptr_ = nullptr;
         other.size_ = 0;
-        other.capacity_ = N;
+        other.capacity_ = 0;
     }
 };
 
