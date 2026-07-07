@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 #include "tubul.h"
+#include <vector>
 
 struct Point {
     int x, y;
@@ -168,7 +169,7 @@ TEST(PODVectorTest, IteratorsAndRanges) {
     EXPECT_EQ(*std::lower_bound(sorted_vec.begin(), sorted_vec.end(), 103), 105);
     
     // auto
-    vector<int> real_vector = {1, 100, 105, 200, 200, 300};
+    std::vector<int> real_vector = {1, 100, 105, 200, 200, 300};
     int ind = 0;
     for(auto& x : sorted_vec) 
         EXPECT_EQ(x, real_vector[ind++]);
