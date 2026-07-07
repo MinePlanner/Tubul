@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 #include "tubul.h"
 #include <vector>
+#include <ranges>
 
 struct Point {
     int x, y;
@@ -87,10 +88,11 @@ TEST(PODVectorTest, testPODVectorBasics) {
     point_vec.push_back({1, 2});
     point_vec.push_back({3, 4});
     point_vec.push_back({5, 6});   // it should grow
-    ASSERT_EQ(point_vec.size(), 3u);
+    ASSERT_EQ(point_vec.size(), 3);
     EXPECT_EQ(point_vec[0], (Point{1, 2}));
     EXPECT_EQ(point_vec[2], (Point{5, 6}));
-
+    // calcular el tamanho del sizeof. poder ver qeu el tamanho es el indicado.
+    // deberia ser del mismo tamanho el podvector<int, 4> que el podvector<point, 2>
 }
 
 
@@ -177,4 +179,58 @@ TEST(PODVectorTest, IteratorsAndRanges) {
 
     PODVector<int, 4> v{1, 2, 3};
     EXPECT_EQ((v.end() - v.begin()), v.size());
+
+    auto doublepodvec = sorted_vec | std::ranges::views::transform([](int x) { return 2 * x;});
+    ind = 0;
+    for(auto x: doublepodvec) EXPECT_EQ(2 * real_vector[ind++], x);
 }
+
+TEST(PODVectorTest, InsertElements) {
+    // Inserting at a random position, the begin and the end
+    {
+        PODVector<int, 4> v = {1, 2, 4, 5};
+        auto it = v.insert(v.begin() + 2, 3);
+        EXPECT_EQ(*it, 3);
+        EXPECT_EQ(v.size(), 5);
+
+        
+        auto it_begin = v.insert(v.begin(), 0);
+        EXPECT_EQ(*it_begin, 0);
+        EXPECT_EQ(v.front(), 0);
+
+        auto it_end = v.insert(v.end(), 6);
+        EXPECT_EQ(*it_end, 6);
+        EXPECT_EQ(v.back(), 6);
+
+        std::vector<int> expected = {0, 1, 2, 3, 4, 5, 6};
+        int ind = 0;
+        for(auto& x : v) EXPECT_EQ(x, expected[ind++]);
+    }
+    
+    // Checking growth and small condition
+    {
+        PODVector<int, 2> v = {1, 3};
+        EXPECT_TRUE(v.is_small());
+
+        v.insert(v.begin() + 1, 2);
+        EXPECT_FALSE(v.is_small());
+        EXPECT_EQ(v.size(), 3);
+        EXPECT_EQ(v[0], 1);
+        EXPECT_EQ(v[1], 2);
+        EXPECT_EQ(v[2], 3);
+    }
+    
+    // Inserting iterators
+    {
+        PODVector<int, 4> v = {1, 2, 6, 7};
+        std::vector<int> src = {3, 4, 5};
+
+        auto it = v.insert(v.begin() + 2, src.begin(), src.end());
+        EXPECT_EQ(*it, 3);
+        EXPECT_EQ(v.size(), 7);
+        std::vector<int> expected = {1, 2, 3, 4, 5, 6, 7};
+        int ind = 0;
+        for(auto& x : v) EXPECT_EQ(x, expected[ind++]);
+    }
+}
+
