@@ -134,6 +134,40 @@ TEST(TUBULContainers, testFlatMapConstructorList) {
     }
 }
 
+TEST(TUBULContainers, testFlatMapFind) {
+    std::vector<std::pair<int, int>> sample = { {1, 2}, {2, 4}, {3, 6}, {4, 8}, {5, 10} };
+    TU::FlatMap<int, int> test = { {2, 4}, {3, 6}, {1, 2}, {5, 10}, {4, 8} };
+
+    EXPECT_EQ(test.size(), 5);
+    for (auto n: sample )
+        EXPECT_TRUE(test.contains(n.first));
+
+    auto it = test.find(3);
+    EXPECT_FALSE(it == test.end());
+    EXPECT_EQ(*it, std::make_pair(3, 6));
+    EXPECT_EQ(*(it-1), std::make_pair(2, 4));
+    EXPECT_EQ(*(it+1), std::make_pair(4, 8));
+
+    auto notfound = test.find(10);
+    EXPECT_TRUE(notfound == test.end());
+
+    auto first = test.begin();
+    EXPECT_FALSE(first == test.end());
+    EXPECT_EQ(*first, std::make_pair(1, 2));
+    EXPECT_EQ(*(first+1), std::make_pair(2, 4));
+    auto lookFor1 = test.find(1);
+    EXPECT_EQ( first, lookFor1 );
+
+    auto last = test.end() - 1;
+    EXPECT_FALSE(last == test.end());
+    EXPECT_EQ(*last, std::make_pair(5, 10));
+    EXPECT_EQ(*(last-1), std::make_pair(4, 8));
+    EXPECT_EQ(last+1, test.end());
+    auto lookFor5 = test.find(5);
+    EXPECT_EQ(lookFor5, last);
+}
+
+
 TEST(TUBULContainers, testFlatSetBasic) {
 
     auto printContainer = [](auto container) -> void {
