@@ -91,8 +91,9 @@ TEST(PODVectorTest, testPODVectorBasics) {
     ASSERT_EQ(point_vec.size(), 3);
     EXPECT_EQ(point_vec[0], (Point{1, 2}));
     EXPECT_EQ(point_vec[2], (Point{5, 6}));
-    // calcular el tamanho del sizeof. poder ver qeu el tamanho es el indicado.
-    // deberia ser del mismo tamanho el podvector<int, 4> que el podvector<point, 2>
+
+    // sizeof podvector<int, 4> is the same as a podvector<point, 2> because both of them have 4 ints
+    EXPECT_EQ(sizeof(PODVector<int, 4>), sizeof(PODVector<Point, 2>));
 }
 
 
