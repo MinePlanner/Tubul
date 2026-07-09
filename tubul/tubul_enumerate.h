@@ -55,8 +55,16 @@ namespace TU {
 			//ensure we are getting a real const-ref to the underlying item of each range.
 			//For this we will do the following template trickery
 			// get the range_reference_t ->  remove the ref -> add const to the type -> add a ref.
-			// using value_type        = std::tuple<std::ranges::range_reference_t<T&>...>;
-			using value_type = std::tuple<std::add_lvalue_reference_t<std::add_const_t<std::remove_reference_t< std::ranges::range_reference_t<T&>>>>...>;
+			// BUT only when the range actually yields lvalues: ranges that compute their
+			// elements on the fly (e.g. transform views returning by value) yield prvalues,
+			// and binding a const& tuple element to those would dangle as soon as the
+			// full-expression of operator* ends. For those we store the element by value.
+			template <typename Ref>
+			using element_t = std::conditional_t<
+				std::is_lvalue_reference_v<Ref>,
+				std::add_lvalue_reference_t<std::add_const_t<std::remove_reference_t<Ref>>>,
+				std::remove_cvref_t<Ref>>;
+			using value_type = std::tuple<element_t<std::ranges::range_reference_t<T&>>...>;
 			using reference         = value_type;
 			using iterator_category = std::input_iterator_tag;
 			using difference_type   = std::ptrdiff_t;
