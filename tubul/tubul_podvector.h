@@ -12,6 +12,10 @@
 #include <cstring>              // memcpy
 #include <stdexcept>            // std::out_of_range
 #include <utility>              // std::swap
+#include <algorithm>            // fill_n
+#include <new>                  // std::bad_alloc
+#include <iterator>             // std::distance 
+
 
 namespace TU {
 template <typename T, std::size_t N>
@@ -36,7 +40,7 @@ public:
         return capacity_ <= N;
     }
 
-    bool empty() { return size_ == 0; }
+    bool empty() const { return size_ == 0; }
     
     size_type size() const { return size_; }
     
@@ -44,7 +48,7 @@ public:
 
     void reserve(size_type new_cap) {
         if (new_cap <= capacity_) return;
-        grow(next_capacity(new_cap));
+        grow(new_cap);
     }
 
     // Construction
@@ -61,13 +65,12 @@ public:
         size_ = other.size_;
     }
 
-    PODVector(PODVector&& other) : PODVector() {
+    PODVector(PODVector&& other) noexcept : PODVector() {
         move_from(other);
     }
 
     PODVector& operator=(const PODVector& other) {
         if (this == &other) return *this;
-        clear();
         reserve(other.size_);
         std::memcpy(data(), other.data(), other.size_ * sizeof(T));
         size_ = other.size_;
@@ -131,11 +134,12 @@ public:
     }
 
     void push_back(const T& value) {
+        T tmp = value;
         if (size_ == capacity_) grow(next_capacity(capacity_ + 1));
-        data()[size_++] = value;   
+        data()[size_++] = tmp;   
     }
 
-    void pop_back() {
+    void pop_back() noexcept {
         if(size_ > 0) --size_;
     }
 
@@ -144,16 +148,7 @@ public:
         if (new_size > size_) {
             T* p = data();
             size_t count = new_size - size_;
-            // memset works cast internally to unsigned char (1 byte), so it may not work with 
-            // some values of the type. it could work with 0, but not with 5
-            // memcpmp returns 0 if there is no difference between the casting of unsigned char of both values
-            static const T kZero{};
-            if (std::memcmp(&fill_value, &kZero, sizeof(T)) == 0) {
-                std::memset(p + size_, 0, count * sizeof(T));
-            }
-            else {
-                std::fill_n(p + size_, count, fill_value);
-            }
+            std::fill_n(p + size_, count, fill_value);
         }
         size_ = new_size;
     }
@@ -178,7 +173,7 @@ public:
 
     iterator insert(const_iterator pos, const T& value) {
         size_type index = pos - begin();
-        if (index > size_) throw std::out_of_range("PODVector::insert: pos fuera de rango");
+        if (index > size_) throw std::out_of_range("PODVector::insert: pos out of range");
 
         // copy value before growing
         T tmp = value;
@@ -195,11 +190,11 @@ public:
 
     iterator insert(const_iterator pos, size_type count, const T& value) {
         size_type index = static_cast<size_type>(pos - begin());
-        if (index > size_) throw std::out_of_range("PODVector::insert: pos fuera de rango");
+        if (index > size_) throw std::out_of_range("PODVector::insert: pos out of range");
         if (count == 0) return begin() + index;
 
 
-        T tmp = value; // misma razón que arriba
+        T tmp = value;
 
         if (size_ + count > capacity_) grow(next_capacity(size_ + count));
 
@@ -213,15 +208,16 @@ public:
     }
 
     template <typename InputIt>
+	requires std::input_iterator<InputIt>
     iterator insert(const_iterator pos, InputIt first, InputIt last) {
         size_type index = static_cast<size_type>(pos - begin());
         size_type count  = static_cast<size_type>(std::distance(first, last));
         
-        if (index > size_) throw std::out_of_range("PODVector::insert: pos fuera de rango");
+        if (index > size_) throw std::out_of_range("PODVector::insert: pos out of range");
         
         if (count == 0) return begin() + index;
 
-        if (size_ + count > capacity_) grow(next_capacity(size_ + count));
+        if (size_ + count > capacity_) grow(size_ + count);
 
         T* p = data();
         if (index < size_) {
@@ -241,7 +237,6 @@ public:
 
 private:
     size_t size_;
-    // Evaluar poner el capacity_ dentro del struct dentro heapbuf_
     size_t capacity_;
     union {
         struct {
@@ -276,7 +271,7 @@ private:
         if (!is_small()) std::free(heapbuf_.ptr);
     }
 
-    void move_from(PODVector& other) {
+    void move_from(PODVector& other) noexcept {
         if (other.is_small()) {
             std::memcpy(stackbuf_, other.stackbuf_, other.size_ * sizeof(T));
             capacity_ = N;
@@ -287,7 +282,7 @@ private:
         }
         size_ = other.size_;
 
-        // other verctor as an small vector
+        // other vector as a small vector
         other.size_ = 0;
         other.capacity_ = N;
     }
