@@ -161,6 +161,51 @@ TEST(TUBULZip, vector_set3)
     }
 }
 
+TEST(TUBULZip, by_value_ranges)
+{
+	//Ranges that compute their elements on the fly (e.g. a transform returning
+	//by value) yield prvalues when dereferenced. Zip used to force const& tuple
+	//elements, which for those ranges bound to temporaries already dead when the
+	//loop body ran (reading garbage). Now prvalue elements are held by value,
+	//while lvalue-yielding ranges (real containers) keep the cheap const&.
+	auto squares = std::views::iota(0, 5) | std::views::transform([](int i) { return i * i; });
+	auto minus = std::views::iota(0, 5) | std::views::transform([](int i) { return static_cast<int64_t>(-1 - i); });
+
+	//Type-level check. This is the deterministic part of the regression test:
+	//reading through a dangling ref could still produce the right value by luck.
+	auto zipped = TU::zip(squares, minus);
+	using ZippedTuple = decltype(*zipped.begin());
+	static_assert(std::is_same_v<std::tuple_element_t<0, ZippedTuple>, int>,
+		"a prvalue-yielding range must be held by value");
+	static_assert(std::is_same_v<std::tuple_element_t<1, ZippedTuple>, int64_t>,
+		"a prvalue-yielding range must be held by value");
+
+	auto index = 0;
+	for (const auto& [sq, neg] : zipped) {
+		EXPECT_EQ(sq, index * index);
+		EXPECT_EQ(neg, -1 - index);
+		++index;
+	}
+	EXPECT_EQ(index, 5);
+
+	//Mixing a real container with an on-the-fly range: the container side must
+	//still be a reference (no copies), the computed side a value.
+	std::vector<std::string> words = { "zero", "one", "two", "three", "four" };
+	auto mixed = TU::zip(words, squares);
+	using MixedTuple = decltype(*mixed.begin());
+	static_assert(std::is_same_v<std::tuple_element_t<0, MixedTuple>, const std::string&>,
+		"an lvalue-yielding range must keep being a reference");
+	static_assert(std::is_same_v<std::tuple_element_t<1, MixedTuple>, int>);
+
+	index = 0;
+	for (const auto& [word, sq] : mixed) {
+		EXPECT_EQ(word, words[index]);
+		EXPECT_EQ(sq, index * index);
+		++index;
+	}
+	EXPECT_EQ(index, 5);
+}
+
 TEST(TUBULZip, std_algorithm)
 {
 
