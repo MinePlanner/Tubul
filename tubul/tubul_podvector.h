@@ -184,7 +184,7 @@ public:
     }
 
     template <typename InputIt>
-	requires std::input_iterator<InputIt>
+	requires std::forward_iterator<InputIt>
     iterator insert(const_iterator pos, InputIt first, InputIt last) {
         size_type index = static_cast<size_type>(pos - begin());
         size_type count  = static_cast<size_type>(std::distance(first, last));
