@@ -2,11 +2,6 @@
 // Created by Alicanto Nano on 13-07-26.
 //
 
-#ifndef TUBUL_TUBUL_SMALLVECTOR_H
-#define TUBUL_TUBUL_SMALLVECTOR_H
-
-#endif // TUBUL_TUBUL_SMALLVECTOR_H
-
 #pragma once
 
 // Reference:
@@ -20,6 +15,7 @@
 
 #include <cstdlib>
 #include <cstddef>
+#include <cstdint>              // SIZE_MAX
 #include <type_traits>
 #include <initializer_list>
 #include <cstring>
@@ -56,6 +52,10 @@ struct SmallVector {
 	static_assert(N > 0,
 		"N must be greater than 0."
 	);
+	// heap growth uses malloc/realloc, which only guarantee max_align_t; over-aligned T would not work.
+	static_assert(alignof(T) <= alignof(std::max_align_t),
+		"SmallVector<T, N> requires alignof(T) <= alignof(std::max_align_t)."
+	);
 
 public:
 	using value_type      = T;
@@ -64,6 +64,8 @@ public:
 	using const_reference = const T&;
 	using iterator        = T*;
 	using const_iterator  = const T*;
+	using reverse_iterator       = std::reverse_iterator<iterator>;
+	using const_reverse_iterator = std::reverse_iterator<const_iterator>;
 	using value_param     = detail::value_param_t<T>;
 
 private:
@@ -72,7 +74,7 @@ private:
 	struct HeapBuf { T *ptr; };
 	union {
 		HeapBuf heapbuf_;
-		alignas(T )std::byte stackbuf_[N * sizeof(T)];
+		alignas(T) std::byte stackbuf_[N * sizeof(T)];
 	};
 
 	T* stack_data() { return reinterpret_cast<T*>(stackbuf_); }
@@ -143,6 +145,7 @@ private:
 	}
 
 	void grow(size_type new_cap) {
+		if (new_cap > SIZE_MAX / sizeof(T)) throw std::length_error("SmallVector: capacity exceeds maximum size");
 		if constexpr (detail::is_relocatable_v<T>) {
 			if (is_small()) {
 				T* new_data = static_cast<T*>(std::malloc(new_cap * sizeof(T)));
@@ -284,6 +287,16 @@ public:
     iterator end() { return data() + size_; }
     const_iterator end() const { return data() + size_; }
 
+    const_iterator cbegin() const { return begin(); }
+    const_iterator cend() const { return end(); }
+
+    reverse_iterator rbegin() { return reverse_iterator(end()); }
+    const_reverse_iterator rbegin() const { return const_reverse_iterator(end()); }
+    reverse_iterator rend() { return reverse_iterator(begin()); }
+    const_reverse_iterator rend() const { return const_reverse_iterator(begin()); }
+    const_reverse_iterator crbegin() const { return const_reverse_iterator(end()); }
+    const_reverse_iterator crend() const { return const_reverse_iterator(begin()); }
+
 
     // Modifiers
     void clear() noexcept {
@@ -304,6 +317,17 @@ public:
         if (size_ == capacity_) grow(next_capacity(capacity_ + 1));
         new (data() + size_) T(std::move(tmp));
         ++size_;
+    }
+
+    template <typename... Args>
+    reference emplace_back(Args&&... args) {
+        // build the value before growing: args may reference existing elements
+        T tmp(std::forward<Args>(args)...);
+        if (size_ == capacity_) grow(next_capacity(capacity_ + 1));
+        T* slot = data() + size_;
+        new (slot) T(std::move(tmp));
+        ++size_;
+        return *slot;
     }
 
     void pop_back() noexcept {
@@ -333,6 +357,7 @@ public:
     }
 
     void swap(SmallVector& other) noexcept {
+        if (this == &other) return;
         if (is_small() && other.is_small()) {
             if constexpr (std::is_trivially_copyable_v<T>) {
                 alignas(T) std::byte tmp_buf[N * sizeof(T)];
@@ -451,7 +476,41 @@ public:
         return insert(pos, ilist.begin(), ilist.end());
     }
 
+    iterator erase(const_iterator pos) {
+        return erase(pos, pos + 1);
+    }
+
+    iterator erase(const_iterator first, const_iterator last) {
+        size_type index = static_cast<size_type>(first - begin());
+        size_type count = static_cast<size_type>(last - first);
+        if (count == 0) return begin() + index;
+
+        T* p = data();
+        if constexpr (detail::is_relocatable_v<T>) {
+            // trivially copyable implies trivially destructible: just shift the tail down
+            std::memmove(static_cast<void*>(p + index), static_cast<const void*>(p + index + count), (size_ - index - count) * sizeof(T));
+        }
+    	else {
+            // move the tail down onto the erased range, then destroy the now-moved-from tail
+            std::move(p + index + count, p + size_, p + index);
+            destroy_range(p + size_ - count, p + size_);
+        }
+        size_ -= count;
+        return p + index;
+    }
+
+    void assign(size_type count, value_param value) {
+        T tmp = value;   // copy before clear: value may alias an element of *this
+        clear();
+        resize(count, tmp);
+    }
+
 };
+
+template <typename T, std::size_t N>
+void swap(SmallVector<T, N>& a, SmallVector<T, N>& b) noexcept {
+    a.swap(b);
+}
 
 
 

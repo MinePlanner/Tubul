@@ -7,6 +7,8 @@
 #pragma once
 
 #include <cstdlib>              // malloc, realloc, free, size_t
+#include <cstddef>              // std::max_align_t
+#include <cstdint>              // SIZE_MAX
 #include <type_traits>          // is_trivially_copyable
 #include <initializer_list>     // 
 #include <cstring>              // memcpy
@@ -20,8 +22,12 @@
 namespace TU {
 template <typename T>
 struct PODVector{
-    static_assert(std::is_trivially_copyable<T>::value, 
+    static_assert(std::is_trivially_copyable<T>::value,
         "PODVector<T> requires T to be trivially copyable type."
+    );
+    // malloc/realloc only guarantee max_align_t alignment; over-aligned T would not work.
+    static_assert(alignof(T) <= alignof(std::max_align_t),
+        "PODVector<T> requires alignof(T) <= alignof(std::max_align_t)."
     );
 
 public:
@@ -31,6 +37,8 @@ public:
     using const_reference = const T&;
     using iterator = T*;
     using const_iterator = const T*;
+    using reverse_iterator = std::reverse_iterator<iterator>;
+    using const_reverse_iterator = std::reverse_iterator<const_iterator>;
 
     // Commons
     bool empty() const { return size_ == 0; }
@@ -54,7 +62,8 @@ public:
     // Copy
     PODVector(const PODVector& other) : PODVector() {
         reserve(other.size_);
-        std::memcpy(data(), other.data(), other.size_ * sizeof(T));
+    	// check if other is not an empty pointer
+        if (other.size_) std::memcpy(data(), other.data(), other.size_ * sizeof(T));
         size_ = other.size_;
     }
 
@@ -65,14 +74,15 @@ public:
     PODVector& operator=(const PODVector& other) {
         if (this == &other) return *this;
         reserve(other.size_);
-        std::memcpy(data(), other.data(), other.size_ * sizeof(T));
+    	// check if other is not an empty pointer
+        if (other.size_) std::memcpy(data(), other.data(), other.size_ * sizeof(T));
         size_ = other.size_;
         return *this;
     }
 
     PODVector(std::initializer_list<T> init) : PODVector() {
         reserve(init.size());
-        std::memcpy(data(), init.begin(), init.size() * sizeof(T));
+        if (init.size()) std::memcpy(data(), init.begin(), init.size() * sizeof(T));
         size_ = init.size();
     }
 
@@ -115,7 +125,17 @@ public:
     const_iterator begin() const { return data(); }
     iterator end() { return data() + size_; }
     const_iterator end() const { return data() + size_; }
-    
+
+    const_iterator cbegin() const { return begin(); }
+    const_iterator cend() const { return end(); }
+
+    reverse_iterator rbegin() { return reverse_iterator(end()); }
+    const_reverse_iterator rbegin() const { return const_reverse_iterator(end()); }
+    reverse_iterator rend() { return reverse_iterator(begin()); }
+    const_reverse_iterator rend() const { return const_reverse_iterator(begin()); }
+    const_reverse_iterator crbegin() const { return const_reverse_iterator(end()); }
+    const_reverse_iterator crend() const { return const_reverse_iterator(begin()); }
+
 
     // Modifiers
     void clear() {
@@ -128,15 +148,27 @@ public:
         data()[size_++] = tmp;
     }
 
+    template <typename... Args>
+    reference emplace_back(Args&&... args) {
+        // build the value before growing: args may reference existing elements
+        T tmp(std::forward<Args>(args)...);
+        if (size_ == capacity_) grow(next_capacity(capacity_ + 1));
+        T* slot = data() + size_;
+        *slot = tmp;
+        ++size_;
+        return *slot;
+    }
+
     void pop_back() noexcept {
         if(size_ > 0) --size_;
     }
 
     void resize(size_type new_size, const T& fill_value = T()) {
+    	T tmp = fill_value;
         if (new_size > capacity_) grow(next_capacity(new_size));
         if (new_size > size_) {
             size_t count = new_size - size_;
-            std::fill_n(data() + size_, count, fill_value);
+            std::fill_n(data() + size_, count, tmp);
         }
         size_ = new_size;
     }
@@ -210,6 +242,28 @@ public:
         return insert(pos, ilist.begin(), ilist.end());
     }
 
+    iterator erase(const_iterator pos) {
+        return erase(pos, pos + 1);
+    }
+
+    iterator erase(const_iterator first, const_iterator last) {
+        size_type index = static_cast<size_type>(first - begin());
+        size_type count = static_cast<size_type>(last - first);
+        if (count == 0) return begin() + index;
+
+        T* p = data();
+        // shift the tail [last, end) down onto the erased range
+        std::memmove(p + index, p + index + count, (size_ - index - count) * sizeof(T));
+        size_ -= count;
+        return p + index;
+    }
+
+    void assign(size_type count, const T& value) {
+        T tmp = value;   // copy before clear: value may alias an element of *this
+        clear();
+        resize(count, tmp);
+    }
+
 
 private:
     size_t size_;
@@ -222,6 +276,7 @@ private:
     }
 
     void grow(size_type new_cap) {
+        if (new_cap > SIZE_MAX / sizeof(T)) throw std::length_error("PODVector: capacity exceeds maximum size");
         T* new_data = static_cast<T*>(std::realloc(ptr_, new_cap * sizeof(T)));
         if (!new_data) throw std::bad_alloc();
         // Change the pointer
@@ -240,5 +295,10 @@ private:
         other.capacity_ = 0;
     }
 };
+
+template <typename T>
+void swap(PODVector<T>& a, PODVector<T>& b) noexcept {
+    a.swap(b);
+}
 
 } // namespace TU

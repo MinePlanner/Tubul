@@ -453,3 +453,186 @@ TEST(SmallVectorTest, RelocatableOptIn) {
     EXPECT_EQ(vec.size(), 4);
     EXPECT_EQ(*vec[3].p, 3);
 }
+
+TEST(SmallVectorTest, EmplaceBack) {
+    // emplace_back forwards args and returns a reference, small and after growth
+    SmallVector<SVPoint, 2> p;
+    SVPoint& ref = p.emplace_back(1, 2); // parenthesized aggregate init (C++20)
+    EXPECT_EQ(ref, (SVPoint{1, 2}));
+    p.emplace_back(3, 4);
+    p.emplace_back(5, 6); // grows to heap
+    EXPECT_FALSE(p.is_small());
+    EXPECT_EQ(p.size(), 3);
+    EXPECT_EQ(p.back(), (SVPoint{5, 6}));
+
+    // non-trivial element type
+    SmallVector<std::string, 2> s;
+    std::string& sref = s.emplace_back(bigstr(0));
+    EXPECT_EQ(sref, bigstr(0));
+    for(int i = 1; i < 6; i++) s.emplace_back(bigstr(i));   // forces growth
+    EXPECT_EQ(s.size(), 6);
+    for(int i = 0; i < 6; i++) EXPECT_EQ(s[i], bigstr(i));
+}
+
+TEST(SmallVectorTest, EraseAssignReverseSwap) {
+    // erase on a trivially copyable type (memmove path), living on the heap
+    SmallVector<int, 4> e = {0, 1, 2, 3, 4, 5};
+    auto it = e.erase(e.begin() + 1);  // remove 1
+    EXPECT_EQ(*it, 2);
+    {
+	    std::vector<int> exp = {0, 2, 3, 4, 5};
+    	int i = 0;
+    	for(auto x : e) EXPECT_EQ(x, exp[i++]);
+    }
+    it = e.erase(e.begin() + 1, e.begin() + 3);   // remove 2, 3
+    EXPECT_EQ(*it, 4);
+    {
+	    std::vector<int> exp = {0, 4, 5};
+    	int i = 0;
+    	for(auto x : e) EXPECT_EQ(x, exp[i++]);
+    }
+    e.erase(e.end() - 1);
+    EXPECT_EQ(e.size(), 2);
+    EXPECT_EQ(e.back(), 4);
+
+    // assign(count, value), growing past the inline buffer and shrinking back
+    SmallVector<int, 4> a;
+    a.assign(5, 7);
+    EXPECT_EQ(a.size(), 5);
+    EXPECT_FALSE(a.is_small());
+    for(auto x : a) EXPECT_EQ(x, 7);
+    a.assign(2, 3);
+    EXPECT_EQ(a.size(), 2);
+    EXPECT_EQ(a[0], 3);
+    EXPECT_EQ(a[1], 3);
+
+    // reverse iterators and cbegin/cend
+    SmallVector<int, 4> v = {1, 2, 3, 4};
+    std::vector<int> rev(v.rbegin(), v.rend());
+    EXPECT_EQ(rev, (std::vector<int>{4, 3, 2, 1}));
+    const SmallVector<int, 4>& cv = v;
+    EXPECT_EQ(*cv.crbegin(), 4);
+    EXPECT_EQ((cv.cend() - cv.cbegin()), v.size());
+
+    // explicit non-member TU::swap(a, b)
+    SmallVector<int, 4> x = {1, 2}, y = {9, 8, 7};
+    TU::swap(x, y);
+    EXPECT_EQ(x.size(), 3);
+    EXPECT_EQ(y.size(), 2);
+    EXPECT_EQ(x[0], 9);
+    EXPECT_EQ(y[0], 1);
+}
+
+TEST(SmallVectorTest, EraseAssignLifetimes) {
+    // erase/assign must destroy exactly the right elements for non-trivial types
+    Tracked::live = 0;
+    {
+        SmallVector<Tracked, 2> v;
+        for(int i = 0; i < 6; i++) v.emplace_back(bigstr(i));   // heap, live 6
+        EXPECT_EQ(Tracked::live, 6);
+
+        // erase(pos): moves the tail down and destroys one element
+        auto it = v.erase(v.begin() + 1);      // remove element 1
+        EXPECT_EQ(Tracked::live, 5);
+        EXPECT_EQ(it->s, bigstr(2));
+        EXPECT_EQ(v[0].s, bigstr(0));
+        EXPECT_EQ(v[1].s, bigstr(2));
+
+        // erase(first, last): destroys two elements
+        v.erase(v.begin() + 1, v.begin() + 3); // remove 2, 3
+        EXPECT_EQ(Tracked::live, 3);
+        EXPECT_EQ(v[1].s, bigstr(4));
+
+        // assign replaces all previous content (old ones destroyed)
+        v.assign(2, Tracked(bigstr(99)));
+        EXPECT_EQ(Tracked::live, 2);
+        EXPECT_EQ(v[0].s, bigstr(99));
+        EXPECT_EQ(v[1].s, bigstr(99));
+    }
+    EXPECT_EQ(Tracked::live, 0);
+}
+
+TEST(SmallVectorTest, SelfReferenceUnderGrowth) {
+    // trivially copyable: push_back/emplace_back/insert/resize/assign where the
+    // argument aliases an element the container may relocate during growth
+    {
+        SmallVector<int, 2> v = {7};
+        for (int i = 0; i < 50; i++) v.push_back(v[0]);   // crosses inline -> heap
+        EXPECT_FALSE(v.is_small());
+        for (auto x : v) EXPECT_EQ(x, 7);
+    }
+    {
+        SmallVector<int, 2> v = {9};
+        for (int i = 0; i < 50; i++) v.emplace_back(v[0]);
+        for (auto x : v) EXPECT_EQ(x, 9);
+    }
+    {
+        SmallVector<int, 4> v = {1, 2, 3, 4};    // small and exactly full
+        v.insert(v.begin(), v.back());            // triggers growth to heap
+        std::vector<int> exp = {4, 1, 2, 3, 4};
+        int i = 0; for (auto x : v) EXPECT_EQ(x, exp[i++]);
+    }
+    {
+        SmallVector<int, 2> v = {5};
+        v.resize(100, v.back());
+        for (auto x : v) EXPECT_EQ(x, 5);
+    }
+    {
+        SmallVector<int, 2> v = {42, 1, 2};
+        v.assign(10, v[0]);
+        EXPECT_EQ(v.size(), 10);
+        for (auto x : v) EXPECT_EQ(x, 42);
+    }
+
+    // non-trivial: emplace_back(v[0]) and assign(n, v[0]) must not use-after-free
+    // (this is the heap-use-after-free the assign fix closed)
+    Tracked::live = 0;
+    {
+        SmallVector<Tracked, 2> v;
+        v.emplace_back(bigstr(0));
+        for (int i = 0; i < 20; i++) v.emplace_back(v[0]);   // self-ref across growth
+        EXPECT_EQ(v.size(), 21);
+        for (const auto& t : v) EXPECT_EQ(t.s, bigstr(0));
+
+        v.assign(5, v[0]);                                    // self-ref in assign
+        EXPECT_EQ(v.size(), 5);
+        for (const auto& t : v) EXPECT_EQ(t.s, bigstr(0));
+    }
+    EXPECT_EQ(Tracked::live, 0);
+}
+
+TEST(SmallVectorTest, EmptyAndSelfSwap) {
+    // copy / move / swap of empty vectors
+    SmallVector<int, 4> empty;
+
+    SmallVector<int, 4> copy = empty;
+    EXPECT_TRUE(copy.empty());
+
+    SmallVector<int, 4> assigned = {1, 2, 3};
+    assigned = empty;
+    EXPECT_TRUE(assigned.empty());
+
+    SmallVector<int, 4> moved = std::move(empty);
+    EXPECT_TRUE(moved.empty());
+
+    SmallVector<int, 4> ea, eb;
+    ea.swap(eb);
+    EXPECT_TRUE(ea.empty());
+    EXPECT_TRUE(eb.empty());
+
+    // self-swap must be a no-op on inline storage (guards the fix in swap)
+    SmallVector<int, 4> s = {1, 2, 3};
+    EXPECT_TRUE(s.is_small());
+    s.swap(s);
+    EXPECT_EQ(s.size(), 3);
+    EXPECT_EQ(s[0], 1);
+    EXPECT_EQ(s[2], 3);
+
+    // and on heap storage
+    SmallVector<int, 2> h = {1, 2, 3, 4, 5};
+    EXPECT_FALSE(h.is_small());
+    h.swap(h);
+    EXPECT_EQ(h.size(), 5);
+    EXPECT_EQ(h[0], 1);
+    EXPECT_EQ(h[4], 5);
+}
