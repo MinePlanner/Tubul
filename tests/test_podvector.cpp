@@ -240,3 +240,165 @@ TEST(PODVectorTest, InsertElements) {
         for(auto& x : v) EXPECT_EQ(x, expected[ind++]);
     }
 }
+
+TEST(PODVectorTest, EmplaceBack) {
+    // emplace_back forwards args to T's constructor and returns a reference
+    PODVector<Point> v;
+    Point& ref = v.emplace_back(1, 2);
+    EXPECT_EQ(ref, (Point{1, 2}));
+    ref.x = 10;
+    EXPECT_EQ(v[0], (Point{10, 2}));
+
+    v.emplace_back(3, 4);
+    v.emplace_back(5, 6);
+    EXPECT_EQ(v.size(), 3);
+    EXPECT_EQ(v.back(), (Point{5, 6}));
+
+    // self-reference under growth: emplace_back(v[0]) must not read freed memory
+    PODVector<int> s = {7};
+    for (int i = 0; i < 50; i++) s.emplace_back(s[0]);
+    for (auto x : s) EXPECT_EQ(x, 7);
+}
+
+TEST(PODVectorTest, Erase) {
+    PODVector<int> e = {0, 1, 2, 3, 4, 5};
+
+    // erase(pos) removes one element and returns the iterator to the next
+    auto it = e.erase(e.begin() + 1); // remove 1
+    EXPECT_EQ(*it, 2);
+    EXPECT_EQ(e.size(), 5);
+    {
+	    std::vector<int> exp = {0, 2, 3, 4, 5};
+    	int i = 0;
+    	for(auto x : e) EXPECT_EQ(x, exp[i++]);
+    }
+
+    // erase(first, last) removes a range and returns the iterator past it
+    it = e.erase(e.begin() + 1, e.begin() + 3);   // remove 2, 3
+    EXPECT_EQ(*it, 4);
+    EXPECT_EQ(e.size(), 3);
+    {
+	    std::vector<int> exp = {0, 4, 5};
+    	int i = 0;
+    	for(auto x : e) EXPECT_EQ(x, exp[i++]);
+    }
+
+    // erasing the last element (zero-length tail move)
+    e.erase(e.end() - 1);
+    EXPECT_EQ(e.size(), 2);
+    EXPECT_EQ(e.back(), 4);
+
+    // empty range is a no-op that returns the position
+    it = e.erase(e.begin(), e.begin());
+    EXPECT_EQ(it, e.begin());
+    EXPECT_EQ(e.size(), 2);
+}
+
+TEST(PODVectorTest, Assign) {
+    PODVector<int> a = {1, 2, 3, 4, 5};
+
+    // assign(count, value) replaces the whole content, growing as needed
+    a.assign(3, 7);
+    EXPECT_EQ(a.size(), 3);
+    for (auto x : a) EXPECT_EQ(x, 7);
+
+    a.assign(6, 9);
+    EXPECT_EQ(a.size(), 6);
+    EXPECT_EQ(a.front(), 9);
+    EXPECT_EQ(a.back(), 9);
+
+    a.assign(1, 4);
+    EXPECT_EQ(a.size(), 1);
+    EXPECT_EQ(a[0], 4);
+}
+
+TEST(PODVectorTest, ReverseIteratorsAndFreeSwap) {
+    PODVector<int> v = {1, 2, 3, 4};
+
+    // rbegin/rend walk the vector backwards
+    std::vector<int> rev(v.rbegin(), v.rend());
+    EXPECT_EQ(rev, (std::vector<int>{4, 3, 2, 1}));
+
+    // const reverse iterators and cbegin/cend
+    const PODVector<int>& cv = v;
+    EXPECT_EQ(*cv.crbegin(), 4);
+    EXPECT_EQ(*(cv.crend() - 1), 1);
+    EXPECT_EQ((cv.cend() - cv.cbegin()), v.size());
+
+    // explicit non-member TU::swap(a, b)
+    PODVector<int> a = {1, 2}, b = {9, 8, 7};
+    TU::swap(a, b);
+    EXPECT_EQ(a.size(), 3);
+    EXPECT_EQ(b.size(), 2);
+    EXPECT_EQ(a[0], 9);
+    EXPECT_EQ(b[0], 1);
+}
+
+TEST(PODVectorTest, SelfReferenceUnderGrowth) {
+    // push_back(v[0]) repeatedly forces many reallocations while the argument
+    // aliases an element that grow() is about to move: must not read freed memory
+    {
+        PODVector<int> v = {7};
+        for (int i = 0; i < 50; i++) v.push_back(v[0]);
+        EXPECT_EQ(v.size(), 51);
+        for (auto x : v) EXPECT_EQ(x, 7);
+    }
+
+    // emplace_back(v[0]) has the same hazard
+    {
+        PODVector<int> v = {9};
+        for (int i = 0; i < 50; i++) v.emplace_back(v[0]);
+        for (auto x : v) EXPECT_EQ(x, 9);
+    }
+
+    // insert(pos, v.back()) exactly at capacity, so the insert triggers growth
+    {
+        PODVector<int> v = {1, 2, 3, 4};       // init_list reserves size == capacity
+        ASSERT_EQ(v.size(), v.capacity());
+        v.insert(v.begin(), v.back());
+        std::vector<int> exp = {4, 1, 2, 3, 4};
+        int i = 0; for (auto x : v) EXPECT_EQ(x, exp[i++]);
+    }
+
+    // resize(n, v.back()) growing well past capacity
+    {
+        PODVector<int> v = {5};
+        v.resize(v.capacity() * 8 + 10, v.back());
+        for (auto x : v) EXPECT_EQ(x, 5);
+    }
+
+    // assign(count, v[0]) where the value aliases an element being cleared
+    {
+        PODVector<int> v = {42, 1, 2};
+        v.assign(10, v[0]);
+        EXPECT_EQ(v.size(), 10);
+        for (auto x : v) EXPECT_EQ(x, 42);
+    }
+}
+
+TEST(PODVectorTest, EmptyAndSelfSwap) {
+    // copy / move / swap of empty vectors exercise the null-pointer memcpy paths
+    PODVector<int> empty;
+
+    PODVector<int> copy = empty;              // copy ctor from empty
+    EXPECT_TRUE(copy.empty());
+
+    PODVector<int> assigned = {1, 2, 3};
+    assigned = empty;                          // copy assignment from empty
+    EXPECT_TRUE(assigned.empty());
+
+    PODVector<int> moved = std::move(empty);   // move ctor from empty
+    EXPECT_TRUE(moved.empty());
+
+    PODVector<int> ea, eb;                     // swap of two empties
+    ea.swap(eb);
+    EXPECT_TRUE(ea.empty());
+    EXPECT_TRUE(eb.empty());
+
+    // self-swap must be a no-op, not corruption
+    PODVector<int> s = {1, 2, 3};
+    s.swap(s);
+    EXPECT_EQ(s.size(), 3);
+    EXPECT_EQ(s[0], 1);
+    EXPECT_EQ(s[2], 3);
+}
