@@ -21,6 +21,8 @@ struct BlockStats
 	TimeDuration t_;
 };
 
+// Blocks nest per thread, so create, report and destroy a block on the same thread. The
+// accumulated stats are shared by all threads.
 struct Block
 {
 	enum class LogType

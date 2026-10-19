@@ -19,6 +19,7 @@
 #include "tubul_mem_utils.h"
 #include "tubul_logger.h"
 #include <format>
+#include <mutex>
 
 
 namespace TU
@@ -58,21 +59,27 @@ struct StringKeyEqual {
 
 struct BlockDescription
 {
-	explicit BlockDescription(const std::string_view n) :
+	BlockDescription(const std::string_view n, BlockStats* s) :
 		name(n),
+		stats(s),
 		allocAtStart(memLifetime()),
 		start_time(now())
 	{}
 
 	std::string_view name;
+	// The block's entry in the stats container. Entries are never erased and the map's nodes
+	// do not move, so the pointer, like the name, stays valid. Guarded by the stats mutex.
+	BlockStats* stats;
 	size_t    allocAtStart;
 	TimePoint start_time;
 };
 
+// Each thread has its own stack of active blocks, so blocks nest per thread and
+// getCurrentBlockLocation describes the calling thread.
 std::vector<BlockDescription>& getBlockContainer()
 {
-	// Lambda trick to reserve size for a static vector.
-	static std::vector<BlockDescription> block_container = []{
+	// Lambda trick to reserve size for a thread-local vector.
+	thread_local std::vector<BlockDescription> block_container = []{
 		// We don't think we are reaching more than 20 blocks deep
 		// (remember block_container is a stack of active blocks)
 		const size_t BLOCKS_DEPTH = 20;
@@ -83,10 +90,31 @@ std::vector<BlockDescription>& getBlockContainer()
 	return block_container;
 }
 
+// The stats are shared by every thread, so every access holds this mutex.
+std::mutex& getBlockStatsMutex()
+{
+	static std::mutex stats_mutex;
+	return stats_mutex;
+}
+
 std::unordered_map<StringKey, BlockStats, StringKeyHash, StringKeyEqual>& getBlockStatsContainer()
 {
 	static std::unordered_map<StringKey, BlockStats, StringKeyHash, StringKeyEqual> stat_container;
 	return stat_container;
+}
+
+// Finds or creates the stats of the block named `name`, and returns the name as stored in the
+// container, which outlives the block, with its stats.
+// A std::string name is copied into the container, a std::string_view one is stored as is.
+template<typename Key>
+std::pair<std::string_view, BlockStats*> registerBlock(const Key& name)
+{
+	std::scoped_lock lock(getBlockStatsMutex());
+	auto& blockStats = getBlockStatsContainer();
+	auto it = blockStats.find(name);
+	if (it == blockStats.end())
+		it = blockStats.emplace(name, BlockStats{}).first;
+	return { it->first.view(), &it->second };
 }
 
 void logBlockOnOpen(const BlockDescription& ) {
@@ -107,12 +135,9 @@ Block::Block(const std::string &name, LogType l):
 	whenToLog_(l)
 {
 	auto& blocks = getBlockContainer();
-	auto& blockStats = getBlockStatsContainer();
-	auto it = blockStats.find(name);
-	if(it == blockStats.end())
-		it = blockStats.emplace(std::string{name}, BlockStats{}).first;
+	const auto [storedName, stats] = registerBlock(name);
 	index_ = blocks.size();
-	blocks.emplace_back( it->first.view() );
+	blocks.emplace_back( storedName, stats );
 	if ( l == LogType::ALL or l == LogType::ON_START)
 		logBlockOnOpen(blocks.back());
 }
@@ -121,12 +146,9 @@ Block::Block(std::string_view name, LogType l) :
 	whenToLog_(l)
 {
 	auto& blocks = getBlockContainer();
-	auto& blockStats = getBlockStatsContainer();
-	auto it = blockStats.find(name);
-	if (it == blockStats.end())
-		it = blockStats.emplace(name, BlockStats{}).first;
+	const auto [storedName, stats] = registerBlock(name);
 	index_ = blocks.size();
-	blocks.emplace_back( it->first.view() );
+	blocks.emplace_back( storedName, stats );
 	if ( l == LogType::ALL or l == LogType::ON_START)
 		logBlockOnOpen(blocks.back());
 }
@@ -143,9 +165,13 @@ Block::~Block()
 	//We calculate how much time has passed since the creation of this block.
 	TimeDuration block_duration =  now() - closingBlock.start_time ;
 	//Add info to the mapped data of this particular block
-	auto& [ n, accum ] = getBlockStatsContainer().find(closingBlock.name)->second;
-	++n;
-	accum += block_duration;
+	TimeDuration accum;
+	{
+		std::scoped_lock lock(getBlockStatsMutex());
+		++closingBlock.stats->count_;
+		closingBlock.stats->t_ += block_duration;
+		accum = closingBlock.stats->t_;
+	}
 
 	if ( whenToLog_ == LogType::ALL or whenToLog_ == LogType::ON_END)
 		logBlockOnClose( closingBlock, block_duration, accum);
@@ -197,7 +223,11 @@ void Block::report(){
 	//We calculate how much time has passed since the creation of this block.
 	TimeDuration block_duration =  now() - reportingBlock.start_time ;
 	//Current info
-	auto& [ n, accum ] = getBlockStatsContainer().find(reportingBlock.name)->second;
+	TimeDuration accum;
+	{
+		std::scoped_lock lock(getBlockStatsMutex());
+		accum = reportingBlock.stats->t_;
+	}
 
 	auto allocations = memLifetime() - reportingBlock.allocAtStart;
 
@@ -209,6 +239,7 @@ void Block::report(){
 // generates table with a list of blocks, shows name and stats
 std::string reportBlocks()
 {
+	std::scoped_lock lock(getBlockStatsMutex());
 	auto &blocks = getBlockStatsContainer();
 
 	size_t maxWidth = 0;
@@ -238,6 +269,7 @@ std::string reportBlocks()
 // instances of the block name), or zeroed stats if the block was never recorded.
 BlockStats getAccumulatedStats(const std::string& name)
 {
+	std::scoped_lock lock(getBlockStatsMutex());
 	const auto &blocks = getBlockStatsContainer();
 	auto it = blocks.find(name);
 	if (it == blocks.end())
