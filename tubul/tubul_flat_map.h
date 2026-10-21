@@ -6,6 +6,7 @@
 #include <functional>
 #include <vector>
 #include <utility>
+#include <stdexcept>
 
 namespace TU {
 
