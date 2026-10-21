@@ -99,19 +99,29 @@ int strToInt(const std::string_view& p){
         auto& fd = impl_->fd_;
         auto& mapping = impl_->mapping_;
 
-        fd = CreateFile(name, GENERIC_READ, FILE_SHARE_READ , 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+        fd = CreateFileA(name, GENERIC_READ, FILE_SHARE_READ , 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
         if(fd == INVALID_HANDLE_VALUE) {
             throw TU::Exception(std::string("Could not open file:") + name);
         };
 
-        size_  = std::filesystem::file_size(name);
+        LARGE_INTEGER liSize;
+        if (!GetFileSizeEx(fd, &liSize)) {
+            CloseHandle(fd);
+            throw std::runtime_error(std::string("Could not get file size: ") + name);
+        }
+        size_  = static_cast<size_t>(liSize.QuadPart);
 
-        mapping = CreateFileMapping(fd, 0, PAGE_READONLY, 0, 0, 0);
+        mapping = CreateFileMappingA(fd, 0, PAGE_READONLY, liSize.HighPart, liSize.LowPart, 0);
         if(mapping == 0) {
-            throw TU::Exception(std::string("Could not open file:") + name);
+            CloseHandle(fd);
+            throw TU::Exception(std::string("Could not map file:") + name);
         }
 
         data_ = static_cast<const char*>( MapViewOfFile(mapping, FILE_MAP_READ, 0, 0, 0) );
+        if (data_ == 0) {
+            CloseHandle(fd);
+            throw TU::Exception(std::string("Could not create view of file:") + name);
+        }
     }
 
     MappedFile::~MappedFile() {
