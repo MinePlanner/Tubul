@@ -479,7 +479,7 @@ DataFrame readDataFrame(std::istream& input, const CSVOptions& options, const Co
 	if (!input)
 		throw std::runtime_error("couldn't read the CSV input: the stream is in an error state");
 
-	CSVLineSplitter splitter(input, options.separator);
+	CSVLineSplitter splitter(input, options.separator, options.separatorMode);
 	//Without a first line there are no columns, so a requested column is
 	//reported missing.
 	const bool hasFirstLine = splitter.nextLine();

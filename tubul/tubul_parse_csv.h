@@ -113,6 +113,15 @@ struct CSVOptions
 	ColumnHeaders columnHeaders;
 	RowHeaders rowHeaders;
 	char separator;
+	/** How fields are separated. With SeparatorMode::WHITESPACE_RUNS, they are
+	 * separated by runs of whitespace (as TU::trim defines it: spaces, tabs,
+	 * form feeds and vertical tabs), and `separator` isn't used: several spaces
+	 * between two fields are one separator, and whitespace at the start or end
+	 * of a line is ignored (as in files written with columns aligned by
+	 * padding). Quoted fields may hold whitespace. A blank cell isn't a field, so a
+	 * line with one has a field missing, which is an error: write "" for an
+	 * empty value. Used by the dataFrameFromCSV functions. */
+	SeparatorMode separatorMode = SeparatorMode::CHARACTER;
 };
 
 DataFrame dataFrameFromCSVFile(const std::string& filename, CSVOptions options = {ColumnHeaders::YES, RowHeaders::YES, ','});

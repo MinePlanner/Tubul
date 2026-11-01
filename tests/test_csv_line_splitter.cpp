@@ -10,11 +10,11 @@
 
 namespace
 {
-//Splits all the lines of `text` with `separator`.
-std::vector<std::vector<std::string>> splitAll(const std::string& text, char separator = ',')
+//Splits all the lines of `text` with `separator`, or `mode`.
+std::vector<std::vector<std::string>> splitAll(const std::string& text, char separator = ',', TU::SeparatorMode mode = TU::SeparatorMode::CHARACTER)
 {
 	std::istringstream input(text);
-	TU::CSVLineSplitter splitter(input, separator);
+	TU::CSVLineSplitter splitter(input, separator, mode);
 	std::vector<std::vector<std::string>> lines;
 	while (splitter.nextLine())
 	{
@@ -65,6 +65,26 @@ TEST(TUBULCSVLineSplitter, testQuoteInsideAField)
 	EXPECT_EQ(splitAll("\"ab\"c,d\n"), (Lines{{"\"ab\"c","d"}}));
 	//A quote that is never closed runs to the end of the line.
 	EXPECT_EQ(splitAll("\"a,b\n"), (Lines{{"\"a,b"}}));
+}
+
+TEST(TUBULCSVLineSplitter, testWhitespaceSeparated)
+{
+	EXPECT_EQ(splitAll("0 0 29605500.0 *\n1  1\t2.5 *\n", ',', TU::SeparatorMode::WHITESPACE_RUNS), (Lines{{"0","0","29605500.0","*"}, {"1","1","2.5","*"}}));
+	//Form feeds and vertical tabs are whitespace too, as for TU::trim.
+	EXPECT_EQ(splitAll("a\fb\vc\n", ',', TU::SeparatorMode::WHITESPACE_RUNS), (Lines{{"a","b","c"}}));
+}
+
+TEST(TUBULCSVLineSplitter, testWhitespaceSeparatedPaddingAndQuotes)
+{
+	//Spaces at the start or end of a line are ignored, a quoted field may hold
+	//spaces, and the separator character isn't used.
+	EXPECT_EQ(splitAll("  a   \"b c\"  d,e  \n", ',', TU::SeparatorMode::WHITESPACE_RUNS), (Lines{{"a","b c","d,e"}}));
+	EXPECT_EQ(splitAll("\"\" x\n", ',', TU::SeparatorMode::WHITESPACE_RUNS), (Lines{{"","x"}}));
+}
+
+TEST(TUBULCSVLineSplitter, testWhitespaceOnlyLinesAreSkipped)
+{
+	EXPECT_EQ(splitAll("a b\n  \t \nc d\n", ',', TU::SeparatorMode::WHITESPACE_RUNS), (Lines{{"a","b"}, {"c","d"}}));
 }
 
 TEST(TUBULCSVLineSplitter, testWindowsLineEndings)

@@ -522,6 +522,29 @@ TEST(TUBULCSV, testDataframeNoColumnHeaderByPosition)
 	testColumn( std::get<TU::StringColumn>(all[1]), TU::StringColumn{"1","4","3"} );
 }
 
+TEST(TUBULCSV, testDataframeWhitespaceSeparated)
+{
+	//An OMP-style block file: no headers, columns separated by spaces.
+	const char* blocks = "0 0 29605500.000000 -59211000.000000 *\n"
+						 "1 1 28839240.000000 -57678480.000000 12.5\n";
+	TU::ColumnRequest req({
+							  {size_t(0),TU::DataType::INTEGER},
+							  {size_t(2),TU::DataType::DOUBLE},
+							  {size_t(4),TU::DataType::STRING}
+						  });
+	TU::CSVOptions options { TU::ColumnHeaders::NO, TU::RowHeaders::NO, ' '};
+	options.separatorMode = TU::SeparatorMode::WHITESPACE_RUNS;
+	TU::DataFrame df = TU::dataFrameFromCSVString( blocks, req, options);
+
+	EXPECT_EQ(df.getColCount(), 5);
+	testColumn( std::get<TU::IntegerColumn>(df[0]), TU::IntegerColumn{0,1} );
+	testColumn( std::get<TU::DoubleColumn>(df[2]), TU::DoubleColumn{29605500.0, 28839240.0} );
+	testColumn( std::get<TU::StringColumn>(df[4]), TU::StringColumn{"*", "12.5"} );
+
+	//A blank cell isn't a field, so its line has a field missing.
+	EXPECT_ANY_THROW( TU::dataFrameFromCSVString( "name A B\nhugo  2\n", std::vector<std::string>{"A"}, { TU::ColumnHeaders::YES, TU::RowHeaders::NO, ' ', TU::SeparatorMode::WHITESPACE_RUNS}) );
+}
+
 TEST(TUBULCSV, testDataframeEmptyFields)
 {
 	//Empty fields count: every line has as many fields as the header.

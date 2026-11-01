@@ -363,7 +363,8 @@ namespace TU {
 	 * the appropriate type. You can use operator[] on the columns object to retrieve
 	 * a column by name or index.
 	 * You can further customize some details of the parsing by selecting if the csv
-	 * file has headers for columns/rows and the separator character.
+	 * file has headers for columns/rows and the separator character, or fields
+	 * separated by runs of whitespace (CSVOptions::separatorMode).
 	 *
 	 * To read a csv file and just do basic operations, you use TU::readCsv("some_filename.csv")
 	 * and the file is read and parsed to memory closely to what is written in the file. You

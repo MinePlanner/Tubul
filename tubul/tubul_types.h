@@ -30,6 +30,14 @@ enum class RowHeaders
 	NO
 };
 
+/** How the fields of a CSV line are separated: by a separator character, or
+ * by runs of whitespace. */
+enum class SeparatorMode
+{
+	CHARACTER,
+	WHITESPACE_RUNS
+};
+
 /** Functions to work with Enumeration types, to cast them to and from
  * the underlying type used to represent them. Useful for printing or
  * using the enumeration as indices of vectors for example.
