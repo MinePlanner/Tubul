@@ -10,6 +10,8 @@
 #include <exception>
 #include <iostream>
 #include <optional>
+#include <string>
+#include <string_view>
 
 #include "tubul.h"
 
@@ -46,6 +48,22 @@ void testColumn(const TubulDataColumnType& col, const TubulDataColumnType& expec
 	  std::cout << "Break here" << std::endl;
   EXPECT_EQ(colEqual, true);
 };
+
+//CSV1 compressed with gzip (Python: gzip.compress(CSV1, mtime=0)).
+const unsigned char CSV1_GZIP[] = {
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xcb, 0x4b, 0xcc, 0x4d, 0xd5, 0x71,
+	0xd4, 0x71, 0xd2, 0x71, 0xd6, 0x71, 0xe1, 0xca, 0x28, 0x4d, 0xcf, 0xd7, 0x31, 0xd4, 0x31, 0xd2,
+	0x31, 0xd6, 0x31, 0xe1, 0x2a, 0x48, 0x4c, 0xce, 0xd7, 0x31, 0x01, 0x32, 0x8d, 0x74, 0x0c, 0xb9,
+	0x72, 0x4a, 0x33, 0x8b, 0x81, 0x4c, 0x90, 0x9c, 0x09, 0x17, 0x00, 0x7c, 0x5c, 0x1a, 0x35, 0x34,
+	0x00, 0x00, 0x00
+};
+
+//Writes `size` bytes to a new file named `filename`.
+void writeBytes(std::string_view filename, const unsigned char* bytes, size_t size)
+{
+	std::ofstream out(std::string(filename), std::ios::binary);
+	out.write(reinterpret_cast<const char*>(bytes), static_cast<std::streamsize>(size));
+}
 
 TEST(TUBULCSV, testBasicFunctionality)
 {
@@ -480,6 +498,22 @@ TEST(TUBULCSV, testDataframeFromFile)
 	EXPECT_NE(message.find(filename), std::string::npos) << message;
 }
 
+TEST(TUBULCSV, testDataframeFromGzipFile)
+{
+	//Compressed files are recognized by their content, whatever their name.
+	const std::string filename = "tubul_test_csv_from_gzip.csv.gz";
+	writeBytes(filename, CSV1_GZIP, sizeof(CSV1_GZIP));
+	TU::ColumnRequest req({ {"B",TU::DataType::DOUBLE}, {"name",TU::DataType::STRING} });
+	TU::DataFrame df = TU::dataFrameFromCSVFile( filename, req, { TU::ColumnHeaders::YES, TU::RowHeaders::NO, ','});
+	auto csv = TU::readCsv(filename);
+	std::remove(filename.c_str());
+
+	testColumn( std::get<TU::DoubleColumn>(df["B"]), expectedColBd );
+	testColumn( std::get<TU::StringColumn>(df["name"]), expectedColNames );
+	ASSERT_TRUE(csv);
+	EXPECT_EQ(csv->rowCount(), 3);
+}
+
 TEST(TUBULCSV, testDataframeNoColumnHeaderByPosition)
 {
 	const char* noHeader = "hugo,1,2\npaco,4,3\nluis,3,1\n";
@@ -565,4 +599,14 @@ TEST(TUBULCSV, testDataframeErrors)
 	EXPECT_ANY_THROW( TU::dataFrameFromCSVString( "name,A\nhugo,+-5\n", TU::ColumnRequest({ {"A",TU::DataType::INTEGER} }), noRowHeaders) );
 	//A file that doesn't exist.
 	EXPECT_ANY_THROW( TU::dataFrameFromCSVFile( "tubul_test_csv_no_such_file.csv", noRowHeaders) );
+}
+
+TEST(TUBULCSV, testDataframeTruncatedGzipFile)
+{
+	//A gzip file cut short is an error, not a shorter dataframe.
+	const std::string filename = "tubul_test_csv_truncated.csv.gz";
+	writeBytes(filename, CSV1_GZIP, sizeof(CSV1_GZIP) - 10);
+	EXPECT_ANY_THROW( TU::dataFrameFromCSVFile( filename, { TU::ColumnHeaders::YES, TU::RowHeaders::NO, ','}) );
+	EXPECT_FALSE( TU::readCsv(filename) );
+	std::remove(filename.c_str());
 }

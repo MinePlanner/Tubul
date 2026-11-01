@@ -14,3 +14,6 @@ https://github.com/p-ranav/argparse
 rapidcsv from:
 https://github.com/d99kris/rapidcsv
 
+zlib 1.3.2 from:
+https://github.com/madler/zlib
+

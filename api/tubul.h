@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <istream>
+#include <memory>
 #include <vector>
 #include <optional>
 #include <stdexcept>
@@ -343,6 +345,8 @@ namespace TU {
 	 * You can use dataFrameFromCSVFile(<filename>) to directly get back a CSV file
 	 * organized by columns in a dataframe, but this is the simpler method and will
 	 * retrieve all columns and store them as strings.
+	 * Files may be gzip-compressed: dataFrameFromCSVFile and readCsv decompress
+	 * them while they read them (see openInputFile).
 	 * By using the other variants of the function that receive either a name list
 	 * or a ColumnRequest object, you can choose the columns that will be populated
 	 * in the dataframe (the rest is dropped) and even choose the types of the columns
@@ -433,6 +437,10 @@ namespace TU {
     double strToDouble(const std::string_view& p);
     int strToInt(const std::string_view& p);
 	std::string readToString( const std::string& filename);
+	/** Opens a file for reading; a gzip-compressed file (recognized by its
+	 * content, not its name) is decompressed while it is read. Throws if the
+	 * file can't be opened, or if compressed data is corrupt or truncated. */
+	std::unique_ptr<std::istream> openInputFile(std::string_view filename);
 
 
 
