@@ -5,6 +5,8 @@
 #include <gtest/gtest.h>
 #include "tubul.h"
 #include <vector>
+#include <cstdio>
+#include <fstream>
 
 
 const char* CSV1 = R"(name,A,B,C,D
@@ -419,4 +421,143 @@ TEST(TUBULCSV, testDataframeNoColumnHeader)
 	testColumn( colC, expectedColCs );
 	testColumn( colD, expectedColDs );
 	testColumn(colName, expectedColNames);
+}
+
+//Streaming reader: typed and positional requests, files, CSVs without column
+//headers, then corner cases and errors. Splitting lines into fields is tested
+//in test_csv_line_splitter.cpp.
+
+TEST(TUBULCSV, testDataframeIntegerColumns)
+{
+	TU::ColumnRequest req({
+							  {"A",TU::DataType::INTEGER},
+							  {"D",TU::DataType::INTEGER}
+						  });
+	TU::DataFrame df = TU::dataFrameFromCSVString( CSV1, req);
+
+	testColumn( std::get<TU::IntegerColumn>(df["A"]), TU::IntegerColumn{1,4,3} );
+	testColumn( std::get<TU::IntegerColumn>(df["D"]), TU::IntegerColumn{4,1,4} );
+	EXPECT_EQ(df.getRowCount(), 3);
+}
+
+TEST(TUBULCSV, testDataframeColumnsByPosition)
+{
+	TU::ColumnRequest req({
+							  {size_t(1),TU::DataType::DOUBLE},
+							  {size_t(3),TU::DataType::STRING}
+						  });
+	TU::DataFrame df = TU::dataFrameFromCSVString( CSV1, req);
+
+	EXPECT_EQ(df.getColCount(), 4);
+	testColumn( std::get<TU::DoubleColumn>(df["B"]), expectedColBd );
+	testColumn( std::get<TU::StringColumn>(df["D"]), expectedColDs );
+	EXPECT_ANY_THROW( auto fail = std::get<TU::StringColumn>(df["A"]) );
+}
+
+TEST(TUBULCSV, testDataframeFromFile)
+{
+	const std::string filename = "tubul_test_csv_from_file.csv";
+	{
+		std::ofstream out(filename);
+		out << CSV1;
+	}
+	TU::DataFrame all = TU::dataFrameFromCSVFile( filename, { TU::ColumnHeaders::YES, TU::RowHeaders::NO, ','});
+	TU::DataFrame some = TU::dataFrameFromCSVFile( filename, std::vector<std::string>{"name"}, { TU::ColumnHeaders::YES, TU::RowHeaders::NO, ','});
+	//An error in a file names the file.
+	std::string message;
+	try { TU::dataFrameFromCSVFile( filename, std::vector<std::string>{"Z"}, { TU::ColumnHeaders::YES, TU::RowHeaders::NO, ','}); }
+	catch (const std::exception& error) { message = error.what(); }
+	std::remove(filename.c_str());
+
+	EXPECT_EQ(all.getColCount(), 5);
+	testColumn( std::get<TU::StringColumn>(all["C"]), expectedColCs );
+	testColumn( std::get<TU::StringColumn>(some["name"]), expectedColNames );
+	EXPECT_NE(message.find(filename), std::string::npos) << message;
+}
+
+TEST(TUBULCSV, testDataframeNoColumnHeaderByPosition)
+{
+	const char* noHeader = "hugo,1,2\npaco,4,3\nluis,3,1\n";
+	TU::ColumnRequest req({
+							  {size_t(0),TU::DataType::STRING},
+							  {size_t(2),TU::DataType::DOUBLE}
+						  });
+	TU::DataFrame df = TU::dataFrameFromCSVString( noHeader, req, { TU::ColumnHeaders::NO, TU::RowHeaders::NO, ','});
+
+	EXPECT_EQ(df.getColCount(), 3);
+	EXPECT_EQ(df.getRowCount(), 3);
+	testColumn( std::get<TU::StringColumn>(df[0]), expectedColNames );
+	testColumn( std::get<TU::DoubleColumn>(df[2]), TU::DoubleColumn{2,3,1} );
+
+	TU::DataFrame all = TU::dataFrameFromCSVString( noHeader, { TU::ColumnHeaders::NO, TU::RowHeaders::NO, ','});
+	EXPECT_EQ(all.getColCount(), 3);
+	testColumn( std::get<TU::StringColumn>(all[1]), TU::StringColumn{"1","4","3"} );
+}
+
+TEST(TUBULCSV, testDataframeEmptyFields)
+{
+	//Empty fields count: every line has as many fields as the header.
+	TU::DataFrame df = TU::dataFrameFromCSVString( "name,A,B\nhugo,,2\n,1,\n", { TU::ColumnHeaders::YES, TU::RowHeaders::NO, ','});
+	EXPECT_EQ(std::get<TU::StringColumn>(df["name"]), (TU::StringColumn{"hugo", ""}));
+	EXPECT_EQ(std::get<TU::StringColumn>(df["A"]), (TU::StringColumn{"", "1"}));
+	EXPECT_EQ(std::get<TU::StringColumn>(df["B"]), (TU::StringColumn{"2", ""}));
+}
+
+TEST(TUBULCSV, testDataframeEmptyInput)
+{
+	TU::DataFrame df = TU::dataFrameFromCSVString( "" );
+	EXPECT_EQ(df.getColCount(), 0);
+	EXPECT_EQ(df.getRowCount(), 0);
+	//It has no columns, so requested ones are missing.
+	EXPECT_ANY_THROW( TU::dataFrameFromCSVString( "", std::vector<std::string>{"A"}) );
+	EXPECT_ANY_THROW( TU::dataFrameFromCSVString( "\n\n", TU::ColumnRequest(TU::ColumnRequest::RequestsByPosition{ {size_t(0),TU::DataType::STRING} })) );
+}
+
+TEST(TUBULCSV, testDataframeHeaderOnly)
+{
+	TU::ColumnRequest req({ {"A",TU::DataType::DOUBLE} });
+	TU::DataFrame df = TU::dataFrameFromCSVString( "name,A,B\n", req);
+	EXPECT_EQ(df.getColCount(), 2);
+	EXPECT_EQ(std::get<TU::DoubleColumn>(df["A"]).size(), 0);
+}
+
+TEST(TUBULCSV, testDataframeEmptyRequest)
+{
+	//An empty request fills no column, as an empty list of names does.
+	TU::ColumnRequest none(TU::ColumnRequest::RequestsByName{});
+	TU::DataFrame df = TU::dataFrameFromCSVString( CSV1, none);
+	EXPECT_EQ(df.getColCount(), 4);
+	EXPECT_ANY_THROW( auto fail = std::get<TU::StringColumn>(df["A"]) );
+}
+
+TEST(TUBULCSV, testDataframeRepeatedColumnName)
+{
+	//As rapidcsv: a repeated name means its last column.
+	TU::DataFrame df = TU::dataFrameFromCSVString( "x,v,v\n1,2,3\n", std::vector<std::string>{"v"}, { TU::ColumnHeaders::YES, TU::RowHeaders::NO, ','});
+	testColumn( std::get<TU::StringColumn>(df["v"]), TU::StringColumn{"3"} );
+}
+
+TEST(TUBULCSV, testDataframeErrors)
+{
+	const TU::CSVOptions noRowHeaders { TU::ColumnHeaders::YES, TU::RowHeaders::NO, ','};
+
+	//A column that isn't in the header.
+	EXPECT_ANY_THROW( TU::dataFrameFromCSVString( CSV1, std::vector<std::string>{"Z"}) );
+	//A column by name in a CSV without column headers.
+	EXPECT_ANY_THROW( TU::dataFrameFromCSVString( CSV1, std::vector<std::string>{"A"}, { TU::ColumnHeaders::NO, TU::RowHeaders::NO, ','}) );
+	//A column position past the last column.
+	EXPECT_ANY_THROW( TU::dataFrameFromCSVString( CSV1, TU::ColumnRequest({ {size_t(4),TU::DataType::STRING} })) );
+	//Lines with fewer or more fields than the first line, even when the
+	//requested columns are there, and a trailing separator (an extra field).
+	EXPECT_ANY_THROW( TU::dataFrameFromCSVString( "name,A,B\nhugo,1\n", std::vector<std::string>{"A"}, noRowHeaders) );
+	EXPECT_ANY_THROW( TU::dataFrameFromCSVString( "name,A\nhugo,1,2\n", std::vector<std::string>{"A"}, noRowHeaders) );
+	EXPECT_ANY_THROW( TU::dataFrameFromCSVString( "name,A\nhugo,1,\n", std::vector<std::string>{"A"}, noRowHeaders) );
+	EXPECT_ANY_THROW( TU::dataFrameFromCSVString( "hugo,1\npaco\n", std::vector<std::string>{}, { TU::ColumnHeaders::NO, TU::RowHeaders::NO, ','}) );
+	//Text where a number is expected.
+	EXPECT_ANY_THROW( TU::dataFrameFromCSVString( "name,A\nhugo,x\n", TU::ColumnRequest({ {"A",TU::DataType::DOUBLE} }), noRowHeaders) );
+	EXPECT_ANY_THROW( TU::dataFrameFromCSVString( "name,A\nhugo,\n", TU::ColumnRequest({ {"A",TU::DataType::INTEGER} }), noRowHeaders) );
+	//A sign after '+', which std::stol rejects too.
+	EXPECT_ANY_THROW( TU::dataFrameFromCSVString( "name,A\nhugo,+-5\n", TU::ColumnRequest({ {"A",TU::DataType::INTEGER} }), noRowHeaders) );
+	//A file that doesn't exist.
+	EXPECT_ANY_THROW( TU::dataFrameFromCSVFile( "tubul_test_csv_no_such_file.csv", noRowHeaders) );
 }
