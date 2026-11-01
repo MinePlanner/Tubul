@@ -9,6 +9,7 @@
 #include <string>
 #include <string_view>
 #include <unordered_map>
+#include <type_traits>
 
 namespace TU
 {
@@ -28,6 +29,14 @@ enum class RowHeaders
 {
 	YES,
 	NO
+};
+
+/** How the fields of a CSV line are separated: by a separator character, or
+ * by runs of whitespace. */
+enum class SeparatorMode
+{
+	CHARACTER,
+	WHITESPACE_RUNS
 };
 
 /** Functions to work with Enumeration types, to cast them to and from

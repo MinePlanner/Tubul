@@ -364,8 +364,13 @@ namespace TU {
 	 * or doubles so when you retrieve a given column, you have to use std::get of
 	 * the appropriate type. You can use operator[] on the columns object to retrieve
 	 * a column by name or index.
+	 * A requested field must be wholly a value of its column's type, or the read
+	 * throws: integers may be decimal, hexadecimal (0x1F), octal (0o17) or a
+	 * whole number written as a double (1.0), and doubles decimal or
+	 * hexadecimal (0x1.8p3). See ColumnRequest for details.
 	 * You can further customize some details of the parsing by selecting if the csv
-	 * file has headers for columns/rows and the separator character.
+	 * file has headers for columns/rows and the separator character, or fields
+	 * separated by runs of whitespace (CSVOptions::separatorMode).
 	 *
 	 * To read a csv file and just do basic operations, you use TU::readCsv("some_filename.csv")
 	 * and the file is read and parsed to memory closely to what is written in the file. You
