@@ -5,7 +5,6 @@
 #include <fast_float/fast_float.h>
 #include <rapidcsv.h>
 #include <charconv>
-#include <fstream>
 #include <sstream>
 #include <streambuf>
 #include <optional>
@@ -14,6 +13,7 @@
 #include "tubul_types.h"
 #include "tubul_parse_csv.h"
 #include "tubul_csv_line_splitter.h"
+#include "tubul_file_utils.h"
 #include "tubul_string.h"
 #include "tubul_logger.h"
 
@@ -237,10 +237,27 @@ std::optional<CSVContents> readCsv(const std::string& filename)
 		//-> Using an istream that uses a custom buffer.
 		std::istream file_stream(&buf );
 #endif
-	//-> Direct approach using an ifstream.
-	std::ifstream file_stream(filename);
-	//Try to construct the CSV document directly in the optional.
-	return readCsv(file_stream);
+	//-> Direct approach using a stream. A gzip-compressed file is
+	//decompressed while it is read.
+	try
+	{
+		const std::unique_ptr<std::istream> file_stream = openInputFile(filename);
+		//rapidcsv needs to seek in its input, which a decompressing stream can't
+		//do, so the file is read into memory first (rapidcsv holds all of it in
+		//memory anyway). A read error throws (see openInputFile) and ends in the
+		//catch below.
+		std::string text;
+		std::vector<char> block(64 * 1024);
+		while (file_stream->read(block.data(), static_cast<std::streamsize>(block.size())) || file_stream->gcount() > 0)
+			text.append(block.data(), static_cast<size_t>(file_stream->gcount()));
+		std::stringstream contents(std::move(text));
+		//Try to construct the CSV document directly in the optional.
+		return readCsv(contents);
+	}
+	catch (std::exception&)
+	{
+		return std::nullopt;
+	}
 }
 
 //and then read from it as if it was a file. Pretty useful for testing or small
@@ -485,13 +502,12 @@ DataFrame readDataFrame(std::istream& input, const CSVOptions& options, const Co
 //As readDataFrame, from a file.
 DataFrame readDataFrameFile(const std::string& filename, const CSVOptions& options, const ColumnRequest* request)
 {
-	std::ifstream input(filename);
-	if (!input)
-		throw std::runtime_error("couldn't open CSV file '" + filename + "'");
+	//A gzip-compressed file is decompressed while it is read.
+	const std::unique_ptr<std::istream> input = openInputFile(filename);
 	//The errors name the line and the column; this adds the file.
 	try
 	{
-		return readDataFrame(input, options, request);
+		return readDataFrame(*input, options, request);
 	}
 	catch (const std::runtime_error& error)
 	{

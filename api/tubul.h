@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <istream>
+#include <memory>
 #include <vector>
 #include <optional>
 #include <stdexcept>
@@ -433,6 +435,10 @@ namespace TU {
     double strToDouble(const std::string_view& p);
     int strToInt(const std::string_view& p);
 	std::string readToString( const std::string& filename);
+	/** Opens a file for reading; a gzip-compressed file (recognized by its
+	 * content, not its name) is decompressed while it is read. Throws if the
+	 * file can't be opened, or if compressed data is corrupt or truncated. */
+	std::unique_ptr<std::istream> openInputFile(const std::string& filename);
 
 
 

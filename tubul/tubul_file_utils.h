@@ -8,6 +8,8 @@
 #include <memory>
 #include <streambuf>
 #include <fstream>
+#include <istream>
+#include <string>
 #include "tubul_string.h"
 
 namespace TU{
@@ -19,6 +21,13 @@ namespace TU{
  */
     bool isRegularFile(const std::string_view& name);
     size_t countCharInFile( const std::string_view& filename, char c);
+
+/** Opens a file for reading. A gzip-compressed file, recognized by its gzip
+ * header and not by its name, is decompressed while it is read; any other
+ * file is read as it is. Throws std::runtime_error if the file can't be
+ * opened, and the stream throws if compressed data is corrupt or truncated.
+ */
+    std::unique_ptr<std::istream> openInputFile(const std::string& filename);
     double strToDouble(const std::string_view& p);
     int strToInt(const std::string_view& p);
 
