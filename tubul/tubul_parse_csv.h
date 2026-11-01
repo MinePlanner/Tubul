@@ -3,12 +3,19 @@
 //
 
 #pragma once
+#include <cstdint>
 #include <memory>
+#include <optional>
+#include <string_view>
 #include <vector>
 #include <string>
 #include <unordered_map>
 #include <variant>
 #include <utility>
+#include <cstddef>
+#include <istream>
+
+#include "tubul_types.h"
 
 namespace TU
 {
