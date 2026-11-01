@@ -7,6 +7,7 @@
 #include <vector>
 #include <cstdio>
 #include <fstream>
+#include <limits>
 
 
 const char* CSV1 = R"(name,A,B,C,D
@@ -452,6 +453,17 @@ TEST(TUBULCSV, testDataframeIntegerColumns)
 	EXPECT_EQ(df.getRowCount(), 3);
 }
 
+TEST(TUBULCSV, testDataframeNumberFormats)
+{
+	//Whitespace around a number, signs, exponents, a zero-padded decimal;
+	//hexadecimal (0x) and octal (0o) integers, and hexadecimal doubles.
+	const char* numbers = "i,d\n 7 , -2.5e1 \n0x1F,0x1.8p3\n-0o17,+3\n0012,-0x1p-1\n-9223372036854775808,1\n";
+	TU::ColumnRequest req({ {"i",TU::DataType::INTEGER}, {"d",TU::DataType::DOUBLE} });
+	TU::DataFrame df = TU::dataFrameFromCSVString( numbers, req, { TU::ColumnHeaders::YES, TU::RowHeaders::NO, ','});
+	testColumn( std::get<TU::IntegerColumn>(df["i"]), TU::IntegerColumn{7, 31, -15, 12, std::numeric_limits<int64_t>::min()} );
+	testColumn( std::get<TU::DoubleColumn>(df["d"]), TU::DoubleColumn{-25.0, 12.0, 3.0, -0.5, 1.0} );
+}
+
 TEST(TUBULCSV, testDataframeColumnsByPosition)
 {
 	TU::ColumnRequest req({
@@ -604,11 +616,20 @@ TEST(TUBULCSV, testDataframeErrors)
 	EXPECT_ANY_THROW( TU::dataFrameFromCSVString( "name,A\nhugo,1,2\n", std::vector<std::string>{"A"}, noRowHeaders) );
 	EXPECT_ANY_THROW( TU::dataFrameFromCSVString( "name,A\nhugo,1,\n", std::vector<std::string>{"A"}, noRowHeaders) );
 	EXPECT_ANY_THROW( TU::dataFrameFromCSVString( "hugo,1\npaco\n", std::vector<std::string>{}, { TU::ColumnHeaders::NO, TU::RowHeaders::NO, ','}) );
-	//Text where a number is expected.
-	EXPECT_ANY_THROW( TU::dataFrameFromCSVString( "name,A\nhugo,x\n", TU::ColumnRequest({ {"A",TU::DataType::DOUBLE} }), noRowHeaders) );
-	EXPECT_ANY_THROW( TU::dataFrameFromCSVString( "name,A\nhugo,\n", TU::ColumnRequest({ {"A",TU::DataType::INTEGER} }), noRowHeaders) );
-	//A sign after '+', which std::stol rejects too.
-	EXPECT_ANY_THROW( TU::dataFrameFromCSVString( "name,A\nhugo,+-5\n", TU::ColumnRequest({ {"A",TU::DataType::INTEGER} }), noRowHeaders) );
+	//A field that isn't wholly a number of the column's type.
+	const TU::ColumnRequest doubles({ {"A",TU::DataType::DOUBLE} });
+	const TU::ColumnRequest integers({ {"A",TU::DataType::INTEGER} });
+	for (const char* bad: {"x", "", "12abc", "1 2", "+-5", "--5", "0x"})
+	{
+		EXPECT_ANY_THROW( TU::dataFrameFromCSVString( std::string("name,A\nhugo,") + bad + "\n", doubles, noRowHeaders) ) << bad;
+		EXPECT_ANY_THROW( TU::dataFrameFromCSVString( std::string("name,A\nhugo,") + bad + "\n", integers, noRowHeaders) ) << bad;
+	}
+	//Octal is for integers only.
+	EXPECT_ANY_THROW( TU::dataFrameFromCSVString( "name,A\nhugo,0o17\n", doubles, noRowHeaders) );
+	//An integer with a fraction, an octal digit out of range, and values out
+	//of int64_t's range.
+	for (const char* bad: {"3.7", "0o8", "0o", "9223372036854775808", "-9223372036854775809", "0x10000000000000000"})
+		EXPECT_ANY_THROW( TU::dataFrameFromCSVString( std::string("name,A\nhugo,") + bad + "\n", integers, noRowHeaders) ) << bad;
 	//A file that doesn't exist.
 	EXPECT_ANY_THROW( TU::dataFrameFromCSVFile( "tubul_test_csv_no_such_file.csv", noRowHeaders) );
 }

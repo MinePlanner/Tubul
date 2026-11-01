@@ -4,9 +4,12 @@
 
 #include <fast_float/fast_float.h>
 #include <rapidcsv.h>
+#include <cctype>
 #include <charconv>
+#include <cstdlib>
 #include <sstream>
 #include <streambuf>
+#include <limits>
 #include <optional>
 #include <span>
 #include <string_view>
@@ -295,34 +298,84 @@ struct FilledColumn
 							 std::string(text) + "' is not " + expected);
 }
 
-//As rapidcsv, which used fast_float: the number is read from the start of the
-//text, and characters after it are ignored.
-double toDouble(const FilledColumn& column, std::string_view text, size_t lineNumber)
+//Removes a leading '+' or '-' from `number`, and returns true if it was '-'.
+bool takeSign(std::string_view& number)
 {
-	double value = 0.0;
-	const auto res = fast_float::from_chars(text.data(), text.data() + text.size(), value);
-	if (res.ec != std::errc())
-		throwBadValue(column, text, lineNumber, "a number");
-	return value;
+	if (number.empty() || (number.front() != '+' && number.front() != '-'))
+		return false;
+	const bool negative = number.front() == '-';
+	number.remove_prefix(1);
+	return negative;
 }
 
-//As rapidcsv, which used std::stol: leading whitespace and a '+' sign are
-//accepted, and characters after the number are ignored.
+//True if `number` starts with a 0 and `letter`, in either case, and has more
+//after them: 0x for a hexadecimal number, 0o for an octal one.
+bool hasPrefix(std::string_view number, char letter)
+{
+	return number.size() > 2 && number[0] == '0' && std::tolower(static_cast<unsigned char>(number[1])) == letter;
+}
+
+//Reads the whole field as a number: whitespace around it is allowed, anything
+//else is an error. Decimal numbers (1, -2.5, 1e-3, inf, nan) are read by
+//fast_float, hexadecimal ones (0x1.8p3, as printf's %a writes them) by strtod,
+//since fast_float can't read them; strtod is the portable way.
+double toDouble(const FilledColumn& column, std::string_view text, size_t lineNumber)
+{
+	std::string_view number = trim(text);
+	const bool negative = takeSign(number);
+	//A second sign would be read by fast_float and strtod.
+	if (number.empty() || number.front() == '+' || number.front() == '-')
+		throwBadValue(column, text, lineNumber, "a number");
+	double value = 0.0;
+	bool isNumber = false;
+	if (hasPrefix(number, 'x'))
+	{
+		//strtod needs a terminated string; hexadecimal values are rare.
+		const std::string terminated(number);
+		char* end = nullptr;
+		value = std::strtod(terminated.c_str(), &end);
+		isNumber = (end == terminated.c_str() + terminated.size());
+	}
+	else
+	{
+		const char* end = number.data() + number.size();
+		const auto res = fast_float::from_chars(number.data(), end, value);
+		isNumber = (res.ec == std::errc() && res.ptr == end);
+	}
+	if (!isNumber)
+		throwBadValue(column, text, lineNumber, "a number");
+	return negative ? -value : value;
+}
+
+//Reads the whole field as an integer: decimal, hexadecimal with a 0x prefix, or
+//octal with a 0o prefix. A leading 0 alone doesn't mean octal (as it does in
+//C), so a zero-padded decimal such as 0012 reads as 12. Whitespace around it
+//is allowed, anything else is an error, as is a value out of int64_t's range.
 int64_t toInteger(const FilledColumn& column, std::string_view text, size_t lineNumber)
 {
-	std::string_view number = ltrim(text);
-	if (!number.empty() && number.front() == '+')
+	std::string_view number = trim(text);
+	const bool negative = takeSign(number);
+	int base = 10;
+	if (hasPrefix(number, 'x'))
 	{
-		number.remove_prefix(1);
-		//As std::stol: a '+' can't be followed by another sign.
-		if (!number.empty() && number.front() == '-')
-			throwBadValue(column, text, lineNumber, "an integer");
+		base = 16;
+		number.remove_prefix(2);
 	}
-	int64_t value = 0;
-	const auto res = std::from_chars(number.data(), number.data() + number.size(), value);
-	if (res.ec != std::errc())
+	else if (hasPrefix(number, 'o'))
+	{
+		base = 8;
+		number.remove_prefix(2);
+	}
+	//Read without its sign, as unsigned, so the most negative value fits too.
+	uint64_t magnitude = 0;
+	const char* end = number.data() + number.size();
+	const auto res = std::from_chars(number.data(), end, magnitude, base);
+	if (number.empty() || res.ec == std::errc::invalid_argument || res.ptr != end)
 		throwBadValue(column, text, lineNumber, "an integer");
-	return value;
+	const uint64_t largest = std::numeric_limits<int64_t>::max();
+	if (res.ec == std::errc::result_out_of_range || magnitude > (negative ? largest + 1 : largest))
+		throwBadValue(column, text, lineNumber, "an integer in range");
+	return negative ? static_cast<int64_t>(0 - magnitude) : static_cast<int64_t>(magnitude);
 }
 
 //The dataframe's names, types and empty columns, from the header line (or from

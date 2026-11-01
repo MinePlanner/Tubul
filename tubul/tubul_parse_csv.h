@@ -22,6 +22,17 @@ using IntegerColumn = std::vector<int64_t>;
 using StringColumn = std::vector<std::string>;
 using DataColumn = std::variant<std::monostate, DoubleColumn, IntegerColumn, StringColumn>;
 
+/** The columns to read from a CSV, by name or by position, each with the type
+ * of its values. A field must be wholly a value of its column's type, or the
+ * read throws an error naming the line, the column and the text; whitespace
+ * around the value and a leading '+' or '-' are allowed.
+ * - DataType::INTEGER: decimal (42, -7, and 0012 reads as 12), hexadecimal
+ *   with a 0x prefix (0x1F), or octal with a 0o prefix (0o17), in the range of
+ *   int64_t. A leading 0 alone doesn't mean octal, as it does in C.
+ * - DataType::DOUBLE: decimal (2.5, -1e-3, inf, nan), or hexadecimal with a
+ *   0x prefix (0x1.8p3, as printf's %a writes it).
+ * - DataType::STRING: any text, as it is in the file.
+ */
 struct ColumnRequest
 {
 	using PositionType = std::pair<size_t, TU::DataType>;
