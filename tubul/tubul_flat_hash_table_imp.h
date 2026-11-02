@@ -235,6 +235,65 @@ Table<Policy, Hash, Equal>::Table() noexcept
 }
 
 template <class Policy, class Hash, class Equal>
+Table<Policy, Hash, Equal>::Table(size_t capacity, const Hash &hash, const Equal &equal) : m_slots(nullptr), m_ctrl(gEmptyCtrl), m_capacity(0), m_size(0),
+																						   m_tombstones(0), m_hash(hash), m_equal(equal)
+{
+	reserve(capacity);
+}
+
+template <class Policy, class Hash, class Equal>
+Table<Policy, Hash, Equal>::Table(const Table &other) : Table(other.m_size, other.m_hash, other.m_equal)
+{
+	// If a copy throws, the destructor frees what was copied: the delegated
+	// constructor has finished.
+	for (const Slot &slot : other)
+		insertNew(slot);
+}
+
+// The source is left empty, without memory.
+template <class Policy, class Hash, class Equal>
+Table<Policy, Hash, Equal>::Table(Table &&other) noexcept(
+	std::is_nothrow_move_constructible_v<Hash> &&
+	std::is_nothrow_move_constructible_v<Equal>) : m_slots(std::exchange(other.m_slots, nullptr)),
+												   m_ctrl(std::exchange(other.m_ctrl, gEmptyCtrl)),
+												   m_capacity(std::exchange(other.m_capacity, 0)),
+												   m_size(std::exchange(other.m_size, 0)),
+												   m_tombstones(std::exchange(other.m_tombstones, 0)),
+												   m_hash(std::move(other.m_hash)), m_equal(std::move(other.m_equal))
+{
+}
+
+template <class Policy, class Hash, class Equal>
+auto Table<Policy, Hash, Equal>::operator=(const Table &other) -> Table &
+{
+	if (this != &other)
+	{
+		Table copy(other);
+		swap(copy);
+	}
+	return *this;
+}
+
+template <class Policy, class Hash, class Equal>
+auto Table<Policy, Hash, Equal>::operator=(Table &&other) noexcept(
+	std::is_nothrow_move_assignable_v<Hash> &&
+	std::is_nothrow_move_assignable_v<Equal>) -> Table &
+{
+	if (this != &other)
+	{
+		destroyAndFree();
+		m_slots      = std::exchange(other.m_slots, nullptr);
+		m_ctrl       = std::exchange(other.m_ctrl, gEmptyCtrl);
+		m_capacity   = std::exchange(other.m_capacity, 0);
+		m_size       = std::exchange(other.m_size, 0);
+		m_tombstones = std::exchange(other.m_tombstones, 0);
+		m_hash       = std::move(other.m_hash);
+		m_equal      = std::move(other.m_equal);
+	}
+	return *this;
+}
+
+template <class Policy, class Hash, class Equal>
 Table<Policy, Hash, Equal>::~Table()
 {
 	destroyAndFree();
@@ -519,6 +578,32 @@ size_t Table<Policy, Hash, Equal>::eraseKey(const K &key)
 }
 
 template <class Policy, class Hash, class Equal>
+void Table<Policy, Hash, Equal>::swap(Table &other) noexcept(
+	std::is_nothrow_swappable_v<Hash> && std::is_nothrow_swappable_v<Equal>)
+{
+	using std::swap;
+	swap(m_slots, other.m_slots);
+	swap(m_ctrl, other.m_ctrl);
+	swap(m_capacity, other.m_capacity);
+	swap(m_size, other.m_size);
+	swap(m_tombstones, other.m_tombstones);
+	swap(m_hash, other.m_hash);
+	swap(m_equal, other.m_equal);
+}
+
+template <class Policy, class Hash, class Equal>
+Hash Table<Policy, Hash, Equal>::hash_function() const
+{
+	return m_hash;
+}
+
+template <class Policy, class Hash, class Equal>
+Equal Table<Policy, Hash, Equal>::key_eq() const
+{
+	return m_equal;
+}
+
+template <class Policy, class Hash, class Equal>
 float Table<Policy, Hash, Equal>::load_factor() const noexcept
 {
 	if (m_capacity == 0)
@@ -583,6 +668,17 @@ void Table<Policy, Hash, Equal>::eraseAt(size_t index)
 		m_ctrl[index] = kDeleted;
 		++m_tombstones;
 	}
+}
+
+// Inserts an element known not to be there, with room for it (a copy).
+template <class Policy, class Hash, class Equal>
+void Table<Policy, Hash, Equal>::insertNew(const Slot &slot)
+{
+	const size_t hash  = hashOf(Policy::key(slot));
+	const size_t index = emptySlotFor(hash);
+	std::construct_at(&m_slots[index], slot);
+	m_ctrl[index] = tagOf(hash);
+	++m_size;
 }
 
 // ---------------------------------------------------------------------------
