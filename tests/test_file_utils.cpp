@@ -2,10 +2,20 @@
 // Created by Carlos Acosta on 30-03-23.
 //
 
-#include "tubul.h"
 #include <gtest/gtest.h>
+
+#include <string.h>
 #include <fstream>
 #include <iterator>
+#include <cstddef>
+#include <cstdio>
+#include <exception>
+#include <ios>
+#include <sstream>
+#include <string>
+#include <vector>
+
+#include "tubul.h"
 
 
 const char* FILE_TO_CREATE_CONTENTS = R"(This is the first line
@@ -236,3 +246,71 @@ TEST(TUBULFileUtils, testReadFileLines)
 
 }
 
+
+TEST(TUBULFileUtils, testOpenInputFilePlain)
+{
+    const std::string filename = "tubul_test_open_input_plain.txt";
+    {
+        std::ofstream out(filename);
+        out << "first line\nsecond line\n";
+    }
+    std::string first, second;
+    {
+        const auto in = TU::openInputFile(filename);
+        std::getline(*in, first);
+        std::getline(*in, second);
+    }
+    std::remove(filename.c_str());
+    EXPECT_EQ(first, "first line");
+    EXPECT_EQ(second, "second line");
+}
+
+TEST(TUBULFileUtils, testOpenInputFileGzip)
+{
+    // "first line\nsecond line\n", compressed with gzip (Python: gzip.compress(..., mtime=0)).
+    const unsigned char compressed[] = {
+        0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x4b, 0xcb, 0x2c, 0x2a, 0x2e, 0x51,
+        0xc8, 0xc9, 0xcc, 0x4b, 0xe5, 0x2a, 0x4e, 0x4d, 0xce, 0xcf, 0x4b, 0x81, 0xb0, 0x01, 0x2c, 0x5a,
+        0x45, 0x5d, 0x17, 0x00, 0x00, 0x00
+    };
+    const std::string filename = "tubul_test_open_input.gz";
+    {
+        std::ofstream out(filename, std::ios::binary);
+        out.write(reinterpret_cast<const char*>(compressed), sizeof(compressed));
+    }
+    std::string first, second;
+    {
+        const auto in = TU::openInputFile(filename);
+        std::getline(*in, first);
+        std::getline(*in, second);
+    }
+    std::remove(filename.c_str());
+    EXPECT_EQ(first, "first line");
+    EXPECT_EQ(second, "second line");
+}
+
+TEST(TUBULFileUtils, testOpenInputFileEmpty)
+{
+    const std::string filename = "tubul_test_open_input_empty.txt";
+    {
+        std::ofstream out(filename);
+    }
+    bool readSomething = true;
+    {
+        const auto in = TU::openInputFile(filename);
+        std::string line;
+        readSomething = static_cast<bool>(std::getline(*in, line));
+    }
+    std::remove(filename.c_str());
+    EXPECT_FALSE(readSomething);
+}
+
+TEST(TUBULFileUtils, testOpenInputFileMissing)
+{
+    //The error names the file and the reason (the system's message, such as
+    //"No such file or directory").
+    std::string message;
+    try { TU::openInputFile("tubul_test_open_input_no_such_file.txt"); }
+    catch (const std::exception& error) { message = error.what(); }
+    EXPECT_NE(message.find("'tubul_test_open_input_no_such_file.txt': "), std::string::npos) << message;
+}

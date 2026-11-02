@@ -4,6 +4,7 @@ message(STATUS "Scanning external dependencies")
 add_subdirectory( argparse )
 add_subdirectory( fast_float )
 add_subdirectory( text_format_utils )
+add_subdirectory( zlib )
 
 #Creating a single list to contain all libraries that are required from External
 #so it's easier to use them later.

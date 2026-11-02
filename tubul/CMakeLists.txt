@@ -16,6 +16,10 @@ set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
 target_link_libraries(libtubul PUBLIC Threads::Threads)
 
+#zlib reads gzip-compressed files (openInputFile). PRIVATE: it is an
+#implementation detail, and its headers are not part of the api.
+target_link_libraries(libtubul PRIVATE tubul_zlib)
+
 #Check the flag for disabling tubul's custom memory tracking.
 if (DEFINED TUBUL_NO_MALLOC)
     message(WARNING "Not using tubul's memory tracking")
