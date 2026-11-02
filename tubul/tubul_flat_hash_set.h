@@ -168,6 +168,11 @@ public:
 
 	hasher    hash_function() const;
 	key_equal key_eq() const;
+
+private:
+	using Table = detail::flathash::Table<detail::flathash::SetPolicy<Key>, Hash, Equal>;
+
+	Table m_table;
 };
 
 // From the keys of a range or of an initializer list, then the capacity,
@@ -195,6 +200,8 @@ void swap(FlatHashSet<Key, Hash, Equal> &lhs,
 		  FlatHashSet<Key, Hash, Equal> &rhs) noexcept(noexcept(lhs.swap(rhs)));
 
 } // namespace TU
+
+#include "tubul_flat_hash_set_imp.h"
 
 // -----------------------------------------------------------------------------
 // Benchmarks of uint64_t keys (2026-10-29)

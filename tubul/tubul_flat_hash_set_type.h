@@ -12,4 +12,27 @@
 namespace TU::detail::flathash
 {
 
+// What the slots of a FlatHashSet's table hold: a key, which users only see
+// as const.
+template <class KeyType>
+struct SetPolicy
+{
+	using Key                              = KeyType;
+	using Slot                             = Key;
+	static constexpr bool kMutableIterator = false;
+
+	// Only called with slots of the table, never with temporaries.
+	static const Key &key(const Slot &slot)
+	{
+		return slot;
+	}
+
+	// Moves a key to another slot when the table is rehashed (from is
+	// destroyed right after).
+	static void relocate(Slot *to, Slot &from)
+	{
+		std::construct_at(to, std::move(from));
+	}
+};
+
 } // namespace TU::detail::flathash
