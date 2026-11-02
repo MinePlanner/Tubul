@@ -117,6 +117,8 @@ struct DefaultEqual<std::string_view> : DefaultEqual<std::string>
 
 } // namespace TU
 
+#include "tubul_flat_hash_imp.h"
+
 // -----------------------------------------------------------------------------
 // Benchmarks of compound keys (2026-10-30)
 // -----------------------------------------------------------------------------
