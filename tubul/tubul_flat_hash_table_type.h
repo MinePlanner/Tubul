@@ -134,6 +134,7 @@ public:
 	const_iterator end() const noexcept;
 
 	size_t size() const noexcept;
+	size_t max_size() const noexcept;
 	size_t capacity() const noexcept;
 
 	template <class K>
@@ -142,6 +143,30 @@ public:
 	const_iterator find(const K &key) const;
 	template <class K>
 	bool contains(const K &key) const;
+
+	template <class K>
+	std::pair<iterator, iterator> equal_range(const K &key);
+	template <class K>
+	std::pair<const_iterator, const_iterator> equal_range(const K &key) const;
+
+	// Erases every element, keeping the memory.
+	void clear() noexcept;
+	// Erases an element or a range, and returns the iterator after it.
+	iterator erase(const_iterator pos);
+	iterator erase(const_iterator first, const_iterator last);
+	// Erases key if it is there, and returns how many elements it erased.
+	template <class K>
+	size_t eraseKey(const K &key);
+
+	float load_factor() const noexcept;
+	float max_load_factor() const noexcept;
+	// Rebuilds the table with at least capacity slots, or as few as the
+	// elements need; rehash(0) on an empty table frees its memory. Throws
+	// std::length_error if capacity is above max_size().
+	void rehash(size_t capacity);
+	// Makes room for count elements without rehashing. Throws
+	// std::length_error if count is above max_size().
+	void reserve(size_t count);
 
 	// Finds key, or inserts the slot built from args (which must hold key).
 	// Returns the element and whether it was inserted.
@@ -163,6 +188,8 @@ private:
 	size_t         hashOf(const K &key) const;
 	static uint8_t tagOf(size_t hash);
 	iterator       iteratorAt(size_t index) const;
+	size_t         indexOf(const_iterator pos) const;
+	void           eraseAt(size_t index);
 	iterator       firstFrom(size_t index) const;
 	size_t         emptySlotFor(size_t hash) const;
 	void           rehashTo(size_t capacity);

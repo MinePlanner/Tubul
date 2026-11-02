@@ -57,6 +57,12 @@ auto FlatHashSet<Key, Hash, Equal>::size() const noexcept -> size_type
 }
 
 template <class Key, class Hash, class Equal>
+auto FlatHashSet<Key, Hash, Equal>::max_size() const noexcept -> size_type
+{
+	return m_table.max_size();
+}
+
+template <class Key, class Hash, class Equal>
 auto FlatHashSet<Key, Hash, Equal>::capacity() const noexcept -> size_type
 {
 	return m_table.capacity();
@@ -65,6 +71,12 @@ auto FlatHashSet<Key, Hash, Equal>::capacity() const noexcept -> size_type
 // ---------------------------------------------------------------------------
 // Insertion and erasure
 // ---------------------------------------------------------------------------
+
+template <class Key, class Hash, class Equal>
+void FlatHashSet<Key, Hash, Equal>::clear() noexcept
+{
+	m_table.clear();
+}
 
 template <class Key, class Hash, class Equal>
 auto FlatHashSet<Key, Hash, Equal>::insert(const Key &key)
@@ -107,6 +119,27 @@ auto FlatHashSet<Key, Hash, Equal>::emplace(Args &&...args)
 		return insert(Key(std::forward<Args>(args)...));
 }
 
+template <class Key, class Hash, class Equal>
+auto FlatHashSet<Key, Hash, Equal>::erase(const_iterator pos) -> iterator
+{
+	return m_table.erase(pos);
+}
+
+template <class Key, class Hash, class Equal>
+auto FlatHashSet<Key, Hash, Equal>::erase(const_iterator first,
+										  const_iterator last) -> iterator
+{
+	return m_table.erase(first, last);
+}
+
+template <class Key, class Hash, class Equal>
+template <class K>
+auto FlatHashSet<Key, Hash, Equal>::erase(const KeyArg<K> &key) -> size_type
+	requires detail::flathash::NotIterator<KeyArg<K>, iterator, const_iterator>
+{
+	return m_table.eraseKey(key);
+}
+
 // ---------------------------------------------------------------------------
 // Lookup
 // ---------------------------------------------------------------------------
@@ -131,6 +164,53 @@ auto FlatHashSet<Key, Hash, Equal>::count(const KeyArg<K> &key) const
 	-> size_type
 {
 	return m_table.contains(key) ? 1 : 0;
+}
+
+template <class Key, class Hash, class Equal>
+template <class K>
+auto FlatHashSet<Key, Hash, Equal>::equal_range(const KeyArg<K> &key) const
+	-> std::pair<iterator, iterator>
+{
+	return m_table.equal_range(key);
+}
+
+// ---------------------------------------------------------------------------
+// Hash policy and observers
+// ---------------------------------------------------------------------------
+
+template <class Key, class Hash, class Equal>
+float FlatHashSet<Key, Hash, Equal>::load_factor() const noexcept
+{
+	return m_table.load_factor();
+}
+
+template <class Key, class Hash, class Equal>
+float FlatHashSet<Key, Hash, Equal>::max_load_factor() const noexcept
+{
+	return m_table.max_load_factor();
+}
+
+template <class Key, class Hash, class Equal>
+void FlatHashSet<Key, Hash, Equal>::max_load_factor(float) noexcept
+{
+}
+
+template <class Key, class Hash, class Equal>
+auto FlatHashSet<Key, Hash, Equal>::bucket_count() const noexcept -> size_type
+{
+	return m_table.capacity();
+}
+
+template <class Key, class Hash, class Equal>
+void FlatHashSet<Key, Hash, Equal>::rehash(size_type capacity)
+{
+	m_table.rehash(capacity);
+}
+
+template <class Key, class Hash, class Equal>
+void FlatHashSet<Key, Hash, Equal>::reserve(size_type count)
+{
+	m_table.reserve(count);
 }
 
 } // namespace TU
