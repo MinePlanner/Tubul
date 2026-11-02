@@ -11,6 +11,8 @@
 #include <string_view>
 #include <vector>
 
+#include "tubul_types.h"
+
 namespace TU
 {
 
@@ -31,9 +33,11 @@ namespace TU
 class CSVLineSplitter
 {
 public:
-	/** Reads `input`, with fields separated by `separator`. The stream must
-	 * outlive the splitter. */
-	CSVLineSplitter(std::istream& input, char separator);
+	/** Reads `input`, with fields separated by `separator`. With
+	 * SeparatorMode::WHITESPACE_RUNS, fields are separated by runs of
+	 * whitespace instead, `separator` isn't used, and whitespace at the start
+	 * or end of a line is ignored. The stream must outlive the splitter. */
+	CSVLineSplitter(std::istream& input, char separator, SeparatorMode mode = SeparatorMode::CHARACTER);
 
 	//The fields are views of the line held here, so a copy (or a move) would
 	//point into another object's line.
@@ -55,6 +59,7 @@ public:
 private:
 	std::istream& input_;
 	const char separator_;
+	const SeparatorMode mode_;
 	std::string line_;
 	size_t lineNumber_ = 0;
 	std::vector<std::string_view> fields_;

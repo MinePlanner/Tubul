@@ -52,11 +52,26 @@ bool isBlank(std::string_view line)
 	return ltrim(line).empty();
 }
 
+//True for a whitespace character, as TU::trim defines it.
+bool isWhitespace(char c)
+{
+	return details::WHITESPACE.find(c) != std::string::npos;
+}
+
+//True if `c` ends a field: the separator, or whitespace with
+//SeparatorMode::WHITESPACE_RUNS (nextLine then skips the rest of the run).
+bool isSeparator(char c, char separator, SeparatorMode mode)
+{
+	if (mode == SeparatorMode::WHITESPACE_RUNS)
+		return isWhitespace(c);
+	return c == separator;
+}
+
 //Finds where the field that begins at `begin` ends: at the first separator
 //outside quotes, or at the end of the line. As rapidcsv, quotes open and close
 //quoting only in a field that starts with a quote; anywhere else, a quote is a
 //plain character.
-size_t findFieldEnd(std::string_view line, size_t begin, char separator)
+size_t findFieldEnd(std::string_view line, size_t begin, char separator, SeparatorMode mode)
 {
 	const bool startsWithQuote = begin < line.size() && line[begin] == kQuote;
 	bool quoted = false;
@@ -65,7 +80,7 @@ size_t findFieldEnd(std::string_view line, size_t begin, char separator)
 	{
 		if (line[i] == kQuote && startsWithQuote)
 			quoted = !quoted;
-		else if (line[i] == separator && !quoted)
+		else if (!quoted && isSeparator(line[i], separator, mode))
 			break;
 	}
 	return i;
@@ -92,9 +107,10 @@ size_t unquote(std::string& line, size_t begin, size_t end)
 
 } // namespace
 
-CSVLineSplitter::CSVLineSplitter(std::istream& input, char separator):
+CSVLineSplitter::CSVLineSplitter(std::istream& input, char separator, SeparatorMode mode):
 	input_(input),
-	separator_(separator)
+	separator_(separator),
+	mode_(mode)
 {}
 
 //Quoted fields are unquoted in the line itself, so every field is a view of
@@ -116,7 +132,16 @@ bool CSVLineSplitter::nextLine()
 		size_t begin = 0;
 		while (true)
 		{
-			const size_t end = findFieldEnd(line_, begin, separator_);
+			//Runs of whitespace are one separator, and whitespace at the start
+			//or end of the line is ignored.
+			if (mode_ == SeparatorMode::WHITESPACE_RUNS)
+			{
+				while (begin < line_.size() && isWhitespace(line_[begin]))
+					++begin;
+				if (begin == line_.size())
+					break;
+			}
+			const size_t end = findFieldEnd(line_, begin, separator_, mode_);
 			fields_.emplace_back(line_.data() + begin, unquote(line_, begin, end));
 			if (end == line_.size())
 				break;

@@ -5,8 +5,12 @@
 #include <fast_float/fast_float.h>
 #include <rapidcsv.h>
 
+#include <cctype>
 #include <charconv>
+#include <cmath>
+#include <cstdlib>
 #include <format>
+#include <limits>
 #include <sstream>
 #include <optional>
 #include <span>
@@ -271,34 +275,112 @@ struct FilledColumn
 	throw TU::Exception(std::format("CSV line {}, column '{}': '{}' is not {}", lineNumber, column.name_, text, expected));
 }
 
-//As rapidcsv, which used fast_float: the number is read from the start of the
-//text, and characters after it are ignored.
+//Removes a leading '+' or '-' from `number`, and returns true if it was '-'.
+bool takeSign(std::string_view& number)
+{
+	if (number.empty() || (number.front() != '+' && number.front() != '-'))
+		return false;
+	const bool negative = number.front() == '-';
+	number.remove_prefix(1);
+	return negative;
+}
+
+//True if `number` starts with a 0 and `letter`, in either case, and has more
+//after them: 0x for a hexadecimal number, 0o for an octal one. A bare 0x or 0o
+//isn't a prefix, so it is read as a decimal number, and rejected.
+bool hasPrefix(std::string_view number, char letter)
+{
+	return number.size() > 2 && number[0] == '0' && std::tolower(static_cast<unsigned char>(number[1])) == letter;
+}
+
+//Reads the whole text as a number into `value`, and returns false if it isn't
+//one: whitespace around it is allowed, anything else isn't. Decimal numbers (1,
+//-2.5, 1e-3, inf, nan) are read by fast_float, hexadecimal ones (0x1.8p3, as
+//printf's %a writes them) by strtod, since fast_float can't read them; strtod
+//is the portable way.
+bool readDouble(std::string_view text, double& value)
+{
+	std::string_view number = trim(text);
+	const bool negative = takeSign(number);
+	//A second sign would be read by fast_float and strtod.
+	if (number.empty() || number.front() == '+' || number.front() == '-')
+		return false;
+	bool isNumber = false;
+	if (hasPrefix(number, 'x'))
+	{
+		//strtod reads it as C does (a hexadecimal floating constant), with the
+		//decimal point of the C locale in use: '.' unless the program changes
+		//LC_NUMERIC. It needs a terminated string; hexadecimal values are rare.
+		const std::string terminated(number);
+		char* end = nullptr;
+		value = std::strtod(terminated.c_str(), &end);
+		isNumber = (end == terminated.c_str() + terminated.size());
+	}
+	else
+	{
+		const char* end = number.data() + number.size();
+		const auto res = fast_float::from_chars(number.data(), end, value);
+		isNumber = (res.ec == std::errc() && res.ptr == end);
+	}
+	if (negative)
+		value = -value;
+	return isNumber;
+}
+
+//Reads the whole field as a number (see readDouble).
 double toDouble(const FilledColumn& column, std::string_view text, size_t lineNumber)
 {
 	double value = 0.0;
-	const auto res = fast_float::from_chars(text.data(), text.data() + text.size(), value);
-	if (res.ec != std::errc())
+	if (!readDouble(text, value))
 		throwBadValue(column, text, lineNumber, "a number");
 	return value;
 }
 
-//As rapidcsv, which used std::stol: leading whitespace and a '+' sign are
-//accepted, and characters after the number are ignored.
+//Reads a field that isn't written as an integer, such as 1.0, 1e2 or
+//0x1.8p3, as a double, and returns it if it is a whole number. Doubles hold
+//every integer exactly only up to 2^53, so a larger one is an error.
+int64_t wholeDoubleToInteger(const FilledColumn& column, std::string_view text, size_t lineNumber)
+{
+	constexpr double kLargestExact = 9007199254740992.0; //2^53
+	double value = 0.0;
+	if (!readDouble(text, value) || value != std::trunc(value))
+		throwBadValue(column, text, lineNumber, "an integer");
+	if (std::fabs(value) > kLargestExact)
+		throwBadValue(column, text, lineNumber, "an integer: written as a double, it must be at most 2^53");
+	return static_cast<int64_t>(value);
+}
+
+//Reads the whole field as an integer: decimal, hexadecimal with a 0x prefix, or
+//octal with a 0o prefix. A leading 0 alone doesn't mean octal (as it does in
+//C), so a zero-padded decimal such as 0012 reads as 12. Whitespace around it
+//is allowed, as is a whole number written as a double (see
+//wholeDoubleToInteger); anything else is an error, as is a value out of
+//int64_t's range.
 int64_t toInteger(const FilledColumn& column, std::string_view text, size_t lineNumber)
 {
-	std::string_view number = ltrim(text);
-	if (!number.empty() && number.front() == '+')
+	std::string_view number = trim(text);
+	const bool negative = takeSign(number);
+	int base = 10;
+	if (hasPrefix(number, 'x'))
 	{
-		number.remove_prefix(1);
-		//As std::stol: a '+' can't be followed by another sign.
-		if (!number.empty() && number.front() == '-')
-			throwBadValue(column, text, lineNumber, "an integer");
+		base = 16;
+		number.remove_prefix(2);
 	}
-	int64_t value = 0;
-	const auto res = std::from_chars(number.data(), number.data() + number.size(), value);
-	if (res.ec != std::errc())
-		throwBadValue(column, text, lineNumber, "an integer");
-	return value;
+	else if (hasPrefix(number, 'o'))
+	{
+		base = 8;
+		number.remove_prefix(2);
+	}
+	//Read without its sign, as unsigned, so the most negative value fits too.
+	uint64_t magnitude = 0;
+	const char* end = number.data() + number.size();
+	const auto res = std::from_chars(number.data(), end, magnitude, base);
+	if (res.ec == std::errc::invalid_argument || res.ptr != end)
+		return wholeDoubleToInteger(column, text, lineNumber);
+	const uint64_t largest = std::numeric_limits<int64_t>::max();
+	if (res.ec == std::errc::result_out_of_range || magnitude > (negative ? largest + 1 : largest))
+		throwBadValue(column, text, lineNumber, "an integer in range");
+	return negative ? static_cast<int64_t>(0 - magnitude) : static_cast<int64_t>(magnitude);
 }
 
 //The dataframe's names, types and empty columns, from the header line (or from
@@ -432,7 +514,7 @@ DataFrame readDataFrame(std::istream& input, const CSVOptions& options, const Co
 	if (!input)
 		throw TU::Exception("couldn't read the CSV input: the stream is in an error state");
 
-	CSVLineSplitter splitter(input, options.separator);
+	CSVLineSplitter splitter(input, options.separator, options.separatorMode);
 	//Without a first line there are no columns, so a requested column is
 	//reported missing.
 	const bool hasFirstLine = splitter.nextLine();

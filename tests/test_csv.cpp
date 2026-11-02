@@ -12,6 +12,9 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <limits>
+#include <cstdint>
+#include <format>
 
 #include "tubul.h"
 
@@ -463,6 +466,22 @@ TEST(TUBULCSV, testDataframeIntegerColumns)
 	EXPECT_EQ(df.getRowCount(), 3);
 }
 
+TEST(TUBULCSV, testDataframeNumberFormats)
+{
+	//Whitespace around a number, signs, exponents, a zero-padded decimal;
+	//hexadecimal (0x) and octal (0o) integers, and hexadecimal doubles.
+	const char* numbers = "i,d\n 7 , -2.5e1 \n0x1F,0x1.8p3\n-0o17,+3\n0012,-0x1p-1\n-9223372036854775808,1\n";
+	TU::ColumnRequest req({ {"i",TU::DataType::INTEGER}, {"d",TU::DataType::DOUBLE} });
+	TU::DataFrame df = TU::dataFrameFromCSVString( numbers, req, { TU::ColumnHeaders::YES, TU::RowHeaders::NO, ','});
+	testColumn( std::get<TU::IntegerColumn>(df["i"]), TU::IntegerColumn{7, 31, -15, 12, std::numeric_limits<int64_t>::min()} );
+	testColumn( std::get<TU::DoubleColumn>(df["d"]), TU::DoubleColumn{-25.0, 12.0, 3.0, -0.5, 1.0} );
+
+	//Whole numbers written as doubles, up to 2^53, are integers too.
+	const char* wholeDoubles = "i\n1.0\n -3. \n1e2\n0x1.8p3\n0x1.0000000000000p+0\n-0.0\n9007199254740992.0\n";
+	TU::DataFrame whole = TU::dataFrameFromCSVString( wholeDoubles, TU::ColumnRequest({ {"i",TU::DataType::INTEGER} }), { TU::ColumnHeaders::YES, TU::RowHeaders::NO, ','});
+	testColumn( std::get<TU::IntegerColumn>(whole["i"]), TU::IntegerColumn{1, -3, 100, 12, 1, 0, 9007199254740992} );
+}
+
 TEST(TUBULCSV, testDataframeColumnsByPosition)
 {
 	TU::ColumnRequest req({
@@ -533,6 +552,29 @@ TEST(TUBULCSV, testDataframeNoColumnHeaderByPosition)
 	testColumn( std::get<TU::StringColumn>(all[1]), TU::StringColumn{"1","4","3"} );
 }
 
+TEST(TUBULCSV, testDataframeWhitespaceSeparated)
+{
+	//An OMP-style block file: no headers, columns separated by spaces.
+	const char* blocks = "0 0 29605500.000000 -59211000.000000 *\n"
+						 "1 1 28839240.000000 -57678480.000000 12.5\n";
+	TU::ColumnRequest req({
+							  {size_t(0),TU::DataType::INTEGER},
+							  {size_t(2),TU::DataType::DOUBLE},
+							  {size_t(4),TU::DataType::STRING}
+						  });
+	TU::CSVOptions options { TU::ColumnHeaders::NO, TU::RowHeaders::NO, ' '};
+	options.separatorMode = TU::SeparatorMode::WHITESPACE_RUNS;
+	TU::DataFrame df = TU::dataFrameFromCSVString( blocks, req, options);
+
+	EXPECT_EQ(df.getColCount(), 5);
+	testColumn( std::get<TU::IntegerColumn>(df[0]), TU::IntegerColumn{0,1} );
+	testColumn( std::get<TU::DoubleColumn>(df[2]), TU::DoubleColumn{29605500.0, 28839240.0} );
+	testColumn( std::get<TU::StringColumn>(df[4]), TU::StringColumn{"*", "12.5"} );
+
+	//A blank cell isn't a field, so its line has a field missing.
+	EXPECT_ANY_THROW( TU::dataFrameFromCSVString( "name A B\nhugo  2\n", std::vector<std::string>{"A"}, { TU::ColumnHeaders::YES, TU::RowHeaders::NO, ' ', TU::SeparatorMode::WHITESPACE_RUNS}) );
+}
+
 TEST(TUBULCSV, testDataframeEmptyFields)
 {
 	//Empty fields count: every line has as many fields as the header.
@@ -592,11 +634,21 @@ TEST(TUBULCSV, testDataframeErrors)
 	EXPECT_ANY_THROW( TU::dataFrameFromCSVString( "name,A\nhugo,1,2\n", std::vector<std::string>{"A"}, noRowHeaders) );
 	EXPECT_ANY_THROW( TU::dataFrameFromCSVString( "name,A\nhugo,1,\n", std::vector<std::string>{"A"}, noRowHeaders) );
 	EXPECT_ANY_THROW( TU::dataFrameFromCSVString( "hugo,1\npaco\n", std::vector<std::string>{}, { TU::ColumnHeaders::NO, TU::RowHeaders::NO, ','}) );
-	//Text where a number is expected.
-	EXPECT_ANY_THROW( TU::dataFrameFromCSVString( "name,A\nhugo,x\n", TU::ColumnRequest({ {"A",TU::DataType::DOUBLE} }), noRowHeaders) );
-	EXPECT_ANY_THROW( TU::dataFrameFromCSVString( "name,A\nhugo,\n", TU::ColumnRequest({ {"A",TU::DataType::INTEGER} }), noRowHeaders) );
-	//A sign after '+', which std::stol rejects too.
-	EXPECT_ANY_THROW( TU::dataFrameFromCSVString( "name,A\nhugo,+-5\n", TU::ColumnRequest({ {"A",TU::DataType::INTEGER} }), noRowHeaders) );
+	//A field that isn't wholly a number of the column's type.
+	const TU::ColumnRequest doubles({ {"A",TU::DataType::DOUBLE} });
+	const TU::ColumnRequest integers({ {"A",TU::DataType::INTEGER} });
+	for (const char* bad: {"x", "", "12abc", "1 2", "+-5", "--5", "0x"})
+	{
+		EXPECT_ANY_THROW( TU::dataFrameFromCSVString( std::format("name,A\nhugo,{}\n", bad), doubles, noRowHeaders) ) << bad;
+		EXPECT_ANY_THROW( TU::dataFrameFromCSVString( std::format("name,A\nhugo,{}\n", bad), integers, noRowHeaders) ) << bad;
+	}
+	//Octal is for integers only.
+	EXPECT_ANY_THROW( TU::dataFrameFromCSVString( "name,A\nhugo,0o17\n", doubles, noRowHeaders) );
+	//An integer with a fraction, an octal digit out of range, values out of
+	//int64_t's range, and doubles that aren't exact whole numbers.
+	for (const char* bad: {"3.7", "0o8", "0o", "9223372036854775808", "-9223372036854775809", "0x10000000000000000",
+						   "0o17.0", "1e-1", "inf", "nan", "9007199254740994.0", "1e30"})
+		EXPECT_ANY_THROW( TU::dataFrameFromCSVString( std::format("name,A\nhugo,{}\n", bad), integers, noRowHeaders) ) << bad;
 	//A file that doesn't exist.
 	EXPECT_ANY_THROW( TU::dataFrameFromCSVFile( "tubul_test_csv_no_such_file.csv", noRowHeaders) );
 }
