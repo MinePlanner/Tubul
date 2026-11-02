@@ -136,10 +136,36 @@ public:
 	size_t size() const noexcept;
 	size_t capacity() const noexcept;
 
+	template <class K>
+	iterator find(const K &key);
+	template <class K>
+	const_iterator find(const K &key) const;
+	template <class K>
+	bool contains(const K &key) const;
+
+	// Finds key, or inserts the slot built from args (which must hold key).
+	// Returns the element and whether it was inserted.
+	template <class K, class... Args>
+	std::pair<iterator, bool> findOrInsert(const K &key, Args &&...args);
+
 private:
+	struct ProbeResult
+	{
+		bool   m_found;
+		size_t m_index;
+	};
+
+	template <class K>
+	size_t findIndex(const K &key) const;
+	template <class K>
+	ProbeResult findOrFree(const K &key, size_t hash) const;
+	template <class K>
+	size_t         hashOf(const K &key) const;
+	static uint8_t tagOf(size_t hash);
 	iterator       iteratorAt(size_t index) const;
 	iterator       firstFrom(size_t index) const;
 	size_t         emptySlotFor(size_t hash) const;
+	void           rehashTo(size_t capacity);
 	void           destroyElements() noexcept;
 	void           destroyAndFree() noexcept;
 	static void    deallocate(Slot *slots, const uint8_t *ctrl, size_t capacity) noexcept;

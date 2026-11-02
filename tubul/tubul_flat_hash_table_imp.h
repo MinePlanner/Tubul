@@ -53,6 +53,7 @@ namespace TU::detail::flathash
 // A full slot's byte is 7 bits of the hash, 0x00 to 0x7F; the others have the
 // high bit set.
 inline constexpr uint8_t kEmpty   = 0x80;
+inline constexpr uint8_t kDeleted = 0xFE;
 // After the last slot, where iteration stops; lookups never read it.
 inline constexpr uint8_t kSentinel = 0xFF;
 
@@ -64,6 +65,29 @@ constexpr bool isFull(uint8_t ctrl)
 // The sentinels after the last slot: enough for a read of 8 bytes that starts
 // at the first one.
 inline constexpr size_t kCtrlPadding = 8;
+
+inline constexpr size_t kGroupSize   = 8;
+inline constexpr size_t kMinCapacity = kGroupSize;
+
+// The table grows when more than this fraction of its slots would be full or
+// deleted.
+inline constexpr size_t kMaxLoadNumerator   = 7;
+inline constexpr size_t kMaxLoadDenominator = 8;
+
+// How many slots of a table of capacity slots may be full or deleted.
+constexpr size_t maxUsed(size_t capacity)
+{
+	return capacity / kMaxLoadDenominator * kMaxLoadNumerator;
+}
+
+// The smallest capacity that holds count elements.
+constexpr size_t capacityFor(size_t count)
+{
+	size_t capacity = kMinCapacity;
+	while (maxUsed(capacity) < count)
+		capacity *= 2;
+	return capacity;
+}
 
 // The control bytes of a table without slots: only the sentinels, so that
 // begin() == end(). Never written.
@@ -100,6 +124,22 @@ class Group
 public:
 	explicit Group(const uint8_t *ctrl) : m_word(loadCtrlWord(ctrl))
 	{
+	}
+
+	// The bytes equal to tag: those of word ^ (tag in every byte) that are
+	// zero, by the classic test. A byte just above a match may be reported too
+	// (the subtraction borrows into it), but it is then tag ^ 1, another full
+	// slot, whose key is compared for nothing.
+	uint64_t match(uint8_t tag) const
+	{
+		const uint64_t diff = m_word ^ (kLows * tag);
+		return (diff - kLows) & ~diff & kHighs;
+	}
+	// The empty bytes (0x80): high bit set, bit 1 clear (the shift by 6 moves
+	// bit 1 of each byte to its bit 7). Exact.
+	uint64_t empty() const
+	{
+		return m_word & ~(m_word << 6) & kHighs;
 	}
 	// The empty or deleted bytes (0x80, 0xFE): high bit set, bit 0 clear.
 	// Exact.
@@ -157,6 +197,12 @@ auto TableIterator<Slot, Const>::operator*() const -> reference
 }
 
 template <class Slot, bool Const>
+auto TableIterator<Slot, Const>::operator->() const -> pointer
+{
+	return &**this;
+}
+
+template <class Slot, bool Const>
 auto TableIterator<Slot, Const>::operator++() -> TableIterator &
 {
 	assert(m_ctrl != nullptr && isFull(*m_ctrl));
@@ -164,6 +210,14 @@ auto TableIterator<Slot, Const>::operator++() -> TableIterator &
 	m_ctrl += distance;
 	m_slot += distance;
 	return *this;
+}
+
+template <class Slot, bool Const>
+auto TableIterator<Slot, Const>::operator++(int) -> TableIterator
+{
+	TableIterator old = *this;
+	++*this;
+	return old;
 }
 
 // ---------------------------------------------------------------------------
@@ -219,6 +273,143 @@ size_t Table<Policy, Hash, Equal>::capacity() const noexcept
 	return m_capacity;
 }
 
+// ---------------------------------------------------------------------------
+// Table: lookup and insertion
+// ---------------------------------------------------------------------------
+
+template <class Policy, class Hash, class Equal>
+template <class K>
+auto Table<Policy, Hash, Equal>::find(const K &key) -> iterator
+{
+	return iteratorAt(findIndex(key));
+}
+
+template <class Policy, class Hash, class Equal>
+template <class K>
+auto Table<Policy, Hash, Equal>::find(const K &key) const -> const_iterator
+{
+	return iteratorAt(findIndex(key));
+}
+
+template <class Policy, class Hash, class Equal>
+template <class K>
+bool Table<Policy, Hash, Equal>::contains(const K &key) const
+{
+	return findIndex(key) != m_capacity;
+}
+
+template <class Policy, class Hash, class Equal>
+template <class K, class... Args>
+auto Table<Policy, Hash, Equal>::findOrInsert(const K &key, Args &&...args)
+	-> std::pair<iterator, bool>
+{
+	const size_t hash  = hashOf(key);
+	size_t       index = 0;
+	if (m_capacity != 0)
+	{
+		const ProbeResult probe = findOrFree(key, hash);
+		if (probe.m_found)
+			return {iteratorAt(probe.m_index), false};
+		index = probe.m_index;
+	}
+	const bool reusesTombstone = m_capacity != 0 && m_ctrl[index] == kDeleted;
+	if (!reusesTombstone && m_size + m_tombstones + 1 > maxUsed(m_capacity))
+	{
+		// No room: rehash. The element is built first, so that an exception
+		// leaves the table as it was, and since args may refer to an element
+		// of this table, which rehashing moves.
+		Slot element(std::forward<Args>(args)...);
+		if (m_capacity == 0)
+			rehashTo(kMinCapacity);
+		else if (m_size + 1 <= maxUsed(m_capacity) / 2)
+			rehashTo(m_capacity);
+		else
+			rehashTo(m_capacity * 2);
+		index = emptySlotFor(hash);
+		Policy::relocate(&m_slots[index], element);
+	}
+	else
+	{
+		std::construct_at(&m_slots[index], std::forward<Args>(args)...);
+		if (reusesTombstone)
+			--m_tombstones;
+	}
+	m_ctrl[index] = tagOf(hash);
+	++m_size;
+	return {iteratorAt(index), true};
+}
+
+// The index of key's slot, or m_capacity if it isn't there.
+template <class Policy, class Hash, class Equal>
+template <class K>
+size_t Table<Policy, Hash, Equal>::findIndex(const K &key) const
+{
+	if (m_size == 0)
+		return m_capacity;
+	const size_t  hash      = hashOf(key);
+	const uint8_t tag       = tagOf(hash);
+	const size_t  groupMask = m_capacity / kGroupSize - 1;
+	for (size_t group = (hash >> 7) & groupMask;; group = (group + 1) & groupMask)
+	{
+		const size_t first = group * kGroupSize;
+		const Group  ctrl(m_ctrl + first);
+		for (uint64_t match = ctrl.match(tag); match != 0; match &= match - 1)
+		{
+			const size_t index = first + firstByte(match);
+			if (m_equal(Policy::key(m_slots[index]), key))
+				return index;
+		}
+		if (ctrl.empty() != 0)
+			return m_capacity;
+	}
+}
+
+// The slot of key if it is there, else the first empty or deleted slot of its
+// probe, where it goes. The table must have slots.
+template <class Policy, class Hash, class Equal>
+template <class K>
+auto Table<Policy, Hash, Equal>::findOrFree(const K &key, size_t hash) const
+	-> ProbeResult
+{
+	const uint8_t tag       = tagOf(hash);
+	size_t        free      = m_capacity;
+	const size_t  groupMask = m_capacity / kGroupSize - 1;
+	for (size_t group = (hash >> 7) & groupMask;; group = (group + 1) & groupMask)
+	{
+		const size_t first = group * kGroupSize;
+		const Group  ctrl(m_ctrl + first);
+		for (uint64_t match = ctrl.match(tag); match != 0; match &= match - 1)
+		{
+			const size_t index = first + firstByte(match);
+			if (m_equal(Policy::key(m_slots[index]), key))
+				return {true, index};
+		}
+		if (free == m_capacity && ctrl.free() != 0)
+			free = first + firstByte(ctrl.free());
+		if (ctrl.empty() != 0)
+			return {false, free};
+	}
+}
+
+template <class Policy, class Hash, class Equal>
+template <class K>
+size_t Table<Policy, Hash, Equal>::hashOf(const K &key) const
+{
+	// The tag and the start of the probe use different bits of the hash, so
+	// all of them must be good: mix a hash that doesn't promise it.
+	if constexpr (requires
+				  { typename Hash::is_avalanching; })
+		return m_hash(key);
+	else
+		return static_cast<size_t>(mix(m_hash(key)));
+}
+
+template <class Policy, class Hash, class Equal>
+uint8_t Table<Policy, Hash, Equal>::tagOf(size_t hash)
+{
+	return static_cast<uint8_t>(hash & 0x7F);
+}
+
 template <class Policy, class Hash, class Equal>
 auto Table<Policy, Hash, Equal>::iteratorAt(size_t index) const -> iterator
 {
@@ -232,9 +423,60 @@ auto Table<Policy, Hash, Equal>::firstFrom(size_t index) const -> iterator
 	return iteratorAt(index + distanceToFull(m_ctrl + index));
 }
 
+// The slot where a new element of that hash goes, in a table without
+// tombstones (just rehashed).
+template <class Policy, class Hash, class Equal>
+size_t Table<Policy, Hash, Equal>::emptySlotFor(size_t hash) const
+{
+	const size_t groupMask = m_capacity / kGroupSize - 1;
+	for (size_t group = (hash >> 7) & groupMask;; group = (group + 1) & groupMask)
+	{
+		const size_t   first = group * kGroupSize;
+		const uint64_t empty = Group(m_ctrl + first).empty();
+		if (empty != 0)
+			return first + firstByte(empty);
+	}
+}
+
 // ---------------------------------------------------------------------------
 // Table: memory
 // ---------------------------------------------------------------------------
+
+// Moves every element to a new table of capacity slots.
+template <class Policy, class Hash, class Equal>
+void Table<Policy, Hash, Equal>::rehashTo(size_t capacity)
+{
+	// Allocated first, so that a std::bad_alloc leaves the table as it was.
+	Slot *const slots = std::allocator<Slot>().allocate(capacity);
+	uint8_t    *ctrl  = nullptr;
+	try
+	{
+		ctrl = new uint8_t[capacity + kCtrlPadding];
+	}
+	catch (...)
+	{
+		std::allocator<Slot>().deallocate(slots, capacity);
+		throw;
+	}
+	Slot *const          oldSlots    = std::exchange(m_slots, slots);
+	const uint8_t *const oldCtrl     = std::exchange(m_ctrl, ctrl);
+	const size_t         oldCapacity = m_capacity;
+	std::memset(m_ctrl, kEmpty, capacity);
+	std::memset(m_ctrl + capacity, kSentinel, kCtrlPadding);
+	m_capacity   = capacity;
+	m_tombstones = 0;
+	for (size_t old = 0; old < oldCapacity; ++old)
+	{
+		if (!isFull(oldCtrl[old]))
+			continue;
+		const size_t hash  = hashOf(Policy::key(oldSlots[old]));
+		const size_t index = emptySlotFor(hash);
+		Policy::relocate(&m_slots[index], oldSlots[old]);
+		std::destroy_at(&oldSlots[old]);
+		m_ctrl[index] = tagOf(hash);
+	}
+	deallocate(oldSlots, oldCtrl, oldCapacity);
+}
 
 template <class Policy, class Hash, class Equal>
 void Table<Policy, Hash, Equal>::destroyElements() noexcept
