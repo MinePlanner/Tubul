@@ -8,6 +8,7 @@
 #include <iterator>
 #include <limits>
 #include <memory>
+#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <type_traits>
@@ -22,6 +23,11 @@ namespace
 using IntMap    = TU::FlatHashMap<int, double>;
 using StringMap = TU::FlatHashMap<std::string, int>;
 
+// Whether a map is looked up by std::string_view.
+template <class Map>
+concept FindsByView = requires(Map map, std::string_view view)
+{ map.find(view); };
+
 // The keys of a map, sorted.
 template <class Map>
 std::vector<typename Map::key_type> sortedKeys(const Map &map)
@@ -32,6 +38,49 @@ std::vector<typename Map::key_type> sortedKeys(const Map &map)
 	std::sort(keys.begin(), keys.end());
 	return keys;
 }
+
+// A key built from text that counts how many times that happens, with a
+// transparent hash and equality: lookups by text must not build one.
+struct CountedKey
+{
+	explicit CountedKey(std::string_view text) : m_text(text)
+	{
+		++s_built;
+	}
+	std::string       m_text;
+	static inline int s_built = 0;
+};
+
+struct CountedHash
+{
+	using is_transparent = void;
+	size_t operator()(std::string_view text) const
+	{
+		return TU::DefaultHash<std::string_view>{}(text);
+	}
+	size_t operator()(const CountedKey &key) const
+	{
+		return (*this)(key.m_text);
+	}
+};
+
+struct CountedEqual
+{
+	using is_transparent = void;
+	static std::string_view text(std::string_view text)
+	{
+		return text;
+	}
+	static std::string_view text(const CountedKey &key)
+	{
+		return key.m_text;
+	}
+	template <class Lhs, class Rhs>
+	bool operator()(const Lhs &lhs, const Rhs &rhs) const
+	{
+		return text(lhs) == text(rhs);
+	}
+};
 
 } // namespace
 
@@ -78,6 +127,23 @@ TEST(FlatHashMapTest, ReturnTypes)
 		{ map.erase(key) } -> std::same_as<size_t>;
 		{ map.erase(constMap.begin()) } -> std::same_as<Iterator>;
 	});
+}
+
+// A map of strings is looked up by std::string_view and literals; a map of
+// integers only by its key type.
+TEST(FlatHashMapTest, TransparentLookupOfStrings)
+{
+	static_assert(requires(StringMap map, std::string_view view)
+	{
+		map.find(view);
+		map.find("literal");
+		map.contains(view);
+		map.erase(view);
+		map[view];
+		map.try_emplace(view, 1);
+	});
+	static_assert(FindsByView<StringMap>);
+	static_assert(!FindsByView<IntMap>);
 }
 
 // ---------------------------------------------------------------------------
@@ -250,4 +316,155 @@ TEST(FlatHashMapTest, Clear)
 	EXPECT_FALSE(map.contains(5));
 	map.insert({5, 5.0});
 	EXPECT_EQ(map.find(5)->second, 5.0);
+}
+
+// ---------------------------------------------------------------------------
+// Insertions and element access
+// ---------------------------------------------------------------------------
+
+// insert() of a range or an initializer list inserts the pairs; the first of
+// equal keys wins.
+TEST(FlatHashMapTest, InsertRangeAndList)
+{
+	IntMap                                    map;
+	const std::vector<std::pair<int, double>> pairs = {{1, 1.0}, {2, 2.0}, {1, 9.0}};
+	map.insert(pairs.begin(), pairs.end());
+	EXPECT_EQ(map.size(), 2U);
+	EXPECT_EQ(map.find(1)->second, 1.0);
+	map.insert({{3, 3.0}, {2, 9.0}});
+	EXPECT_EQ(map.size(), 3U);
+	EXPECT_EQ(map.find(2)->second, 2.0);
+}
+
+// operator[] inserts a value-initialized value for a new key, and returns
+// the value of an existing one.
+TEST(FlatHashMapTest, SubscriptOperator)
+{
+	IntMap map;
+	EXPECT_EQ(map[1], 0.0);
+	EXPECT_EQ(map.size(), 1U);
+	map[1] = 5.0;
+	map[2] += 1.5;
+	EXPECT_EQ(map[1], 5.0);
+	EXPECT_EQ(map[2], 1.5);
+	EXPECT_EQ(map.size(), 2U);
+}
+
+// at() returns the value of a key, and throws std::out_of_range if the key
+// isn't there.
+TEST(FlatHashMapTest, At)
+{
+	IntMap map;
+	map.insert({1, 1.5});
+	map.at(1)              = 2.5;
+	const IntMap &constMap = map;
+	EXPECT_EQ(constMap.at(1), 2.5);
+	EXPECT_THROW(map.at(2), std::out_of_range);
+	EXPECT_THROW(constMap.at(2), std::out_of_range);
+	EXPECT_EQ(map.size(), 1U);
+}
+
+// insert_or_assign() inserts a new key, or assigns the value of an existing
+// one; the bool says which.
+TEST(FlatHashMapTest, InsertOrAssign)
+{
+	IntMap map;
+	EXPECT_TRUE(map.insert_or_assign(1, 1.5).second);
+	const auto result = map.insert_or_assign(1, 2.5);
+	EXPECT_FALSE(result.second);
+	EXPECT_EQ(result.first->second, 2.5);
+	EXPECT_EQ(map.size(), 1U);
+}
+
+// A key that is an lvalue is copied in by try_emplace(), insert_or_assign()
+// and operator[], and stays as it was.
+TEST(FlatHashMapTest, InsertionsOfAnLvalueKey)
+{
+	StringMap         map;
+	const std::string key = "key";
+	EXPECT_TRUE(map.try_emplace(key, 1).second);
+	EXPECT_FALSE(map.insert_or_assign(key, 2).second);
+	EXPECT_EQ(map[key], 2);
+	EXPECT_EQ(key, "key");
+	EXPECT_EQ(map.size(), 1U);
+}
+
+// try_emplace() builds the value from its arguments for a new key, and
+// leaves them untouched for an existing one.
+TEST(FlatHashMapTest, TryEmplace)
+{
+	TU::FlatHashMap<int, std::unique_ptr<int>> map;
+	EXPECT_TRUE(map.try_emplace(1, std::make_unique<int>(10)).second);
+	auto value = std::make_unique<int>(20);
+	EXPECT_FALSE(map.try_emplace(1, std::move(value)).second);
+	ASSERT_NE(value, nullptr);
+	EXPECT_EQ(*map.find(1)->second, 10);
+	TU::FlatHashMap<int, std::vector<int>> vectors;
+	vectors.try_emplace(1, 3, 7);
+	EXPECT_EQ(vectors.find(1)->second, std::vector<int>({7, 7, 7}));
+}
+
+// emplace() takes a key and a value, a pair, or the arguments of a pair; for
+// an existing key, a key and a value are left untouched.
+TEST(FlatHashMapTest, Emplace)
+{
+	TU::FlatHashMap<int, std::unique_ptr<int>> map;
+	EXPECT_TRUE(map.emplace(1, std::make_unique<int>(1)).second);
+	EXPECT_TRUE(map.emplace(std::pair{2, std::make_unique<int>(2)}).second);
+	EXPECT_TRUE(map.emplace(std::piecewise_construct, std::forward_as_tuple(3), std::forward_as_tuple(new int(3)))
+					.second);
+	auto value = std::make_unique<int>(9);
+	EXPECT_FALSE(map.emplace(1, std::move(value)).second);
+	ASSERT_NE(value, nullptr);
+	for (int key = 1; key <= 3; ++key)
+		EXPECT_EQ(*map.find(key)->second, key);
+}
+
+// A map of strings is used with std::string_view and literals: finding,
+// counting, erasing and assigning by text.
+TEST(FlatHashMapTest, StringKeysByView)
+{
+	StringMap                           counts;
+	const std::vector<std::string_view> words = {"a", "b", "a", "c", "a"};
+	for (std::string_view word : words)
+		++counts[word];
+	EXPECT_EQ(counts.at("a"), 3);
+	EXPECT_EQ(counts.find(std::string_view("b"))->second, 1);
+	EXPECT_TRUE(counts.contains("c"));
+	EXPECT_EQ(counts.count("d"), 0U);
+	EXPECT_EQ(counts.erase(std::string_view("c")), 1U);
+	EXPECT_FALSE(counts.insert_or_assign(std::string_view("a"), 7).second);
+	EXPECT_EQ(counts["a"], 7);
+	EXPECT_EQ(counts.size(), 2U);
+}
+
+// A transparent lookup builds no key; only inserting a new key builds one.
+TEST(FlatHashMapTest, TransparentLookupBuildsNoKey)
+{
+	TU::FlatHashMap<CountedKey, int, CountedHash, CountedEqual> map;
+	map.try_emplace(std::string_view("one"), 1);
+	const int built = CountedKey::s_built;
+	EXPECT_TRUE(map.contains(std::string_view("one")));
+	EXPECT_EQ(map.find(std::string_view("two")), map.end());
+	EXPECT_FALSE(map.try_emplace(std::string_view("one"), 5).second);
+	EXPECT_EQ(map[std::string_view("one")], 1);
+	EXPECT_EQ(map.erase(std::string_view("two")), 0U);
+	EXPECT_EQ(CountedKey::s_built, built);
+	map[std::string_view("two")] = 2;
+	EXPECT_EQ(CountedKey::s_built, built + 1);
+}
+
+// Corner case: a value that refers to an element of the map is copied before
+// an insertion that grows the table moves that element.
+TEST(FlatHashMapTest, InsertingAValueOfTheMapWhileGrowing)
+{
+	TU::FlatHashMap<int, std::string> map;
+	map.try_emplace(0, "a value longer than the small string buffer");
+	int key = 1;
+	while (map.size() < map.capacity() / 8 * 7)
+		map.try_emplace(key++, "x");
+	const size_t capacity = map.capacity();
+	map.try_emplace(key, map.find(0)->second);
+	EXPECT_GT(map.capacity(), capacity);
+	EXPECT_EQ(map.find(key)->second, map.find(0)->second);
 }
