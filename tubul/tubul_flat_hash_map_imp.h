@@ -78,6 +78,39 @@ namespace TU
 {
 
 // ---------------------------------------------------------------------------
+// Construction
+// ---------------------------------------------------------------------------
+
+template <class Key, class Value, class Hash, class Equal>
+FlatHashMap<Key, Value, Hash, Equal>::FlatHashMap(size_type    capacity,
+												  const Hash  &hash,
+												  const Equal &equal) : m_table(capacity, hash, equal)
+{
+}
+
+template <class Key, class Value, class Hash, class Equal>
+template <std::input_iterator InputIt>
+FlatHashMap<Key, Value, Hash, Equal>::FlatHashMap(InputIt first, InputIt last, size_type capacity, const Hash &hash, const Equal &equal) : m_table(capacity, hash, equal)
+{
+	insert(std::move(first), std::move(last));
+}
+
+template <class Key, class Value, class Hash, class Equal>
+FlatHashMap<Key, Value, Hash, Equal>::FlatHashMap(
+	std::initializer_list<value_type> init, size_type capacity, const Hash &hash, const Equal &equal) : FlatHashMap(init.begin(), init.end(), capacity, hash, equal)
+{
+}
+
+template <class Key, class Value, class Hash, class Equal>
+auto FlatHashMap<Key, Value, Hash, Equal>::operator=(
+	std::initializer_list<value_type> init) -> FlatHashMap &
+{
+	clear();
+	insert(init);
+	return *this;
+}
+
+// ---------------------------------------------------------------------------
 // Iterators and capacity
 // ---------------------------------------------------------------------------
 
@@ -380,6 +413,105 @@ auto FlatHashMap<Key, Value, Hash, Equal>::erase(const KeyArg<K> &key)
 	requires detail::flathash::NotIterator<KeyArg<K>, iterator, const_iterator>
 {
 	return m_table.eraseKey(key);
+}
+
+// ---------------------------------------------------------------------------
+// Hash policy
+// ---------------------------------------------------------------------------
+
+template <class Key, class Value, class Hash, class Equal>
+float FlatHashMap<Key, Value, Hash, Equal>::load_factor() const noexcept
+{
+	return m_table.load_factor();
+}
+
+template <class Key, class Value, class Hash, class Equal>
+float FlatHashMap<Key, Value, Hash, Equal>::max_load_factor() const noexcept
+{
+	return m_table.max_load_factor();
+}
+
+template <class Key, class Value, class Hash, class Equal>
+void FlatHashMap<Key, Value, Hash, Equal>::max_load_factor(float) noexcept
+{
+}
+
+template <class Key, class Value, class Hash, class Equal>
+auto FlatHashMap<Key, Value, Hash, Equal>::bucket_count() const noexcept
+	-> size_type
+{
+	return m_table.capacity();
+}
+
+template <class Key, class Value, class Hash, class Equal>
+void FlatHashMap<Key, Value, Hash, Equal>::rehash(size_type capacity)
+{
+	m_table.rehash(capacity);
+}
+
+template <class Key, class Value, class Hash, class Equal>
+void FlatHashMap<Key, Value, Hash, Equal>::reserve(size_type count)
+{
+	m_table.reserve(count);
+}
+
+template <class Key, class Value, class Hash, class Equal>
+void FlatHashMap<Key, Value, Hash, Equal>::swap(FlatHashMap &other) noexcept(
+	std::is_nothrow_swappable_v<Hash> && std::is_nothrow_swappable_v<Equal>)
+{
+	m_table.swap(other.m_table);
+}
+
+template <class Key, class Value, class Hash, class Equal>
+auto FlatHashMap<Key, Value, Hash, Equal>::hash_function() const -> hasher
+{
+	return m_table.hash_function();
+}
+
+template <class Key, class Value, class Hash, class Equal>
+auto FlatHashMap<Key, Value, Hash, Equal>::key_eq() const -> key_equal
+{
+	return m_table.key_eq();
+}
+
+// ---------------------------------------------------------------------------
+// Non-member functions
+// ---------------------------------------------------------------------------
+
+template <class Key, class Value, class Hash, class Equal, class Pred>
+size_t erase_if(FlatHashMap<Key, Value, Hash, Equal> &map, Pred pred)
+{
+	const size_t before = map.size();
+	for (auto it = map.begin(); it != map.end();)
+	{
+		if (pred(*it))
+			it = map.erase(it);
+		else
+			++it;
+	}
+	return before - map.size();
+}
+
+template <class Key, class Value, class Hash, class Equal>
+bool operator==(const FlatHashMap<Key, Value, Hash, Equal> &lhs,
+				const FlatHashMap<Key, Value, Hash, Equal> &rhs)
+{
+	if (lhs.size() != rhs.size())
+		return false;
+	for (const auto &element : lhs)
+	{
+		const auto it = rhs.find(element.first);
+		if (it == rhs.end() || !(it->second == element.second))
+			return false;
+	}
+	return true;
+}
+
+template <class Key, class Value, class Hash, class Equal>
+void swap(FlatHashMap<Key, Value, Hash, Equal> &lhs,
+		  FlatHashMap<Key, Value, Hash, Equal> &rhs) noexcept(noexcept(lhs.swap(rhs)))
+{
+	lhs.swap(rhs);
 }
 
 } // namespace TU

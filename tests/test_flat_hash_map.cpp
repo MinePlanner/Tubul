@@ -82,6 +82,51 @@ struct CountedEqual
 	}
 };
 
+// A value that counts the live instances, to catch values destroyed twice or
+// never.
+struct Tracked
+{
+	Tracked()
+	{
+		++s_live;
+	}
+	explicit Tracked(int value) : m_value(value)
+	{
+		++s_live;
+	}
+	Tracked(const Tracked &other) : m_value(other.m_value)
+	{
+		++s_live;
+	}
+	Tracked(Tracked &&other) noexcept : m_value(other.m_value)
+	{
+		++s_live;
+	}
+	Tracked &operator=(const Tracked &)     = default;
+	Tracked &operator=(Tracked &&) noexcept = default;
+	~Tracked()
+	{
+		--s_live;
+	}
+	bool operator==(const Tracked &other) const
+	{
+		return m_value == other.m_value;
+	}
+	int               m_value = 0;
+	static inline int s_live  = 0;
+};
+
+// A hash with a state, which copies of the map must keep.
+struct SeededHash
+{
+	using is_avalanching = void;
+	uint64_t m_seed      = 0;
+	size_t   operator()(int key) const
+	{
+		return TU::DefaultHash<uint64_t>{}(m_seed ^ static_cast<uint64_t>(key));
+	}
+};
+
 } // namespace
 
 // ---------------------------------------------------------------------------
@@ -144,6 +189,16 @@ TEST(FlatHashMapTest, TransparentLookupOfStrings)
 	});
 	static_assert(FindsByView<StringMap>);
 	static_assert(!FindsByView<IntMap>);
+}
+
+// The deduction guides take the key and value types from pairs.
+TEST(FlatHashMapTest, DeductionGuides)
+{
+	using FromList = decltype(TU::FlatHashMap{std::pair{1, 2.0}});
+	static_assert(std::is_same_v<FromList, TU::FlatHashMap<int, double>>);
+	using Pairs     = std::pair<std::string, int> *;
+	using FromRange = decltype(TU::FlatHashMap(Pairs(), Pairs()));
+	static_assert(std::is_same_v<FromRange, StringMap>);
 }
 
 // ---------------------------------------------------------------------------
@@ -318,6 +373,47 @@ TEST(FlatHashMapTest, Clear)
 	EXPECT_EQ(map.find(5)->second, 5.0);
 }
 
+// load_factor() is size() / bucket_count(), which is capacity(); the maximum
+// is 7/8, and max_load_factor(float) doesn't change it.
+TEST(FlatHashMapTest, LoadFactor)
+{
+	IntMap map;
+	EXPECT_EQ(map.load_factor(), 0.0F);
+	EXPECT_EQ(map.max_load_factor(), 0.875F);
+	for (int key = 0; key < 100; ++key)
+		map.insert({key, 0.0});
+	EXPECT_EQ(map.bucket_count(), map.capacity());
+	EXPECT_FLOAT_EQ(map.load_factor(), 100.0F / static_cast<float>(map.capacity()));
+	EXPECT_LE(map.load_factor(), map.max_load_factor());
+	const size_t capacity = map.capacity();
+	map.max_load_factor(0.25F);
+	EXPECT_EQ(map.max_load_factor(), 0.875F);
+	EXPECT_EQ(map.capacity(), capacity);
+}
+
+// After reserve(n), inserting until size() is n moves nothing; rehash(n)
+// gives at least n slots and rehash(0) shrinks the table to fit, keeping the
+// elements; reserve() above max_size() throws std::length_error.
+TEST(FlatHashMapTest, ReserveAndRehash)
+{
+	IntMap map;
+	map.reserve(100);
+	map[0]             = 0.0;
+	const double *zero = &map.at(0);
+	for (int key = 1; key < 100; ++key)
+		map[key] = key * 1.0;
+	EXPECT_EQ(&map.at(0), zero);
+	map.rehash(5000);
+	EXPECT_GE(map.capacity(), 5000U);
+	map.rehash(0);
+	EXPECT_LT(map.capacity(), 5000U);
+	EXPECT_GE(map.capacity() / 8 * 7, 100U);
+	EXPECT_EQ(map.at(99), 99.0);
+	EXPECT_GT(map.max_size(), size_t{1} << 40);
+	EXPECT_THROW(map.reserve(std::numeric_limits<size_t>::max()), std::length_error);
+	EXPECT_EQ(map.size(), 100U);
+}
+
 // ---------------------------------------------------------------------------
 // Insertions and element access
 // ---------------------------------------------------------------------------
@@ -467,4 +563,151 @@ TEST(FlatHashMapTest, InsertingAValueOfTheMapWhileGrowing)
 	map.try_emplace(key, map.find(0)->second);
 	EXPECT_GT(map.capacity(), capacity);
 	EXPECT_EQ(map.find(key)->second, map.find(0)->second);
+}
+
+// ---------------------------------------------------------------------------
+// The whole map
+// ---------------------------------------------------------------------------
+
+// The constructors: with a capacity, from a range and from an initializer
+// list (the first of equal keys wins), and the deduction guides.
+TEST(FlatHashMapTest, Constructors)
+{
+	const IntMap sized(100);
+	EXPECT_TRUE(sized.empty());
+	EXPECT_GE(sized.capacity() / 8 * 7, 100U);
+	const std::vector<std::pair<int, double>> pairs = {{1, 1.0}, {2, 2.0}, {1, 9.0}};
+	const IntMap                              fromRange(pairs.begin(), pairs.end());
+	EXPECT_EQ(fromRange.size(), 2U);
+	EXPECT_EQ(fromRange.at(1), 1.0);
+	const IntMap fromList = {{1, 1.0}, {2, 2.0}};
+	EXPECT_EQ(fromList, fromRange);
+	const TU::FlatHashMap deduced(pairs.begin(), pairs.end());
+	EXPECT_EQ(deduced, fromRange);
+	IntMap assigned = {{5, 5.0}};
+	assigned        = {{1, 1.0}, {2, 2.0}};
+	EXPECT_EQ(assigned, fromRange);
+}
+
+// Maps are equal when they have the same keys with equal values, whatever
+// the order of their insertions.
+TEST(FlatHashMapTest, Equality)
+{
+	IntMap lhs;
+	IntMap rhs;
+	for (int key = 0; key < 100; ++key)
+	{
+		lhs.insert({key, key * 1.0});
+		rhs.insert({99 - key, (99 - key) * 1.0});
+	}
+	EXPECT_TRUE(lhs == rhs);
+	rhs[5] = -1.0;
+	EXPECT_TRUE(lhs != rhs);
+	rhs[5] = 5.0;
+	rhs.erase(7);
+	EXPECT_FALSE(lhs == rhs);
+	EXPECT_EQ(IntMap(), IntMap());
+}
+
+// A copy has the same elements and is independent of the original.
+TEST(FlatHashMapTest, Copy)
+{
+	IntMap original = {{1, 1.0}, {2, 2.0}};
+	IntMap copy(original);
+	EXPECT_EQ(copy, original);
+	copy[1] = 9.0;
+	copy.erase(2);
+	EXPECT_EQ(original.at(1), 1.0);
+	EXPECT_TRUE(original.contains(2));
+	IntMap assigned;
+	assigned = original;
+	EXPECT_EQ(assigned, original);
+	EXPECT_EQ(IntMap(IntMap()).capacity(), 0U);
+}
+
+// A move takes the elements; the moved-from map is empty, without memory,
+// and usable.
+TEST(FlatHashMapTest, Move)
+{
+	IntMap       original = {{1, 1.0}, {2, 2.0}};
+	const IntMap expected = original;
+	IntMap       moved(std::move(original));
+	EXPECT_EQ(moved, expected);
+	EXPECT_TRUE(original.empty());
+	EXPECT_EQ(original.capacity(), 0U);
+	original[3] = 3.0;
+	EXPECT_EQ(original.size(), 1U);
+	IntMap assigned = {{7, 7.0}};
+	assigned        = std::move(moved);
+	EXPECT_EQ(assigned, expected);
+	EXPECT_TRUE(moved.empty());
+}
+
+// swap() exchanges the elements, and the iterators and references stay
+// valid, now into the other map.
+TEST(FlatHashMapTest, Swap)
+{
+	IntMap        lhs = {{1, 1.0}};
+	IntMap        rhs = {{2, 2.0}, {3, 3.0}};
+	const double *one = &lhs.at(1);
+	lhs.swap(rhs);
+	EXPECT_EQ(lhs.size(), 2U);
+	EXPECT_EQ(&rhs.at(1), one);
+	swap(lhs, rhs);
+	EXPECT_EQ(&lhs.at(1), one);
+	EXPECT_TRUE(rhs.contains(2));
+}
+
+// erase_if() erases the elements for which the predicate is true, and
+// returns how many.
+TEST(FlatHashMapTest, EraseIf)
+{
+	IntMap map;
+	for (int key = 0; key < 100; ++key)
+		map.insert({key, key * 1.0});
+	const size_t erased = erase_if(map, [](const IntMap::value_type &element)
+								   { return element.second >= 50.0; });
+	EXPECT_EQ(erased, 50U);
+	EXPECT_EQ(map.size(), 50U);
+	EXPECT_FALSE(map.contains(50));
+	EXPECT_TRUE(map.contains(49));
+}
+
+// hash_function() and key_eq() return copies of those of the map, whose
+// state copies of the map keep.
+TEST(FlatHashMapTest, StatefulHashIsKept)
+{
+	TU::FlatHashMap<int, int, SeededHash> map(0, SeededHash{12345});
+	for (int key = 0; key < 100; ++key)
+		map.insert({key, key});
+	const auto copy = map;
+	EXPECT_EQ(copy.hash_function().m_seed, 12345U);
+	EXPECT_EQ(copy, map);
+	EXPECT_TRUE(map.key_eq()(1, 1));
+}
+
+// Every value is destroyed exactly once: through erasures, growth, clear(),
+// copies, moves, assignments and the destructor.
+TEST(FlatHashMapTest, EveryValueIsDestroyedOnce)
+{
+	{
+		TU::FlatHashMap<int, Tracked> map;
+		for (int key = 0; key < 1000; ++key)
+			map.try_emplace(key, key);
+		EXPECT_EQ(Tracked::s_live, 1000);
+		for (int key = 0; key < 500; ++key)
+			map.erase(key);
+		EXPECT_EQ(Tracked::s_live, 500);
+		auto copy = map;
+		EXPECT_EQ(Tracked::s_live, 1000);
+		auto moved = std::move(copy);
+		EXPECT_EQ(Tracked::s_live, 1000);
+		moved = map;
+		EXPECT_EQ(Tracked::s_live, 1000);
+		moved.clear();
+		EXPECT_EQ(Tracked::s_live, 500);
+		map.rehash(0);
+		EXPECT_EQ(Tracked::s_live, 500);
+	}
+	EXPECT_EQ(Tracked::s_live, 0);
 }
