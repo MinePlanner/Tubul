@@ -2,8 +2,11 @@
 // Created by Carlos Acosta on 15-02-24.
 //
 #include <gtest/gtest.h>
-#include <random>
+
 #include <cmath>
+#include <new>
+#include <random>
+
 #include "tubul.h"
 
 //Super simple structure used in tests.
@@ -124,15 +127,6 @@ TEST(TUBULNewDelete, UsingNew)
 
 TEST(TUBULNewDelete, UsingNew2)
 {
-    //Because all the system of array allocation sucks, i need to
-    //"prepare for the test" >:( just in case there hasn't been a previous
-    //new[] call.
-    {
-        auto prep = new int[5];
-        prep[0] = 1; prep[1] = 2;
-        delete[] prep;
-    }
-
     //On my tests the struct should be 24 and x20 is 480
     constexpr auto sizeTest = sizeof(SampleStruct);
     const auto lifeStart = TU::memLifetime();
@@ -194,4 +188,29 @@ TEST(TUBULNewDelete, UsingNewInVector)
 
     testExpectedAllocs(lifeStart, lifeCreated, lifeFinal, aliveStart, aliveCreated, aliveFinal, sizeTest*20);
 
+}
+
+//Corner case: an object and an array from the nothrow new and new[] are
+//counted, and released by delete and delete[], as any other.
+TEST(TUBULNewDelete, NothrowForms)
+{
+    constexpr size_t ArraySize = 64;
+    const auto lifeStart = TU::memLifetime();
+    const auto aliveStart = TU::memAlive();
+    SampleStruct* volatile object = new (std::nothrow) SampleStruct;
+    int volatile* array = new (std::nothrow) int[ArraySize];
+    ASSERT_NE(object, nullptr);
+    ASSERT_NE(array, nullptr);
+    object->a = getRandomNumber();
+    array[0] = getRandomNumber();
+    *externalVar() += object->a + array[0];
+    const auto lifeCreated = TU::memLifetime();
+    const auto aliveCreated = TU::memAlive();
+    delete object;
+    delete[] array;
+    const auto lifeFinal = TU::memLifetime();
+    const auto aliveFinal = TU::memAlive();
+
+    testExpectedAllocs(lifeStart, lifeCreated, lifeFinal, aliveStart, aliveCreated, aliveFinal,
+                       sizeof(SampleStruct) + sizeof(int) * ArraySize);
 }
