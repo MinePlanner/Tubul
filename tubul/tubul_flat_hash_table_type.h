@@ -119,6 +119,7 @@ public:
 	using const_iterator = TableIterator<Slot, true>;
 
 	Table() noexcept;
+	Table(size_t capacity, const Hash &hash, const Equal &equal);
 	Table(const Table &other);
 	Table(Table &&other) noexcept(std::is_nothrow_move_constructible_v<Hash> &&
 								  std::is_nothrow_move_constructible_v<Equal>);
@@ -158,6 +159,11 @@ public:
 	template <class K>
 	size_t eraseKey(const K &key);
 
+	void  swap(Table &other) noexcept(std::is_nothrow_swappable_v<Hash> &&
+									  std::is_nothrow_swappable_v<Equal>);
+	Hash  hash_function() const;
+	Equal key_eq() const;
+
 	float load_factor() const noexcept;
 	float max_load_factor() const noexcept;
 	// Rebuilds the table with at least capacity slots, or as few as the
@@ -190,6 +196,7 @@ private:
 	iterator       iteratorAt(size_t index) const;
 	size_t         indexOf(const_iterator pos) const;
 	void           eraseAt(size_t index);
+	void           insertNew(const Slot &slot);
 	iterator       firstFrom(size_t index) const;
 	size_t         emptySlotFor(size_t hash) const;
 	void           rehashTo(size_t capacity);

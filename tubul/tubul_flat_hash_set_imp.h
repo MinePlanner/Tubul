@@ -17,6 +17,39 @@ namespace TU
 {
 
 // ---------------------------------------------------------------------------
+// Construction
+// ---------------------------------------------------------------------------
+
+template <class Key, class Hash, class Equal>
+FlatHashSet<Key, Hash, Equal>::FlatHashSet(size_type capacity, const Hash &hash, const Equal &equal) : m_table(capacity, hash, equal)
+{
+}
+
+template <class Key, class Hash, class Equal>
+template <std::input_iterator InputIt>
+FlatHashSet<Key, Hash, Equal>::FlatHashSet(InputIt first, InputIt last, size_type capacity, const Hash &hash, const Equal &equal) : m_table(capacity, hash, equal)
+{
+	insert(std::move(first), std::move(last));
+}
+
+template <class Key, class Hash, class Equal>
+FlatHashSet<Key, Hash, Equal>::FlatHashSet(std::initializer_list<value_type> init,
+										   size_type                         capacity,
+										   const Hash                       &hash,
+										   const Equal                      &equal) : FlatHashSet(init.begin(), init.end(), capacity, hash, equal)
+{
+}
+
+template <class Key, class Hash, class Equal>
+auto FlatHashSet<Key, Hash, Equal>::operator=(
+	std::initializer_list<value_type> init) -> FlatHashSet &
+{
+	clear();
+	insert(init);
+	return *this;
+}
+
+// ---------------------------------------------------------------------------
 // Iterators and capacity
 // ---------------------------------------------------------------------------
 
@@ -140,6 +173,13 @@ auto FlatHashSet<Key, Hash, Equal>::erase(const KeyArg<K> &key) -> size_type
 	return m_table.eraseKey(key);
 }
 
+template <class Key, class Hash, class Equal>
+void FlatHashSet<Key, Hash, Equal>::swap(FlatHashSet &other) noexcept(
+	std::is_nothrow_swappable_v<Hash> && std::is_nothrow_swappable_v<Equal>)
+{
+	m_table.swap(other.m_table);
+}
+
 // ---------------------------------------------------------------------------
 // Lookup
 // ---------------------------------------------------------------------------
@@ -211,6 +251,55 @@ template <class Key, class Hash, class Equal>
 void FlatHashSet<Key, Hash, Equal>::reserve(size_type count)
 {
 	m_table.reserve(count);
+}
+
+template <class Key, class Hash, class Equal>
+auto FlatHashSet<Key, Hash, Equal>::hash_function() const -> hasher
+{
+	return m_table.hash_function();
+}
+
+template <class Key, class Hash, class Equal>
+auto FlatHashSet<Key, Hash, Equal>::key_eq() const -> key_equal
+{
+	return m_table.key_eq();
+}
+
+// ---------------------------------------------------------------------------
+// Non-member functions
+// ---------------------------------------------------------------------------
+
+template <class Key, class Hash, class Equal, class Pred>
+size_t erase_if(FlatHashSet<Key, Hash, Equal> &set, Pred pred)
+{
+	const size_t before = set.size();
+	for (auto it = set.begin(); it != set.end();)
+	{
+		if (pred(*it))
+			it = set.erase(it);
+		else
+			++it;
+	}
+	return before - set.size();
+}
+
+template <class Key, class Hash, class Equal>
+bool operator==(const FlatHashSet<Key, Hash, Equal> &lhs,
+				const FlatHashSet<Key, Hash, Equal> &rhs)
+{
+	if (lhs.size() != rhs.size())
+		return false;
+	for (const Key &key : lhs)
+		if (!rhs.contains(key))
+			return false;
+	return true;
+}
+
+template <class Key, class Hash, class Equal>
+void swap(FlatHashSet<Key, Hash, Equal> &lhs,
+		  FlatHashSet<Key, Hash, Equal> &rhs) noexcept(noexcept(lhs.swap(rhs)))
+{
+	lhs.swap(rhs);
 }
 
 } // namespace TU
