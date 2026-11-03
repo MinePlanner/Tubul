@@ -29,6 +29,8 @@
 // much slower (3.6 times for missing keys, 1.8 times for present keys, in
 // tables of 64K keys): each byte is a branch that the processor can't
 // predict.
+
+#include <algorithm>
 #include <bit>
 #include <cassert>
 #include <cstddef>
@@ -37,6 +39,7 @@
 #include <limits>
 #include <memory>
 #include <new>
+#include <stdexcept>
 #include <type_traits>
 #include <utility>
 
@@ -268,6 +271,13 @@ size_t Table<Policy, Hash, Equal>::size() const noexcept
 }
 
 template <class Policy, class Hash, class Equal>
+size_t Table<Policy, Hash, Equal>::max_size() const noexcept
+{
+	return static_cast<size_t>(std::numeric_limits<std::ptrdiff_t>::max()) /
+		   (sizeof(Slot) + 1);
+}
+
+template <class Policy, class Hash, class Equal>
 size_t Table<Policy, Hash, Equal>::capacity() const noexcept
 {
 	return m_capacity;
@@ -435,6 +445,143 @@ size_t Table<Policy, Hash, Equal>::emptySlotFor(size_t hash) const
 		const uint64_t empty = Group(m_ctrl + first).empty();
 		if (empty != 0)
 			return first + firstByte(empty);
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Table: erasure and size policy
+// ---------------------------------------------------------------------------
+
+template <class Policy, class Hash, class Equal>
+template <class K>
+auto Table<Policy, Hash, Equal>::equal_range(const K &key)
+	-> std::pair<iterator, iterator>
+{
+	const size_t index = findIndex(key);
+	if (index == m_capacity)
+		return {end(), end()};
+	iterator next = iteratorAt(index);
+	++next;
+	return {iteratorAt(index), next};
+}
+
+template <class Policy, class Hash, class Equal>
+template <class K>
+auto Table<Policy, Hash, Equal>::equal_range(const K &key) const
+	-> std::pair<const_iterator, const_iterator>
+{
+	const size_t index = findIndex(key);
+	if (index == m_capacity)
+		return {end(), end()};
+	const_iterator next = iteratorAt(index);
+	++next;
+	return {iteratorAt(index), next};
+}
+
+template <class Policy, class Hash, class Equal>
+void Table<Policy, Hash, Equal>::clear() noexcept
+{
+	destroyElements();
+	if (m_capacity != 0)
+		std::memset(m_ctrl, kEmpty, m_capacity);
+	m_size       = 0;
+	m_tombstones = 0;
+}
+
+template <class Policy, class Hash, class Equal>
+auto Table<Policy, Hash, Equal>::erase(const_iterator pos) -> iterator
+{
+	const size_t index = indexOf(pos);
+	iterator     next  = iteratorAt(index);
+	++next;
+	eraseAt(index);
+	return next;
+}
+
+template <class Policy, class Hash, class Equal>
+auto Table<Policy, Hash, Equal>::erase(const_iterator first,
+									   const_iterator last) -> iterator
+{
+	while (first != last)
+		first = erase(first);
+	return iteratorAt(indexOf(last));
+}
+
+template <class Policy, class Hash, class Equal>
+template <class K>
+size_t Table<Policy, Hash, Equal>::eraseKey(const K &key)
+{
+	const size_t index = findIndex(key);
+	if (index == m_capacity)
+		return 0;
+	eraseAt(index);
+	return 1;
+}
+
+template <class Policy, class Hash, class Equal>
+float Table<Policy, Hash, Equal>::load_factor() const noexcept
+{
+	if (m_capacity == 0)
+		return 0.0F;
+	return static_cast<float>(m_size) / static_cast<float>(m_capacity);
+}
+
+template <class Policy, class Hash, class Equal>
+float Table<Policy, Hash, Equal>::max_load_factor() const noexcept
+{
+	return static_cast<float>(kMaxLoadNumerator) /
+		   static_cast<float>(kMaxLoadDenominator);
+}
+
+template <class Policy, class Hash, class Equal>
+void Table<Policy, Hash, Equal>::rehash(size_t capacity)
+{
+	// (Above max_size(), the capacity would overflow.)
+	if (capacity > max_size())
+		throw std::length_error("TU::FlatHashMap/FlatHashSet: rehash() above max_size()");
+	if (capacity == 0 && m_size == 0)
+	{
+		destroyAndFree();
+		m_slots      = nullptr;
+		m_ctrl       = gEmptyCtrl;
+		m_capacity   = 0;
+		m_tombstones = 0;
+		return;
+	}
+	rehashTo(std::max(std::bit_ceil(capacity), capacityFor(m_size)));
+}
+
+template <class Policy, class Hash, class Equal>
+void Table<Policy, Hash, Equal>::reserve(size_t count)
+{
+	if (count > max_size())
+		throw std::length_error("TU::FlatHashMap/FlatHashSet: reserve() above max_size()");
+	if (count + m_tombstones > maxUsed(m_capacity))
+		rehashTo(capacityFor(count));
+}
+
+template <class Policy, class Hash, class Equal>
+size_t Table<Policy, Hash, Equal>::indexOf(const_iterator pos) const
+{
+	assert(pos.m_ctrl >= m_ctrl && pos.m_ctrl <= m_ctrl + m_capacity);
+	return static_cast<size_t>(pos.m_ctrl - m_ctrl);
+}
+
+template <class Policy, class Hash, class Equal>
+void Table<Policy, Hash, Equal>::eraseAt(size_t index)
+{
+	std::destroy_at(&m_slots[index]);
+	--m_size;
+	// No probe goes on past a group with an empty slot, so if this one has
+	// one, no probe needs this slot. (A group only gets an empty slot from
+	// here or a rehash: one that a probe went past never does.)
+	const size_t first = index / kGroupSize * kGroupSize;
+	if (Group(m_ctrl + first).empty() != 0)
+		m_ctrl[index] = kEmpty;
+	else
+	{
+		m_ctrl[index] = kDeleted;
+		++m_tombstones;
 	}
 }
 
