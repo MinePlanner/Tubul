@@ -245,6 +245,11 @@ public:
 
 	hasher    hash_function() const;
 	key_equal key_eq() const;
+
+private:
+	using Table = detail::flathash::Table<detail::flathash::MapPolicy<Key, Value>, Hash, Equal>;
+
+	Table m_table;
 };
 
 // From the pairs of a range or of an initializer list, then the capacity,
@@ -277,6 +282,8 @@ void swap(FlatHashMap<Key, Value, Hash, Equal> &lhs,
 		  FlatHashMap<Key, Value, Hash, Equal> &rhs) noexcept(noexcept(lhs.swap(rhs)));
 
 } // namespace TU
+
+#include "tubul_flat_hash_map_imp.h"
 
 // -----------------------------------------------------------------------------
 // Benchmarks of uint64_t keys (2026-10-29)
