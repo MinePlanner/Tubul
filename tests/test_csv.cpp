@@ -4,6 +4,10 @@
 
 #include <gtest/gtest.h>
 #include "tubul.h"
+#include <filesystem>
+#include <format>
+#include <fstream>
+#include <random>
 #include <vector>
 
 
@@ -18,6 +22,20 @@ hugo;1;2;3;4
 paco;4;3;2;1
 luis;3;1;2;4
 )";
+
+//CSV1's rows without its header line.
+const char* CSV_NO_HEADERS = R"(hugo,1,2,3,4
+paco,4,3,2,1
+luis,3,1,2,4
+)";
+
+//How CSV_NO_HEADERS (and CSV1, with headers) are read.
+const TU::CSVOptions NO_HEADERS =
+	{TU::ColumnHeaders::NO, TU::RowHeaders::NO, ','};
+const TU::CSVOptions ROW_LABELS =
+	{TU::ColumnHeaders::NO, TU::RowHeaders::YES, ','};
+const TU::CSVOptions HEADERS =
+	{TU::ColumnHeaders::YES, TU::RowHeaders::NO, ','};
 
 const TU::StringColumn expectedColNames = {"hugo","paco","luis"};
 const TU::StringColumn expectedColAs = {"1","4","3"};
@@ -419,4 +437,139 @@ TEST(TUBULCSV, testDataframeNoColumnHeader)
 	testColumn( colC, expectedColCs );
 	testColumn( colD, expectedColDs );
 	testColumn(colName, expectedColNames);
+}
+
+//A csv without column headers: its columns have no names, and are read whole
+//or requested by position.
+TEST(TUBULCSV, testDataframeWithoutColumnHeaders)
+{
+	TU::DataFrame all = TU::dataFrameFromCSVString(CSV_NO_HEADERS, NO_HEADERS);
+	ASSERT_EQ(all.getColCount(), 5u);
+	testColumn(std::get<TU::StringColumn>(all[0]), expectedColNames);
+	testColumn(std::get<TU::StringColumn>(all[2]), expectedColBs);
+
+	TU::ColumnRequest::RequestsByPosition positions =
+		{{0, TU::DataType::STRING}, {2, TU::DataType::DOUBLE}};
+	TU::DataFrame some = TU::dataFrameFromCSVString(CSV_NO_HEADERS,
+		TU::ColumnRequest(positions), NO_HEADERS);
+	testColumn(std::get<TU::StringColumn>(some[0]), expectedColNames);
+	testColumn(std::get<TU::DoubleColumn>(some[2]), expectedColBd);
+	//A column that wasn't requested, or past the last one, can't be read.
+	EXPECT_THROW(some[1], std::runtime_error);
+	EXPECT_THROW(some[5], std::runtime_error);
+
+	//With row labels, the first column holds them: positions count from the
+	//next one.
+	TU::DataFrame labelled = TU::dataFrameFromCSVString(CSV_NO_HEADERS,
+		TU::ColumnRequest(positions), ROW_LABELS);
+	ASSERT_EQ(labelled.getColCount(), 4u);
+	testColumn(std::get<TU::StringColumn>(labelled[0]), expectedColAs);
+	testColumn(std::get<TU::DoubleColumn>(labelled[2]), expectedColCd);
+
+	//Integer columns count their rows too.
+	TU::ColumnRequest::RequestsByPosition integers =
+		{{1, TU::DataType::INTEGER}};
+	TU::DataFrame integerFrame = TU::dataFrameFromCSVString(CSV_NO_HEADERS,
+		TU::ColumnRequest(integers), NO_HEADERS);
+	EXPECT_EQ(integerFrame.getRowCount(), 3u);
+	EXPECT_EQ(std::get<TU::IntegerColumn>(integerFrame[1]),
+		TU::IntegerColumn({1, 4, 3}));
+}
+
+//A file in the temp directory, under a name of its own (test runs may overlap),
+//removed when the test ends, whether it passes or not.
+struct TempCsvFile
+{
+	explicit TempCsvFile(const char* contents)
+	{
+		std::ofstream out(path_);
+		out << contents;
+		if (!out)
+		{
+			throw std::runtime_error(
+				std::format("Couldn't write {}", path_.string()));
+		}
+	}
+	TempCsvFile(const TempCsvFile&) = delete;
+	TempCsvFile& operator=(const TempCsvFile&) = delete;
+	~TempCsvFile()
+	{
+		std::error_code ignored;
+		std::filesystem::remove(path_, ignored);
+	}
+
+	const std::filesystem::path path_ = std::filesystem::temp_directory_path()
+		/ std::format("tubul_test_csv_{}.csv", std::random_device()());
+};
+
+//The same csv read from a file: whole, by typed position, and the missing
+//columns.
+TEST(TUBULCSV, testDataframeFileWithoutColumnHeaders)
+{
+	const TempCsvFile file(CSV_NO_HEADERS);
+	TU::DataFrame all = TU::dataFrameFromCSVFile(file.path_.string(),
+		NO_HEADERS);
+	ASSERT_EQ(all.getColCount(), 5u);
+	testColumn(std::get<TU::StringColumn>(all[0]), expectedColNames);
+	testColumn(std::get<TU::StringColumn>(all[2]), expectedColBs);
+
+	//By typed position.
+	TU::ColumnRequest::RequestsByPosition positions =
+		{{0, TU::DataType::STRING}, {2, TU::DataType::DOUBLE}};
+	TU::DataFrame some = TU::dataFrameFromCSVFile(file.path_.string(),
+		TU::ColumnRequest(positions), NO_HEADERS);
+	testColumn(std::get<TU::StringColumn>(some[0]), expectedColNames);
+	testColumn(std::get<TU::DoubleColumn>(some[2]), expectedColBd);
+
+	//Missing columns: a position past the end, and any name.
+	TU::ColumnRequest::RequestsByPosition pastTheEnd =
+		{{5, TU::DataType::STRING}};
+	EXPECT_THROW(TU::dataFrameFromCSVFile(file.path_.string(),
+		TU::ColumnRequest(pastTheEnd), NO_HEADERS), std::runtime_error);
+	TU::ColumnRequest::RequestsByName byName = {{"A", TU::DataType::DOUBLE}};
+	EXPECT_THROW(TU::dataFrameFromCSVFile(file.path_.string(),
+		TU::ColumnRequest(byName), NO_HEADERS), std::runtime_error);
+	EXPECT_THROW(TU::dataFrameFromCSVFile(file.path_.string(),
+		std::vector<std::string>{"A"}, NO_HEADERS), std::runtime_error);
+}
+
+//A request for a column the csv doesn't have throws, rather than reading or
+//writing out of range: a position past the last column, or a name the csv
+//lacks (every name, without headers).
+TEST(TUBULCSV, testDataframeRequestsForMissingColumns)
+{
+	TU::ColumnRequest::RequestsByPosition pastTheEnd =
+		{{5, TU::DataType::STRING}};
+	EXPECT_THROW(TU::dataFrameFromCSVString(CSV_NO_HEADERS,
+		TU::ColumnRequest(pastTheEnd), NO_HEADERS), std::runtime_error);
+	//With row labels the csv has one column less: position 4 is past the end.
+	TU::ColumnRequest::RequestsByPosition pastTheLabelledEnd =
+		{{4, TU::DataType::STRING}};
+	EXPECT_THROW(TU::dataFrameFromCSVString(CSV_NO_HEADERS,
+		TU::ColumnRequest(pastTheLabelledEnd), ROW_LABELS), std::runtime_error);
+
+	TU::ColumnRequest::RequestsByName byName = {{"A", TU::DataType::DOUBLE}};
+	EXPECT_THROW(TU::dataFrameFromCSVString(CSV_NO_HEADERS,
+		TU::ColumnRequest(byName), NO_HEADERS), std::runtime_error);
+	EXPECT_THROW(TU::dataFrameFromCSVString(CSV_NO_HEADERS,
+		std::vector<std::string>{"A"}, NO_HEADERS), std::runtime_error);
+
+	TU::ColumnRequest::RequestsByName misspelled =
+		{{"Z", TU::DataType::DOUBLE}};
+	EXPECT_THROW(TU::dataFrameFromCSVString(CSV1,
+		TU::ColumnRequest(misspelled), HEADERS), std::runtime_error);
+	EXPECT_THROW(TU::dataFrameFromCSVString(CSV1,
+		std::vector<std::string>{"Z"}, HEADERS), std::runtime_error);
+
+	//With row labels, the header of the label column names no data column.
+	const TU::CSVOptions headersAndRowLabels =
+		{TU::ColumnHeaders::YES, TU::RowHeaders::YES, ','};
+	TU::ColumnRequest::RequestsByName labelHeader =
+		{{"name", TU::DataType::STRING}};
+	EXPECT_THROW(TU::dataFrameFromCSVString(CSV1,
+		TU::ColumnRequest(labelHeader), headersAndRowLabels),
+		std::runtime_error);
+	EXPECT_THROW(TU::dataFrameFromCSVString(CSV1,
+		std::vector<std::string>{"name"}, headersAndRowLabels),
+		std::runtime_error);
 }
