@@ -4,8 +4,14 @@
 #include <gtest/gtest.h>
 
 #include <cmath>
+#include <cstdint>
+#include <limits>
 #include <new>
 #include <random>
+#include <sstream>
+#include <string>
+#include <thread>
+#include <vector>
 
 #include "tubul.h"
 
@@ -213,4 +219,147 @@ TEST(TUBULNewDelete, NothrowForms)
 
     testExpectedAllocs(lifeStart, lifeCreated, lifeFinal, aliveStart, aliveCreated, aliveFinal,
                        sizeof(SampleStruct) + sizeof(int) * ArraySize);
+}
+
+
+////////////////////////////////////////////////////////////////
+///  Unsized single-object delete and failed allocations (#163) ///
+////////////////////////////////////////////////////////////////
+
+// The unsized operator delete(void*) is what libstdc++ itself calls (for example when an
+// ostringstream's buffer grows). It has to give back what operator new counted.
+TEST(TUBULNewDelete, UnsizedDeleteBalancesAlive)
+{
+    const auto aliveStart = TU::memAlive();
+    const auto lifeStart = TU::memLifetime();
+    void* volatile p = ::operator new(100);
+    EXPECT_EQ(TU::memAlive(), aliveStart + 100);
+    ::operator delete(p);
+    EXPECT_EQ(TU::memAlive(), aliveStart);
+    EXPECT_EQ(TU::memLifetime(), lifeStart + 100);
+}
+
+// Sized, unsized and nothrow deletes must all account the same bytes for the same block.
+TEST(TUBULNewDelete, AllSingleObjectDeleteFormsBalanceAlive)
+{
+    const auto aliveStart = TU::memAlive();
+    {
+        void* volatile p = ::operator new(24);
+        ::operator delete(p, size_t(24));
+    }
+    EXPECT_EQ(TU::memAlive(), aliveStart);
+    {
+        void* volatile p = ::operator new(24);
+        ::operator delete(p);
+    }
+    EXPECT_EQ(TU::memAlive(), aliveStart);
+    {
+        void* volatile p = ::operator new(24, std::nothrow);
+        ASSERT_NE(p, nullptr);
+        ::operator delete(p, std::nothrow);
+    }
+    EXPECT_EQ(TU::memAlive(), aliveStart);
+    {
+        // The size handed to the sized delete is ignored: the block knows its own.
+        void* volatile p = ::operator new(24);
+        ::operator delete(p, size_t(24));
+    }
+    EXPECT_EQ(TU::memAlive(), aliveStart);
+}
+
+// The reproducer of the issue: streaming a long string into an ostringstream grows its buffer
+// through the unsized delete. alive used to stay higher by thousands of bytes per iteration.
+TEST(TUBULNewDelete, OstringstreamDoesNotDriftAlive)
+{
+    const std::string big(5000, 'x');
+    // First use initializes locale/iostream statics once, which is not drift.
+    { std::ostringstream warm; warm << big; }
+
+    const auto aliveStart = TU::memAlive();
+    for (int i = 0; i < 2000; ++i) {
+        std::ostringstream o;
+        o << big;
+    }
+    EXPECT_EQ(TU::memAlive(), aliveStart);
+}
+
+// A failed allocation must not be counted (the counters used to be bumped before malloc).
+//
+// Sanitizer allocators abort on a request this size instead of returning null, so there is
+// no failed malloc to observe under them.
+#if defined(__SANITIZE_ADDRESS__) || defined(__SANITIZE_THREAD__)
+#define TUBUL_TEST_UNDER_SANITIZER 1
+#elif defined(__has_feature)
+#if __has_feature(address_sanitizer) || __has_feature(thread_sanitizer)
+#define TUBUL_TEST_UNDER_SANITIZER 1
+#endif
+#endif
+
+TEST(TUBULNewDelete, FailedAllocationIsNotCounted)
+{
+#ifdef TUBUL_TEST_UNDER_SANITIZER
+    GTEST_SKIP() << "sanitizer allocators abort on huge requests instead of failing";
+#endif
+    // Half the address space: malloc cannot satisfy it. Calling the allocation function
+    // directly (not a new-expression) means the compiler may not elide it.
+    const size_t huge = std::numeric_limits<size_t>::max() / 2;
+    volatile size_t volatileHuge = huge;
+    const auto aliveStart = TU::memAlive();
+    const auto lifeStart = TU::memLifetime();
+
+    EXPECT_THROW((void)::operator new(volatileHuge), std::bad_alloc);
+    EXPECT_THROW((void)::operator new[](volatileHuge), std::bad_alloc);
+    EXPECT_EQ(::operator new(volatileHuge, std::nothrow), nullptr);
+    EXPECT_EQ(::operator new[](volatileHuge, std::nothrow), nullptr);
+
+    EXPECT_EQ(TU::memAlive(), aliveStart);
+    EXPECT_EQ(TU::memLifetime(), lifeStart);
+}
+
+// Whatever bookkeeping new does, the pointer must stay usable and default-aligned.
+TEST(TUBULNewDelete, SingleNewAlignmentAndContents)
+{
+    for (size_t n : {size_t(1), size_t(3), size_t(8), size_t(24), size_t(100), size_t(5000)}) {
+        unsigned char* volatile p = static_cast<unsigned char*>(::operator new(n));
+        EXPECT_EQ(reinterpret_cast<std::uintptr_t>(p) % __STDCPP_DEFAULT_NEW_ALIGNMENT__, 0u) << "n=" << n;
+        for (size_t i = 0; i < n; ++i)
+            p[i] = static_cast<unsigned char>(i * 5);
+        for (size_t i = 0; i < n; ++i)
+            ASSERT_EQ(p[i], static_cast<unsigned char>(i * 5)) << "n=" << n << " i=" << i;
+        ::operator delete(p);
+    }
+}
+
+// Zero-byte new is accounted as 1 byte, and every delete form must give that byte back.
+TEST(TUBULNewDelete, SingleNewZeroBytes)
+{
+    const auto aliveStart = TU::memAlive();
+    void* volatile p = ::operator new(0);
+    EXPECT_NE(p, nullptr);
+    EXPECT_EQ(TU::memAlive(), aliveStart + 1);
+    ::operator delete(p);
+    EXPECT_EQ(TU::memAlive(), aliveStart);
+}
+
+// Concurrent single-object new/delete through both the sized and unsized forms.
+TEST(TUBULNewDelete, SingleNewDeleteFromManyThreads)
+{
+    constexpr int ThreadCount = 4;
+    constexpr int Iterations = 20000;
+    std::vector<std::thread> threads;
+    threads.reserve(ThreadCount);
+    const auto aliveStart = TU::memAlive();
+    for (int t = 0; t < ThreadCount; ++t)
+        threads.emplace_back([t] {
+            for (int i = 0; i < Iterations; ++i) {
+                void* volatile p = ::operator new(48 + (i % 7));
+                if ((i + t) % 2)
+                    ::operator delete(p);
+                else
+                    ::operator delete(p, size_t(48 + (i % 7)));
+            }
+        });
+    for (auto& th : threads)
+        th.join();
+    EXPECT_EQ(TU::memAlive(), aliveStart);
 }

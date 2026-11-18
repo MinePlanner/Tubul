@@ -260,19 +260,22 @@ MemoryMonitor::~MemoryMonitor() = default;
  * it turns out there's a lot of small details to keep in mind
  * 1) First of all, in clang the sized deallocation are not the default! Add
  * -fsized-deallocations when using this.
- * 2) Imho, the array deallocation is kind of broken in clang and gcc. When you
- * allocate an array of N elements you know the size (and underlying knowledge remains too!),
+ * 2) Imho, the deallocation is kind of broken in clang and gcc. When you allocate an
+ * array of N elements you know the size (and underlying knowledge remains too!),
  * but there's a caveat if the elements are trivial pods... in that case the compiler
- * is free to call the non-sized deallocator!!! So operator new[] keeps the size of
- * each array in a header of kArrayHeader bytes (__STDCPP_DEFAULT_NEW_ALIGNMENT__, so
- * that the memory after it keeps that alignment) just before the memory it returns,
- * and both operator delete[] read it there.
- * 3) new and sized delete for single objects seems to work as expected. In particular,
- * std::vector saves the day here as it doesn't use new[], because it has to work which
- * elements are "alive" and which are not.
- * 4) A process must have one copy of these operators. Memory from the new[] of one copy
- * (a Windows DLL, or a Linux .so built with hidden symbols, each with its own Tubul)
- * freed by the delete[] of another frees a pointer kArrayHeader bytes off, and corrupts
+ * is free to call the non-sized deallocator!!! The same happens for single objects:
+ * libstdc++ itself frees through the unsized operator delete (an ostringstream growing
+ * its buffer, for example). So every allocation, array or not, keeps its size in a
+ * header of kHeader bytes (__STDCPP_DEFAULT_NEW_ALIGNMENT__, so that the memory after it
+ * keeps that alignment) just before the memory it returns, and every delete form
+ * reads it there. The size a sized delete is given is ignored: the header is the one
+ * source of truth, so all the delete forms account exactly the same bytes.
+ * The header is not counted in alive/lifetime, only the requested bytes are.
+ * 3) std::vector saves the day for arrays of non-trivial things as it doesn't use new[],
+ * because it has to work which elements are "alive" and which are not.
+ * 4) A process must have one copy of these operators. Memory from the new (or new[]) of
+ * one copy (a Windows DLL, or a Linux .so built with hidden symbols, each with its own
+ * Tubul) freed by the delete of another frees a pointer kHeader bytes off, and corrupts
  * the heap. Linking Tubul into the program once, or into one shared library that the
  * others use, keeps a single copy.
  * 5) The over-aligned forms (the ones with std::align_val_t, for types aligned more than
@@ -296,49 +299,20 @@ static constexpr bool TUBUL_LOG_ALLOCATIONS = false;
 // memory, for example). Nothing in Tubul installs one, so this only matters to a
 // program that does; calling it would change what such a program sees, so it is
 // left for when one needs it.
-// no inline, required by [replacement.functions]/3
-void* operator new(std::size_t sz)
+// The bytes before each allocation that hold its size (see 2) above).
+static constexpr std::size_t kHeader = __STDCPP_DEFAULT_NEW_ALIGNMENT__;
+static_assert(kHeader >= sizeof(std::size_t));
+
+// Allocates sz bytes preceded by the header, and counts them. `form` is only for the log.
+static void* trackedAlloc(std::size_t sz, [[maybe_unused]] const char* form)
 {
-	// avoid std::malloc(0) which may return nullptr on success
+	// avoid std::malloc(0) which may return nullptr on success. A zero-length request
+	// counts as 1 byte, for single objects and arrays alike.
 	if (sz == 0)
 		++sz;
-	void *ptr = std::malloc(sz);
-	if (ptr == nullptr)
-		throw std::bad_alloc{}; // required by [new.delete.single]/3
-	//get the stats and add the allocation, now that it succeeded.
-	auto& stats = TU::getTubulStats();
-	auto total = stats.lifetime.fetch_add(sz);
-	auto cur = stats.alive.fetch_add(sz);
-	if constexpr (TUBUL_LOG_ALLOCATIONS)
-		std::printf("1) new(size_t), size = %zu alive = %zu total alloc'd= %zu\n", sz, cur+sz, total+sz);
-	return ptr;
-}
-
-//The nothrow form too: the library's default calls the one above, but a
-//sanitizer or another allocator (jemalloc, mimalloc) may give its own, which
-//doesn't count, and whose memory our sized delete would then subtract.
-void* operator new(std::size_t sz, const std::nothrow_t&) noexcept
-{
-	try {
-		return operator new(sz);
-	} catch (const std::bad_alloc&) {
-		return nullptr;
-	}
-}
-
-// The bytes before each array that hold its size (see 2) above).
-static constexpr std::size_t kArrayHeader = __STDCPP_DEFAULT_NEW_ALIGNMENT__;
-static_assert(kArrayHeader >= sizeof(std::size_t));
-
-// no inline, required by [replacement.functions]/3
-void* operator new[](std::size_t sz)
-{
-	// a zero-length array counts as 1 byte, as operator new counts it
-	if (sz == 0)
-		++sz;
-	if (sz > SIZE_MAX - kArrayHeader)
+	if (sz > SIZE_MAX - kHeader)
 		throw std::bad_alloc{};
-	void *block = std::malloc(kArrayHeader + sz);
+	void *block = std::malloc(kHeader + sz);
 	if (block == nullptr)
 		throw std::bad_alloc{}; // required by [new.delete.single]/3
 	//Keep the size in the header, before the memory we return.
@@ -348,13 +322,51 @@ void* operator new[](std::size_t sz)
 	auto total = stats.lifetime.fetch_add(sz);
 	auto cur = stats.alive.fetch_add(sz);
 	if constexpr (TUBUL_LOG_ALLOCATIONS)
-		std::printf("2) new[](size_t), size = %zu alive = %zu total alloc'd= %zu\n", sz, cur+sz, total+sz);
-	return static_cast<char*>(block) + kArrayHeader;
+		std::printf("%s(size_t), size = %zu alive = %zu total alloc'd= %zu\n", form, sz, cur+sz, total+sz);
+	return static_cast<char*>(block) + kHeader;
+}
+
+// Frees a block from trackedAlloc, and takes its bytes out of alive. `form` is only for the log.
+static void trackedFree(void* ptr, [[maybe_unused]] const char* form) noexcept
+{
+	if (ptr == nullptr)
+		return;
+	//The size is in the header that trackedAlloc wrote.
+	char* const block = static_cast<char*>(ptr) - kHeader;
+	std::size_t size = 0;
+	std::memcpy(&size, block, sizeof(size));
+	auto& stats = TU::getTubulStats();
+	auto cur = stats.alive.fetch_sub(size);
+	if constexpr (TUBUL_LOG_ALLOCATIONS)
+		std::printf("%s(void*), size = %zu alive = %zu  ptr = %p\n", form, size, cur-size, ptr);
+	std::free(block);
+}
+
+// no inline, required by [replacement.functions]/3
+void* operator new(std::size_t sz)
+{
+	return trackedAlloc(sz, "new");
 }
 
 //The nothrow form too: the library's default calls the one above, but a
-//sanitizer or another allocator (jemalloc, mimalloc) may give its own, whose
-//arrays have no header for our delete[] to read.
+//sanitizer or another allocator (jemalloc, mimalloc) may give its own, which
+//has no header for our delete to read.
+void* operator new(std::size_t sz, const std::nothrow_t&) noexcept
+{
+	try {
+		return operator new(sz);
+	} catch (const std::bad_alloc&) {
+		return nullptr;
+	}
+}
+
+// no inline, required by [replacement.functions]/3
+void* operator new[](std::size_t sz)
+{
+	return trackedAlloc(sz, "new[]");
+}
+
+//The nothrow form too, for the same reason.
 void* operator new[](std::size_t sz, const std::nothrow_t&) noexcept
 {
 	try {
@@ -364,18 +376,17 @@ void* operator new[](std::size_t sz, const std::nothrow_t&) noexcept
 	}
 }
 
-//With -fsized-deallocation, the compiler calls the sized delete for objects
-//of complete types, so this one is rare (an explicit ::operator delete(ptr),
-//code built without sized deallocation). It doesn't know the size, so the
-//memory it frees isn't subtracted from alive.
+//The unsized delete is not rare: libstdc++ calls it (an ostringstream growing its buffer,
+//for example). It reads the size from the header, like every other delete form.
 void operator delete(void* ptr) noexcept
 {
-	if (ptr == nullptr)
-		return;
-	if constexpr (TUBUL_LOG_ALLOCATIONS)
-		std::printf("3) delete(void*),  ptr = %p\n", ptr);
-	//Call the real deallocation.
-	std::free(ptr);
+	trackedFree(ptr, "delete");
+}
+
+//The size given is the one operator new got, which the header holds too.
+void operator delete(void* ptr, std::size_t) noexcept
+{
+	operator delete(ptr);
 }
 
 //Paired with the nothrow operator new above.
@@ -384,31 +395,9 @@ void operator delete(void* ptr, const std::nothrow_t&) noexcept
 	operator delete(ptr);
 }
 
-void operator delete(void* ptr, std::size_t size) noexcept
+void operator delete[](void* ptr) noexcept
 {
-	if (ptr == nullptr)
-		return;
-	//Simply record the we are freen size amount of bytes.
-	auto& stats = TU::getTubulStats();
-	auto cur = stats.alive.fetch_sub(size);
-	if constexpr (TUBUL_LOG_ALLOCATIONS)
-		std::printf("4) delete(void*, size_t), size = %zu alive = %zu  ptr = %p\n", size, cur -size, ptr);
-	//Call the real deallocation.
-	std::free(ptr);
-}
-
-void operator delete[](void* ptr) noexcept {
-	if (ptr == nullptr)
-		return;
-	//The size is in the header that operator new[] wrote.
-	char* const block = static_cast<char*>(ptr) - kArrayHeader;
-	std::size_t size = 0;
-	std::memcpy(&size, block, sizeof(size));
-	auto& stats = TU::getTubulStats();
-	auto cur = stats.alive.fetch_sub(size);
-	if constexpr (TUBUL_LOG_ALLOCATIONS)
-		std::printf("****) delete[](void*), alive = %zu \n", cur-size);
-	std::free(block);
+	trackedFree(ptr, "delete[]");
 }
 
 //The size given is the one operator new[] got, which the header holds too.
