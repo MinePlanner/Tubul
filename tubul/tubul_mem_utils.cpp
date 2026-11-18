@@ -12,6 +12,9 @@
 #include <chrono>
 #include <atomic>
 #include <algorithm>
+#include <cstring>
+#include <limits>
+#include <new>
 #include "tubul_file_utils.h"
 #include "tubul_mem_utils.h"
 
@@ -174,24 +177,8 @@ size_t memCurrentRSS()
 }
 
 struct MemoryStats {
-	using PtrSize = std::pair<void*,size_t>;
 	std::atomic_size_t lifetime;
 	std::atomic_size_t alive;
-	std::vector<PtrSize> sizes;
-
-	auto findArrayAlloc(void *ptr) {
-		return std::find_if(std::begin(sizes), std::end(sizes),
-		                    [ptr](auto sizeItem) {
-			                    const auto &[p,s] = sizeItem;
-			                    return (p == ptr);
-		                    });
-	}
-
-	void removeArrayAlloc(std::vector<PtrSize>::iterator it) {
-		//Move the iterator to the last position and drop it.
-		std::iter_swap(it, sizes.end() - 1);
-		sizes.pop_back();
-	}
 };
 
 MemoryStats& getTubulStats() {
@@ -276,11 +263,13 @@ MemoryMonitor::~MemoryMonitor() = default;
  * 2) Imho, the array deallocation is kind of broken in clang and gcc. When you
  * allocate an array of N elements you know the size (and underlying knowledge remains too!),
  * but there's a caveat if the elements are trivial pods... in that case the compiler
- * is free to call the non-sized deallocator!!! That is quite a pain because to properly
- * get back the size of that allocation would require either risky assumptions (basically
- * that we can use the trick of looking at position -1 and retrieve the size) or a lot of
- * extra work to keep knowledge of this. I did a small solution here for completeness-sake
- * but i am not very happy with it.
+ * is free to call the non-sized deallocator!!! So delete[] can't rely on the size it
+ * is given. To always know the size, operator new[] over-allocates a small header
+ * (ArrayHeaderSize bytes, keeping the default new alignment) that stores the requested
+ * size right before the pointer handed to the user, and every delete[] reads it back.
+ * This is O(1), needs no lock and no global registry (the previous registry was a
+ * shared std::vector, which was neither thread safe nor cheap to search).
+ * The header is NOT counted in alive/lifetime, only the requested bytes are.
  * 3) new and sized delete for single objects seems to work as expected. In particular,
  * std::vector saves the day here as it doesn't use new[], because it has to work which
  * elements are "alive" and which are not.
@@ -315,12 +304,29 @@ void* operator new(std::size_t sz)
 	throw std::bad_alloc{}; // required by [new.delete.single]/3
 }
 
+// Every block returned by operator new[] is preceded by a header holding the requested
+// size. The header takes a full default-alignment slot so the user pointer stays aligned.
+static constexpr std::size_t ArrayHeaderSize = __STDCPP_DEFAULT_NEW_ALIGNMENT__;
+static_assert(ArrayHeaderSize >= sizeof(std::size_t), "array header must hold a size_t");
+
+// Releases a block from operator new[] and returns the size that was requested for it.
+static std::size_t releaseArray(void* ptr) noexcept
+{
+	void* base = static_cast<char*>(ptr) - ArrayHeaderSize;
+	std::size_t sz;
+	std::memcpy(&sz, base, sizeof(sz));
+	std::free(base);
+	return sz;
+}
+
 // no inline, required by [replacement.functions]/3
 void* operator new[](std::size_t sz)
 {
 	// avoid std::malloc(0) which may return nullptr on success
 	if (sz == 0)
 		++sz;
+	if (sz > std::numeric_limits<std::size_t>::max() - ArrayHeaderSize)
+		throw std::bad_alloc{};
 	//get the stats and add the allocation.
 	auto& stats = TU::getTubulStats();
 	auto total = stats.lifetime.fetch_add(sz);
@@ -328,12 +334,10 @@ void* operator new[](std::size_t sz)
 	if constexpr (TUBUL_LOG_ALLOCATIONS)
 		std::printf("2) new[](size_t), size = %zu alive = %zu total alloc'd= %zu\n", sz, cur+sz, total+sz);
 
-	//Return the ptr allocated, but just in case (because this route sucks) store the size of this ptr.
-	if (void *ptr = std::malloc(sz)) {
-		if ( not stats.sizes.capacity())
-			stats.sizes.reserve(512);
-		stats.sizes.emplace_back(ptr, sz);
-		return ptr;
+	//Allocate the header + the user's bytes, and remember the size in the header.
+	if (void *base = std::malloc(sz + ArrayHeaderSize)) {
+		std::memcpy(base, &sz, sizeof(sz));
+		return static_cast<char*>(base) + ArrayHeaderSize;
 	}
 
 	throw std::bad_alloc{}; // required by [new.delete.single]/3
@@ -368,42 +372,26 @@ void operator delete(void* ptr, std::size_t size) noexcept
 void operator delete[](void* ptr) noexcept {
 	if (ptr == nullptr)
 		return;
-	//Now, because the array handling sucks, we have to try to retrieve the size of this
-	//pointer for accurate bookkeeping.
+	//The size of this ptr is in its header, so the bookkeeping is accurate even when
+	//the compiler uses this unsized version.
 	auto& stats = TU::getTubulStats();
-	auto ptrInfo = stats.findArrayAlloc(ptr);
-	//If for some reason, we don't have information for this ptr, we panic a little and go on with life.
-	if ( ptrInfo == stats.sizes.end() ) {
-		std::printf("Deleting pointer [%p] for which no size information is recorded!\n", ptr);
-		std::free(ptr);
-		return;
-	}
-	//We can get the size of this ptr to properly track it.
-	const auto& [p,s] = *ptrInfo;
+	const auto s = releaseArray(ptr);
 	auto cur = stats.alive.fetch_sub(s);
 	if constexpr (TUBUL_LOG_ALLOCATIONS)
-		std::printf("****) delete[](void*), alive = %zu \n", cur-s);
-	std::free(ptr);
-
-	//now we remove this ptr from the list of pointers we keep track of.
-	stats.removeArrayAlloc(ptrInfo);
+		std::printf("5) delete[](void*), size = %zu alive = %zu \n", s, cur-s);
 }
 
-void operator delete[](void* ptr, std::size_t size) noexcept
+//The size given by the compiler is ignored on purpose: the header is the source of truth,
+//so both delete[] versions account exactly the same way.
+void operator delete[](void* ptr, std::size_t) noexcept
 {
 	if (ptr == nullptr)
 		return;
 	auto& stats = TU::getTubulStats();
-	auto cur = stats.alive.fetch_sub(size);
+	const auto s = releaseArray(ptr);
+	auto cur = stats.alive.fetch_sub(s);
 	if constexpr (TUBUL_LOG_ALLOCATIONS)
-		std::printf("6) delete[](void*, size_t), size = %zu alive = %zu\n", size, cur-size);
-
-	//remove the array data if it was recorded
-	auto ptrInfo = stats.findArrayAlloc(ptr);
-	if ( ptrInfo != stats.sizes.end())
-		stats.removeArrayAlloc(ptrInfo);
-
-	std::free(ptr);
+		std::printf("6) delete[](void*, size_t), size = %zu alive = %zu\n", s, cur-s);
 }
 
 #endif
