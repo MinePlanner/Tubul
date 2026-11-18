@@ -1,0 +1,8 @@
+# Code owners are requested for review automatically on every PR that touches
+# the files they own. The LAST matching pattern wins, so order matters.
+
+# Everything.
+*            @jaimeh-ali
+
+# CI/CD: the workflows and any other GitHub configuration.
+/.github/    @fcornejos-alicanto @jaimeh-ali
