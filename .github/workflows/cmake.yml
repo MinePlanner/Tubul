@@ -50,10 +50,21 @@ jobs:
       with:
         persist-credentials: false
 
+    # The self-hosted Windows runners run as NETWORK SERVICE, whose PATH has no CMake (it is
+    # installed only on a user's PATH). This puts the MSVC toolchain, and the CMake and Ninja
+    # that ship with Visual Studio, on the PATH. Same step Solver3 uses on these runners.
+    - name: Set up MSVC developer environment (Windows)
+      if: runner.os == 'Windows'
+      uses: TheMrMilchmann/setup-msvc-dev@v4
+      with:
+        arch: x64
+
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
       # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
-      run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
+      # Windows uses Ninja (single-config, like Linux/macOS) so the binary lands in
+      # bin/<BUILD_TYPE>/ and no Visual Studio generator is needed on the runner.
+      run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} ${{ runner.os == 'Windows' && '-GNinja' || '' }}
 
     - name: Build
       # Build your program with the given configuration
@@ -69,4 +80,4 @@ jobs:
       # Execute the meta unit-test binary created with gtest.
       if: runner.os == 'Windows'
       run: |
-        ${{github.workspace}}\bin\${{env.BUILD_TYPE}}\${{env.BUILD_TYPE}}\testtubul.exe
+        ${{github.workspace}}\bin\${{env.BUILD_TYPE}}\testtubul.exe
