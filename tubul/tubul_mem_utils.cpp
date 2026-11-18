@@ -325,7 +325,8 @@ void* operator new[](std::size_t sz)
 	// avoid std::malloc(0) which may return nullptr on success
 	if (sz == 0)
 		++sz;
-	if (sz > std::numeric_limits<std::size_t>::max() - ArrayHeaderSize)
+	// Parenthesized max: <windows.h> defines a max() macro that would break the call.
+	if (sz > (std::numeric_limits<std::size_t>::max)() - ArrayHeaderSize)
 		throw std::bad_alloc{};
 	//get the stats and add the allocation.
 	auto& stats = TU::getTubulStats();
