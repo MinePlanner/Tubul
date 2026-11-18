@@ -4,6 +4,8 @@
 
 #include <fast_float/fast_float.h>
 #include <rapidcsv.h>
+#include <format>
+#include <string_view>
 #include <tuple>
 #include <iostream>
 #include <streambuf>
@@ -36,10 +38,10 @@ struct CSVContents::CSVRawData
 //Easy retrieval of columns from the set of clumns that we have.
 const DataColumn& DataFrame::operator[](size_t idx) const
 {
-	if ( idx > columns_.size() ||
+	if ( idx >= columns_.size() ||
 		std::holds_alternative<std::monostate>(columns_[idx]) )
 		throw std::runtime_error("Requesting invalid column");
-	return columns_.at(idx);
+	return columns_[idx];
 }
 const DataColumn& DataFrame::operator[](const std::string& name) const
 {
@@ -160,6 +162,7 @@ size_t DataFrame::getColCount() const
 struct ColSizeVisitor
 {
 	size_t operator()(const TU::DoubleColumn& c){ return c.size();}
+	size_t operator()(const TU::IntegerColumn& c){ return c.size();}
 	size_t operator()(const TU::StringColumn& c){ return c.size();}
 	template <typename InvalidColumnType>
 	size_t operator()(const InvalidColumnType&){ throw std::runtime_error("invalid column type");}
@@ -253,20 +256,30 @@ std::optional<CSVContents> readCsvFromString(const std::string& contents)
 //
 void setupDataFrameFromCSV(DataFrame& df, const rapidcsv::Document& doc)
 {
-	//Check what to do in case of no column names :/
-	auto const& names = doc.GetColumnNames();
-	for (auto const& name: names)
+	//Every column gets a slot, named or not: a csv without column headers has
+	//columns but no names, and its columns are requested by position.
+	df.type_.assign(doc.GetColumnCount(), DataType::STRING);
+	df.columns_.assign(doc.GetColumnCount(), DataColumn());
+	for (const std::string& name: doc.GetColumnNames())
 	{
 		df.names_.emplace(name, doc.GetColumnIdx(name));
-		df.type_.push_back( DataType::STRING );
-		df.columns_.push_back( DataColumn() );
 	}
 }
 
 
+//Thrown when a column is requested by a name the csv doesn't have, instead of
+//indexing out of range.
+[[noreturn]] static void throwMissingColumn(std::string_view name)
+{
+	throw std::runtime_error(std::format(
+		"Requesting column \"{}\", which the csv doesn't have", name));
+}
+
 //Helper function to retrieve the colum id's from a ColumnRequest. This
 //can be more or less direct if the columns are requested by id, or may need
-//to convert the names into id.
+//to convert the names into id. The requests were checked already:
+//ColumnTypeHelper runs first and throws on a missing name or a position past
+//the last column.
 std::vector<size_t> getRequestedColumnId(const ColumnRequest& requestedColumns,  const rapidcsv::Document& doc)
 {
 	std::vector<size_t> res;
@@ -299,8 +312,12 @@ std::vector<size_t> getRequestedColumnId(const std::vector<std::string>& request
 	res.reserve( requestedColumns.size());
 	for (const auto& req: requestedColumns)
 	{
-		auto colIdx = doc.GetColumnIdx(req);
-		res.push_back(colIdx);
+		const ssize_t colIdx = doc.GetColumnIdx(req);
+		if (colIdx < 0)
+		{
+			throwMissingColumn(req);
+		}
+		res.push_back(static_cast<size_t>(colIdx));
 	}
 
 	return res;
@@ -469,8 +486,12 @@ struct ColumnTypeHelper
 			{
 				const auto& colName = req.first;
 				const auto& colType= req.second;
-				size_t colId = df.names_[colName];
-				df.type_[colId] = colType;
+				const auto found = df.names_.find(colName);
+				if (found == df.names_.end())
+				{
+					throwMissingColumn(colName);
+				}
+				df.type_[found->second] = colType;
 			}
 		}
 		if (std::holds_alternative<ColumnRequest::RequestsByPosition>(requests_))
@@ -480,6 +501,12 @@ struct ColumnTypeHelper
 			{
 				const auto& colId = req.first;
 				const auto& colType= req.second;
+				if (colId >= df.type_.size())
+				{
+					throw std::runtime_error(std::format(
+						"Requesting column {}, but the csv has {} column(s)",
+						colId, df.type_.size()));
+				}
 				df.type_[colId] = colType;
 			}
 		}
@@ -523,7 +550,7 @@ DataFrame dataFrameFromCSVString(const std::string& csvContents, const std::vect
 	return dataFrameFromCSVInternal( contents_stream, options, chosenCols, typeInfo );
 }
 
-DataFrame dataframeFromCSVFile(const std::string& filename, TU::CSVOptions options)
+DataFrame dataFrameFromCSVFile(const std::string& filename, TU::CSVOptions options)
 {
 	std::ifstream contents_stream(filename);
 	SelectorAllColumns all;

@@ -7,6 +7,12 @@ on:
   pull_request:
     branches: [ "main" ]
 
+# These jobs run on the organization's self-hosted runners, which are a shared and finite
+# resource: a newer push to the same PR cancels the build still running for the old one.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
   BUILD_TYPE: Release
@@ -16,20 +22,49 @@ jobs:
     # The CMake configure and build commands are platform agnostic and should work equally well on Windows or Mac.
     # You can convert this to a matrix build if you need cross-platform coverage.
     # See: https://docs.github.com/en/free-pro-team@latest/actions/learn-github-actions/managing-complex-workflows#using-a-build-matrix
+    #
+    # SECURITY: this repository is PUBLIC and the jobs run on self-hosted machines. A PR from a
+    # fork would execute its own code (CMakeLists.txt, tests) on our hardware, so only PRs whose
+    # branch lives in this repository run here. Fork PRs are skipped, not run on a hosted runner.
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    # A hung build would hold a shared machine until GitHub's 6 h job limit. A normal run
+    # takes a few minutes.
+    timeout-minutes: 30
     strategy:
+      # Every leg runs on a different machine, so one failing says nothing about the others.
+      fail-fast: false
       matrix:
+        # The values are kept (not renamed to linux/macos/windows) so the check names
+        # `build (<os>)` and the `runner.os` conditions below do not change.
         os: [macos-latest, ubuntu-latest, windows-latest]
-    runs-on: ${{ matrix.os }}
+    # Target the organization's runner POOL (runner group + the OS label every runner assigns
+    # itself) instead of a machine name, so any healthy runner of that OS takes the job and
+    # adding or retiring a box needs no change here. Same convention as MinePlanner/Solver3.
+    # Machines and labels: IAC-Suecia31, docs/runner-gh-actions.md.
+    runs-on:
+      group: suecia31
+      labels: ${{ fromJSON('{"macos-latest":"macOS","ubuntu-latest":"Linux","windows-latest":"Windows"}')[matrix.os] }}
 
     steps:
     - uses: actions/checkout@v3
       with:
         persist-credentials: false
 
+    # The self-hosted Windows runners run as NETWORK SERVICE, whose PATH has no CMake (it is
+    # installed only on a user's PATH). This puts the MSVC toolchain, and the CMake and Ninja
+    # that ship with Visual Studio, on the PATH. Same step Solver3 uses on these runners.
+    - name: Set up MSVC developer environment (Windows)
+      if: runner.os == 'Windows'
+      uses: TheMrMilchmann/setup-msvc-dev@v4
+      with:
+        arch: x64
+
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
       # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
-      run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
+      # Windows uses Ninja (single-config, like Linux/macOS) so the binary lands in
+      # bin/<BUILD_TYPE>/ and no Visual Studio generator is needed on the runner.
+      run: cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} ${{ runner.os == 'Windows' && '-GNinja' || '' }}
 
     - name: Build
       # Build your program with the given configuration
@@ -45,4 +80,4 @@ jobs:
       # Execute the meta unit-test binary created with gtest.
       if: runner.os == 'Windows'
       run: |
-        ${{github.workspace}}\bin\${{env.BUILD_TYPE}}\${{env.BUILD_TYPE}}\testtubul.exe
+        ${{github.workspace}}\bin\${{env.BUILD_TYPE}}\testtubul.exe
