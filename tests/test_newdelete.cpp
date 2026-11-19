@@ -3,6 +3,7 @@
 //
 #include <gtest/gtest.h>
 
+#include <chrono>
 #include <cmath>
 #include <cstdint>
 #include <limits>
@@ -361,5 +362,142 @@ TEST(TUBULNewDelete, SingleNewDeleteFromManyThreads)
         });
     for (auto& th : threads)
         th.join();
+    EXPECT_EQ(TU::memAlive(), aliveStart);
+}
+
+////////////////////////////////
+///  new[] / delete[] (#162) ///
+////////////////////////////////
+
+// Concurrent new[]/delete[] used to corrupt a global, unlocked registry and crash
+// with SIGSEGV. After all threads join, alive must be exactly where it started.
+TEST(TUBULNewDelete, ArrayNewDeleteFromManyThreads)
+{
+    constexpr int ThreadCount = 4;
+    constexpr int Iterations = 20000;
+    constexpr size_t ArrayBytes = 48;
+
+    // Reserve first: the vector's own buffer is alive at assertion time and must not
+    // be part of the delta being measured.
+    std::vector<std::thread> threads;
+    threads.reserve(ThreadCount);
+    const auto aliveStart = TU::memAlive();
+    const auto lifeStart = TU::memLifetime();
+
+    for (int t = 0; t < ThreadCount; ++t)
+        threads.emplace_back([] {
+            for (int i = 0; i < Iterations; ++i) {
+                // volatile: keeps the compiler from eliding the allocation.
+                char* volatile a = new char[ArrayBytes];
+                a[0] = 1;
+                delete[] a;
+            }
+        });
+    for (auto& th : threads)
+        th.join();
+
+    EXPECT_EQ(TU::memAlive(), aliveStart);
+    // Lower bound: std::thread start-up also allocates, but never less than our arrays.
+    EXPECT_GE(TU::memLifetime(), lifeStart + size_t(ThreadCount) * Iterations * ArrayBytes);
+}
+
+// Same, but each thread keeps a batch alive at once and frees it in a different
+// order than it was allocated (the registry used to do swap-and-pop on this).
+TEST(TUBULNewDelete, ArrayNewDeleteBatchesFromManyThreads)
+{
+    constexpr int ThreadCount = 4;
+    constexpr int Rounds = 200;
+    constexpr int Batch = 100;
+
+    std::vector<std::thread> threads;
+    threads.reserve(ThreadCount);
+    const auto aliveStart = TU::memAlive();
+
+    for (int t = 0; t < ThreadCount; ++t)
+        threads.emplace_back([] {
+            std::vector<char*> live(Batch);
+            for (int r = 0; r < Rounds; ++r) {
+                for (int i = 0; i < Batch; ++i) {
+                    live[i] = new char[16 + i];
+                    live[i][0] = char(i);
+                }
+                for (int i = 0; i < Batch; i += 2) delete[] live[i];
+                for (int i = 1; i < Batch; i += 2) delete[] live[i];
+            }
+        });
+    for (auto& th : threads)
+        th.join();
+
+    EXPECT_EQ(TU::memAlive(), aliveStart);
+}
+
+// delete[] used to do a linear search over every live array (quadratic overall).
+// The bound is deliberately loose (the old code needed ~1.5 s here, the fix needs
+// milliseconds) so it only trips on a real complexity regression, not on a slow CI box.
+TEST(TUBULNewDelete, ArrayDeleteDoesNotScaleWithLiveArrays)
+{
+    constexpr size_t N = 100000;
+    std::vector<char*> ptrs(N);
+    // Measured after the vector's own (single) allocation so only the arrays count.
+    const auto aliveStart = TU::memAlive();
+    for (size_t i = 0; i < N; ++i) {
+        ptrs[i] = new char[64];
+        ptrs[i][0] = 1;
+    }
+    EXPECT_EQ(TU::memAlive(), aliveStart + N * 64);
+
+    const auto t0 = std::chrono::steady_clock::now();
+    for (size_t i = 0; i < N; ++i)
+        delete[] ptrs[i]; // FIFO, the slow order for the old linear search
+    const auto elapsed = std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
+
+    EXPECT_LT(elapsed, 0.5);
+    EXPECT_EQ(TU::memAlive(), aliveStart);
+}
+
+// Whatever bookkeeping new[] does, the pointer handed to the user must stay usable
+// and suitably aligned, and the whole requested range must be writable.
+TEST(TUBULNewDelete, ArrayNewAlignmentAndContents)
+{
+    for (size_t n : {size_t(1), size_t(3), size_t(8), size_t(17), size_t(1000), size_t(4096)}) {
+        unsigned char* volatile p = new unsigned char[n];
+        EXPECT_EQ(reinterpret_cast<std::uintptr_t>(p) % __STDCPP_DEFAULT_NEW_ALIGNMENT__, 0u) << "n=" << n;
+        for (size_t i = 0; i < n; ++i)
+            p[i] = static_cast<unsigned char>(i * 7);
+        for (size_t i = 0; i < n; ++i)
+            ASSERT_EQ(p[i], static_cast<unsigned char>(i * 7)) << "n=" << n << " i=" << i;
+        delete[] p;
+    }
+}
+
+// Zero-length arrays are legal and must round-trip. new[0] is accounted as 1 byte
+// (the override avoids malloc(0)), and delete[] must give that byte back.
+TEST(TUBULNewDelete, ArrayNewZeroLength)
+{
+    const auto aliveStart = TU::memAlive();
+    char* volatile p = new char[0];
+    EXPECT_NE(p, nullptr);
+    delete[] p;
+    EXPECT_EQ(TU::memAlive(), aliveStart);
+}
+
+// Arrays of types with a non-trivial destructor get an array cookie and are released
+// through the sized delete[]; make sure that path balances too.
+namespace {
+struct Counted {
+    static inline int alive = 0;
+    char pad[7];
+    Counted() { ++alive; }
+    ~Counted() { --alive; }
+};
+}
+
+TEST(TUBULNewDelete, ArrayNewNonTrivialType)
+{
+    const auto aliveStart = TU::memAlive();
+    Counted* volatile p = new Counted[10];
+    EXPECT_EQ(Counted::alive, 10);
+    delete[] p;
+    EXPECT_EQ(Counted::alive, 0);
     EXPECT_EQ(TU::memAlive(), aliveStart);
 }
