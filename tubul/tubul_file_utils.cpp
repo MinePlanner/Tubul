@@ -131,17 +131,42 @@ int strToInt(const std::string_view& p){
         impl_( new MappedFile::Internals) {
         auto& fd_ = impl_->fd_;
 		fd_ = open(filename, O_RDONLY );
-		struct stat file_stats;
-		if (fstat(fd_, &file_stats) == -1)
+		if (fd_ == -1)
             throw TU::Exception(std::string("Could not open file:") + filename);
 
+		struct stat file_stats;
+		if (fstat(fd_, &file_stats) == -1) {
+            close(fd_);
+            throw TU::Exception(std::string("Could not open file:") + filename);
+        }
+
 		size_ = file_stats.st_size;
-		data_ = static_cast<char*>(  mmap(nullptr, size_, PROT_READ, MAP_PRIVATE, fd_, 0) );
-		//We expect to read the file sequentially.
-		madvise((void*)data_, size_, MADV_WILLNEED | MADV_SEQUENTIAL);
+		if (size_ == 0) {
+            //mmap fails with EINVAL on a zero length, and there is nothing to map anyway.
+            data_ = nullptr;
+            close(fd_);
+            fd_ = -1;
+            return;
+        }
+
+		void* mapped = mmap(nullptr, size_, PROT_READ, MAP_PRIVATE, fd_, 0);
+		if (mapped == MAP_FAILED) {
+            close(fd_);
+            throw TU::Exception(std::string("Could not map file:") + filename);
+        }
+		data_ = static_cast<const char*>(mapped);
+		//We expect to read the file sequentially. madvise takes ONE advice value (a bitwise
+		//OR of two of them is just a third value), so these are two calls. Both are only
+		//hints: a failure is ignored.
+		madvise(mapped, size_, MADV_SEQUENTIAL);
+		madvise(mapped, size_, MADV_WILLNEED);
 	}
 
   MappedFile::~MappedFile() {
+		//Nothing was mapped (and the file already closed) for an empty file.
+		if (data_ == nullptr)
+			return;
+
 		if (munmap( (void*)data_, size_) == -1)
 		{
       //throw TU::Exception( "CAUTION!! I could not unmap the file properly");

@@ -6,6 +6,14 @@
 #include <gtest/gtest.h>
 #include <fstream>
 #include <iterator>
+#include <filesystem>
+#include <string>
+#include <cctype>
+#include <cstdint>
+#ifdef __linux__
+#include <unistd.h>
+#include <dirent.h>
+#endif
 
 
 const char* FILE_TO_CREATE_CONTENTS = R"(This is the first line
@@ -191,6 +199,69 @@ TEST(TUBULFileUtils, testMMapFile){
         EXPECT_EQ(resultByLine.str(), FILE_TO_CREATE_CONTENTS);
     }
 }
+
+
+// #164: an empty file cannot be mapped (mmap gives EINVAL on length 0). It used to
+// leave data_ == MAP_FAILED; now it is an empty view and data() is not a bogus pointer.
+TEST(TUBULFileUtils, testMMapEmptyFile){
+    const char* name = "test_file_empty.txt";
+    { std::ofstream out(name, std::ios::trunc); }
+
+    {
+        TU::MappedFile input(name);
+        EXPECT_EQ(input.size(), 0u);
+        EXPECT_EQ(input.data(), nullptr);
+        EXPECT_TRUE(input.string_view().empty());
+    }
+    std::filesystem::remove(name);
+}
+
+TEST(TUBULFileUtils, testMMapMissingFileThrows){
+    EXPECT_THROW(TU::MappedFile("this_file_does_not_exist.txt"), TU::Exception);
+}
+
+#ifdef __linux__
+// open() works on a directory, fstat() too, but mmap() fails: it must throw, not hand
+// out MAP_FAILED. Also checks the descriptor is not leaked on that path.
+static size_t openFdCount() {
+    size_t n = 0;
+    for (const auto& e : std::filesystem::directory_iterator("/proc/self/fd")) { (void)e; ++n; }
+    return n;
+}
+
+TEST(TUBULFileUtils, testMMapFailureThrowsAndDoesNotLeakFd){
+    const auto before = openFdCount();
+    for (int i = 0; i < 20; ++i)
+        EXPECT_THROW(TU::MappedFile("."), TU::Exception);
+    EXPECT_EQ(openFdCount(), before);
+}
+
+// madvise(MADV_WILLNEED | MADV_SEQUENTIAL) was just MADV_WILLNEED (3 | 2 == 3), so the
+// "sr" (sequential read) flag never showed up in /proc/self/smaps.
+TEST(TUBULFileUtils, testMMapAppliesSequentialAdvice){
+    createFile();
+    TU::MappedFile input(TEST_FILENAME);
+    const auto addr = reinterpret_cast<std::uintptr_t>(input.data());
+
+    std::ifstream smaps("/proc/self/smaps");
+    if (!smaps) GTEST_SKIP() << "/proc/self/smaps not readable";
+    std::string line;
+    bool inMapping = false, found = false;
+    std::string flags;
+    while (std::getline(smaps, line)) {
+        if (line.rfind("VmFlags:", 0) == 0) {
+            if (inMapping) { flags = line; found = true; break; }
+        } else if (!line.empty() && std::isxdigit(static_cast<unsigned char>(line[0])) && line.find('-') != std::string::npos) {
+            // "start-end perms ..." header of a mapping
+            const auto start = std::stoull(line.substr(0, line.find('-')), nullptr, 16);
+            const auto end = std::stoull(line.substr(line.find('-') + 1), nullptr, 16);
+            inMapping = addr >= start && addr < end;
+        }
+    }
+    ASSERT_TRUE(found) << "mapping of the file not found in smaps";
+    EXPECT_NE((flags + " ").find(" sr "), std::string::npos) << flags;
+}
+#endif
 
 
 TEST(TUBULFileUtils, testReadFileLines)
