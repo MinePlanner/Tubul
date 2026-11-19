@@ -98,6 +98,7 @@ int strToInt(const std::string_view& p){
         impl_( new MappedFile::Internals) {
         auto& fd = impl_->fd_;
         auto& mapping = impl_->mapping_;
+        mapping = nullptr;
 
         fd = CreateFile(name, GENERIC_READ, FILE_SHARE_READ , 0, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
         if(fd == INVALID_HANDLE_VALUE) {
@@ -105,16 +106,32 @@ int strToInt(const std::string_view& p){
         };
 
         size_  = std::filesystem::file_size(name);
+        if (size_ == 0) {
+            //CreateFileMapping fails on an empty file, and there is nothing to map anyway.
+            data_ = nullptr;
+            CloseHandle(fd);
+            fd = INVALID_HANDLE_VALUE;
+            return;
+        }
 
         mapping = CreateFileMapping(fd, 0, PAGE_READONLY, 0, 0, 0);
         if(mapping == 0) {
+            CloseHandle(fd);
             throw TU::Exception(std::string("Could not open file:") + name);
         }
 
         data_ = static_cast<const char*>( MapViewOfFile(mapping, FILE_MAP_READ, 0, 0, 0) );
+        if (data_ == nullptr) {
+            CloseHandle(mapping);
+            CloseHandle(fd);
+            throw TU::Exception(std::string("Could not map file:") + name);
+        }
     }
 
     MappedFile::~MappedFile() {
+        //Nothing was mapped (and the file already closed) for an empty file.
+        if (data_ == nullptr)
+            return;
         auto& fd = impl_->fd_;
         auto& mapping = impl_->mapping_;
         UnmapViewOfFile(data_);
