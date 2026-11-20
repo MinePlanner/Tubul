@@ -3,6 +3,7 @@
 //
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <limits>
@@ -237,6 +238,20 @@ TEST(TUBULNewDelete, UnsizedDeleteBalancesAlive)
     ::operator delete(p);
     EXPECT_EQ(TU::memAlive(), aliveStart);
     EXPECT_EQ(TU::memLifetime(), lifeStart + 100);
+}
+
+// #171: libstdc++ algorithms that need a temporary buffer (stable_sort, inplace_merge)
+// allocate it with the nothrow new and release it with the plain delete. Under ASan an
+// unreplaced nothrow new paired with our delete is an alloc-dealloc-mismatch.
+TEST(TUBULNewDelete, StableSortTemporaryBufferBalancesAlive)
+{
+    std::vector<int> values(1000);
+    for (auto& v : values)
+        v = static_cast<int>(getRandomNumber());
+    const auto aliveStart = TU::memAlive();
+    std::stable_sort(values.begin(), values.end());
+    EXPECT_TRUE(std::is_sorted(values.begin(), values.end()));
+    EXPECT_EQ(TU::memAlive(), aliveStart);
 }
 
 // Sized, unsized and nothrow deletes must all account the same bytes for the same block.
